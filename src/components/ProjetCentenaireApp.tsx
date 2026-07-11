@@ -967,7 +967,7 @@ export function ProjetCentenaireApp() {
   };
 
   const renderToday = () => (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <header className="space-y-1">
         <div className="flex items-baseline justify-between gap-4">
           <h1 className="font-serif text-3xl leading-tight text-[#171512]">
@@ -977,20 +977,23 @@ export function ProjetCentenaireApp() {
         </div>
       </header>
 
-      <section className="rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_26px_rgba(23,21,18,0.045)]">
+      <section className="rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-2.5 shadow-[0_10px_26px_rgba(23,21,18,0.045)]">
         <p className={annotationClass}>Priorité active</p>
-        <p className="mt-2 text-base leading-6 text-[#171512]">
+        <p className="mt-1.5 text-base leading-6 text-[#171512]">
           {activePriorityText}
         </p>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-2.5">
         <h2 className="font-serif text-2xl leading-tight text-[#171512]">
           Aujourd’hui
         </h2>
         <div className="grid gap-3">
           <TodayTile
-            actionLabel={latestTodayWeight ? "Modifier" : "Noter"}
+            actionAriaLabel={
+              latestTodayWeight ? "Modifier le poids" : "Noter le poids"
+            }
+            actionIcon={PenLine}
             label="Poids du matin"
             size="slim"
             value={
@@ -1345,7 +1348,7 @@ export function ProjetCentenaireApp() {
   return (
     <main className="app-screen app-screen-with-nav">
       <div className="mx-auto max-w-md">
-        <header className="mb-5 flex items-center justify-center">
+        <header className="mb-3 flex items-center justify-center">
           <LogoMark className="size-12 text-[#171512]" />
         </header>
 
@@ -1721,20 +1724,25 @@ function TodayTile({
   label,
   value,
   actionLabel,
+  actionIcon: ActionIcon,
+  actionAriaLabel,
   onClick,
   size = "compact",
   tone = "quiet",
 }: {
   label: string;
   value: string;
-  actionLabel: string;
+  actionLabel?: string;
+  actionIcon?: LucideIcon;
+  actionAriaLabel?: string;
   onClick: () => void;
   size?: "wide" | "compact" | "slim";
   tone?: "quiet" | "primary";
 }) {
   const primary = tone === "primary";
   const slim = size === "slim";
-  const sizeClass = slim ? "min-h-20" : size === "wide" ? "min-h-28" : "min-h-32";
+  const iconOnly = Boolean(ActionIcon && !actionLabel);
+  const sizeClass = slim ? "min-h-[4.75rem]" : size === "wide" ? "min-h-28" : "min-h-32";
   const layoutClass = slim
     ? "flex-row items-center justify-between gap-4 px-4 py-3"
     : "flex-col justify-between p-4";
@@ -1768,9 +1776,15 @@ function TodayTile({
         </p>
       </div>
       <span
-        className={`inline-flex min-h-8 w-fit max-w-full shrink-0 items-center rounded-full px-3 text-xs font-semibold leading-4 shadow-[0_2px_8px_rgba(23,21,18,0.06)] ${slim ? "" : "mt-4"} ${actionClass}`}
+        aria-label={actionAriaLabel}
+        className={`inline-flex min-h-8 max-w-full shrink-0 items-center rounded-full text-xs font-semibold leading-4 shadow-[0_2px_8px_rgba(23,21,18,0.06)] ${iconOnly ? "size-8 justify-center px-0" : "w-fit px-3"} ${slim ? "" : "mt-4"} ${actionClass}`}
       >
-        {actionLabel}
+        {ActionIcon ? (
+          <ActionIcon aria-hidden="true" size={15} strokeWidth={2.2} />
+        ) : null}
+        {actionLabel ? (
+          <span className={ActionIcon ? "ml-1.5" : ""}>{actionLabel}</span>
+        ) : null}
       </span>
     </button>
   );
@@ -2224,8 +2238,8 @@ function TodayChronologyMeal({ meal }: { meal: MealEntry }) {
             {hungerLabels[meal.hungerBefore].toLowerCase()} ·{" "}
             {afterLabels[meal.afterMeal].toLowerCase()}
           </p>
-          <p className="mt-1 text-xs text-[#3A3732]">
-            Signal : {meal.finding.frictionPoint}
+          <p className="mt-2 inline-flex w-fit rounded-full border border-[#C7D4D2] bg-[#E6EFED]/65 px-2.5 py-1 text-xs font-semibold text-[#2F5E68]">
+            Signal · {meal.finding.frictionPoint}
           </p>
         </div>
       </div>
