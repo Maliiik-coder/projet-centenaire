@@ -1,0 +1,17 @@
+<svg width="1100" height="220" viewBox="0 0 1100 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Projet Centenaire — logo horizontal</title>
+  <desc id="desc">Version horizontale du logo Projet Centenaire.</desc>
+  <g transform="translate(20 -146) scale(0.68)">
+    <path d="M256 116 V396" stroke="#15130F" stroke-width="6" stroke-linecap="round"/>
+    <path d="M316 132 C276 103 218 107 181 144 C128 197 128 315 181 368 C218 405 276 409 316 380" stroke="#15130F" stroke-width="10" stroke-linecap="round"/>
+    <path d="M348 161 C376 194 386 239 378 282" stroke="#8C857A" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="11" fill="#15130F"/>
+    <circle cx="276" cy="134" r="2.5" fill="#15130F"/>
+    <circle cx="297" cy="143" r="3" fill="#15130F"/>
+    <circle cx="316" cy="157" r="3.8" fill="#15130F"/>
+    <circle cx="333" cy="176" r="4.6" fill="#15130F"/>
+    <circle cx="346" cy="199" r="5.3" fill="#15130F"/>
+    <circle cx="356" cy="225" r="6" fill="#15130F"/>
+  </g>
+  <text x="255" y="130" fill="#15130F" font-family="Cormorant Garamond, Georgia, serif" font-size="64" letter-spacing="6">Projet Centenaire</text>
+</svg>
