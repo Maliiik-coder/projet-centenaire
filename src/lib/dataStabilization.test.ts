@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { safeAuthNext } from "@/lib/authRedirect";
+import { afterEach, describe, expect, it } from "vitest";
+import { buildAuthCallbackUrl, safeAuthNext } from "@/lib/authRedirect";
 import {
   stabilizeSmokingEntries,
   upsertDailyWeightEntry,
@@ -83,11 +83,38 @@ describe("data stabilization", () => {
 });
 
 describe("safeAuthNext", () => {
+  const originalAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+  afterEach(() => {
+    if (originalAppUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+      return;
+    }
+
+    process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
+  });
+
   it("refuse les URLs externes et les chemins commençant par double slash", () => {
     expect(safeAuthNext("/")).toBe("/");
     expect(safeAuthNext("/carnet")).toBe("/carnet");
     expect(safeAuthNext("//evil.example")).toBe("/");
     expect(safeAuthNext("https://evil.example")).toBe("/");
     expect(safeAuthNext(null)).toBe("/");
+  });
+
+  it("construit le callback depuis NEXT_PUBLIC_APP_URL quand il existe", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://centenaire.example.com/app";
+
+    expect(buildAuthCallbackUrl("/carnet", "http://localhost:3000")).toBe(
+      "https://centenaire.example.com/auth/callback?next=%2Fcarnet",
+    );
+  });
+
+  it("retombe sur l'origine locale et garde un next securise", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "";
+
+    expect(buildAuthCallbackUrl("//evil.example", "http://localhost:3000")).toBe(
+      "http://localhost:3000/auth/callback?next=%2F",
+    );
   });
 });

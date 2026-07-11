@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { LogoHorizontal } from "@/components/Logo";
+import { buildAuthCallbackUrl, safeAuthNext } from "@/lib/authRedirect";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 const inputClass =
@@ -24,11 +25,11 @@ export function LoginForm() {
       return "/";
     }
 
-    return new URLSearchParams(window.location.search).get("next") ?? "/";
+    return safeAuthNext(new URLSearchParams(window.location.search).get("next"));
   }, []);
 
   const redirectTo = () =>
-    `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+    buildAuthCallbackUrl(nextPath, window.location.origin);
 
   const signInWithGoogle = async () => {
     const supabase = getSupabaseBrowserClient();

@@ -29,6 +29,8 @@ create table if not exists public.meal_observations (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null,
   observed_at timestamptz not null,
+  observed_date date,
+  observed_time text,
   meal_type text,
   raw_text text,
   quantity_served text,
@@ -73,8 +75,8 @@ create table if not exists public.weekly_reports (
   created_at timestamptz default now()
 );
 
-create unique index if not exists weight_entries_user_created_at_idx
-  on public.weight_entries (user_id, created_at);
+create unique index if not exists weight_entries_user_entry_date_idx
+  on public.weight_entries (user_id, entry_date);
 
 create unique index if not exists meal_observations_user_created_at_idx
   on public.meal_observations (user_id, created_at);
@@ -84,6 +86,10 @@ create unique index if not exists meal_observation_tags_unique_idx
 
 create unique index if not exists tobacco_events_user_created_at_idx
   on public.tobacco_events (user_id, created_at);
+
+create unique index if not exists tobacco_events_one_explicit_none_per_day_idx
+  on public.tobacco_events (user_id, event_date)
+  where event_type = 'aucun';
 
 create unique index if not exists weekly_reports_user_week_idx
   on public.weekly_reports (user_id, week_start);
