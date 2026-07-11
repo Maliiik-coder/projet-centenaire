@@ -125,11 +125,21 @@ const smokingStatusLabels: Record<SmokingStatus, string> = {
   arrete: "Je viens d'arrêter",
 };
 
+const onboardingSmokingLabels: Partial<Record<SmokingStatus, string>> = {
+  non: "Non",
+  "tous-les-jours": "Oui",
+};
+
 const smokingGoalLabels: Record<SmokingGoal, string> = {
   arreter: "Arrêter",
   reduire: "Réduire",
   observer: "Observer seulement",
   "pas-maintenant": "Pas maintenant",
+};
+
+const onboardingSmokingGoalLabels: Partial<Record<SmokingGoal, string>> = {
+  arreter: "Oui, je veux arrêter",
+  observer: "Pas maintenant",
 };
 
 const mealKindLabels: Record<MealKind, string> = {
@@ -337,8 +347,82 @@ function isValidProfileDraft(draft: OnboardingDraft): boolean {
     Number(draft.heightCm) >= 120 &&
     Number(draft.startWeightKg) >= 40 &&
     Number(draft.goalWeightKg) >= 40 &&
-    draft.startDate.length > 0
+    draft.startDate.length > 0 &&
+    draft.smokingStatus !== "non-renseigne" &&
+    (!needsSmokingGoal(draft.smokingStatus) ||
+      draft.smokingGoal !== "pas-maintenant")
   );
+}
+
+const onboardingFinalStep = 9;
+
+function hasNumberAtLeast(value: string, min: number): boolean {
+  return value.trim().length > 0 && Number(value) >= min;
+}
+
+function getNextOnboardingStep(
+  step: number,
+  draft: OnboardingDraft,
+): number {
+  if (step === 7 && !needsSmokingGoal(draft.smokingStatus)) {
+    return onboardingFinalStep;
+  }
+
+  return Math.min(onboardingFinalStep, step + 1);
+}
+
+function getPreviousOnboardingStep(
+  step: number,
+  draft: OnboardingDraft,
+): number {
+  if (step === onboardingFinalStep && !needsSmokingGoal(draft.smokingStatus)) {
+    return 7;
+  }
+
+  return Math.max(0, step - 1);
+}
+
+function getOnboardingStepError(
+  draft: OnboardingDraft,
+  step: number,
+): string | null {
+  if (step === 1 && draft.firstName.trim().length === 0) {
+    return "Indique ton prénom pour ouvrir le carnet.";
+  }
+
+  if (step === 2 && !hasNumberAtLeast(draft.age, 16)) {
+    return "Indique ton âge.";
+  }
+
+  if (step === 3 && !hasNumberAtLeast(draft.heightCm, 120)) {
+    return "Indique ta taille.";
+  }
+
+  if (step === 4 && !hasNumberAtLeast(draft.startWeightKg, 40)) {
+    return "Indique ton poids actuel.";
+  }
+
+  if (step === 5 && !hasNumberAtLeast(draft.goalWeightKg, 40)) {
+    return "Indique ton objectif.";
+  }
+
+  if (step === 7 && draft.smokingStatus === "non-renseigne") {
+    return "Réponds à la question tabac pour continuer.";
+  }
+
+  if (
+    step === 8 &&
+    needsSmokingGoal(draft.smokingStatus) &&
+    draft.smokingGoal === "pas-maintenant"
+  ) {
+    return "Indique si tu souhaites arrêter maintenant.";
+  }
+
+  if (step === onboardingFinalStep && !isValidProfileDraft(draft)) {
+    return "Complète les réponses précédentes pour ouvrir le carnet.";
+  }
+
+  return null;
 }
 
 function Button({
@@ -376,7 +460,7 @@ function ChoiceLine<T extends string>({
   onChange,
 }: {
   value: T;
-  options: Record<T, string>;
+  options: Partial<Record<T, string>>;
   onChange: (value: T) => void;
 }) {
   return (
@@ -650,17 +734,36 @@ export function ProjetCentenaireApp() {
         draft={onboardingDraft}
         error={error}
         step={onboardingStep}
-        onBack={() => setOnboardingStep((step) => Math.max(0, step - 1))}
-        onChange={setOnboardingDraft}
+        onBack={() =>
+          setOnboardingStep((step) =>
+            getPreviousOnboardingStep(step, onboardingDraft),
+          )
+        }
+        onAnswer={(nextDraft, nextStep) => {
+          setOnboardingDraft(nextDraft);
+          setError(null);
+          setOnboardingStep(nextStep);
+        }}
+        onChange={(nextDraft) => {
+          setOnboardingDraft(nextDraft);
+          setError(null);
+        }}
         onNext={() => {
-          if (onboardingStep === 1 && !isValidProfileDraft(onboardingDraft)) {
-            setError("Complète les données de base pour ouvrir le carnet.");
+          const stepError = getOnboardingStepError(
+            onboardingDraft,
+            onboardingStep,
+          );
+
+          if (stepError) {
+            setError(stepError);
             return;
           }
 
-          if (onboardingStep < 4) {
+          if (onboardingStep < onboardingFinalStep) {
             setError(null);
-            setOnboardingStep((step) => step + 1);
+            setOnboardingStep((step) =>
+              getNextOnboardingStep(step, onboardingDraft),
+            );
             return;
           }
 
@@ -1118,14 +1221,6 @@ export function ProjetCentenaireApp() {
                 setProfileDraft({ ...profileDraft, goalWeightKg: value })
               }
             />
-            <TextInput
-              label="Date de début"
-              type="date"
-              value={profileDraft.startDate}
-              onChange={(value) =>
-                setProfileDraft({ ...profileDraft, startDate: value })
-              }
-            />
           </ProfileSection>
           <ProfileSection title="Contexte">
             <ChoiceLine
@@ -1383,6 +1478,7 @@ function Onboarding({
   error,
   step,
   onBack,
+  onAnswer,
   onChange,
   onNext,
 }: {
@@ -1390,9 +1486,23 @@ function Onboarding({
   error: string | null;
   step: number;
   onBack: () => void;
+  onAnswer: (draft: OnboardingDraft, nextStep: number) => void;
   onChange: (draft: OnboardingDraft) => void;
   onNext: () => void;
 }) {
+  const visibleStep =
+    step === 8 && !needsSmokingGoal(draft.smokingStatus)
+      ? onboardingFinalStep
+      : step;
+  const showPrimaryAction = visibleStep <= 5 || visibleStep === onboardingFinalStep;
+  const primaryLabel =
+    visibleStep === 0
+      ? "Commencer"
+      : visibleStep === onboardingFinalStep
+        ? "Ouvrir la page du jour"
+        : "Continuer";
+  const questionClass = "mt-16 space-y-6";
+
   return (
     <main className="min-h-dvh bg-[#F6F4EC] px-5 py-8 text-[#171512]">
       <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md flex-col justify-between">
@@ -1401,7 +1511,7 @@ function Onboarding({
             markClassName="size-10 shrink-0 text-[#171512]"
             textClassName="whitespace-nowrap font-serif text-xl leading-none text-[#171512]"
           />
-          {step === 0 ? (
+          {visibleStep === 0 ? (
             <div className="mt-24 space-y-6">
               <h1 className="font-serif text-4xl leading-tight">
                 Un carnet pour observer les faits.
@@ -1409,103 +1519,143 @@ function Onboarding({
               <p className="text-xl text-[#3A3732]">Pas les calories.</p>
             </div>
           ) : null}
-          {step === 1 ? (
-            <div className="mt-10 space-y-6">
-              <h1 className="font-serif text-3xl leading-tight">Profil de base</h1>
+          {visibleStep === 1 ? (
+            <div className={questionClass}>
+              <h1 className="font-serif text-3xl leading-tight">
+                Comment tu veux qu’on t’appelle ?
+              </h1>
               <p className="leading-7 text-[#3A3732]">
-                Ces données servent uniquement à mesurer l’évolution. Elles ne
-                définissent pas ta valeur.
+                Le carnet utilise ce prénom uniquement dans l’application.
               </p>
               <TextInput
                 label="Prénom"
                 value={draft.firstName}
                 onChange={(value) => onChange({ ...draft, firstName: value })}
               />
+            </div>
+          ) : null}
+          {visibleStep === 2 ? (
+            <div className={questionClass}>
+              <h1 className="font-serif text-3xl leading-tight">
+                Quel âge as-tu ?
+              </h1>
               <TextInput
                 label="Âge"
                 type="number"
                 value={draft.age}
                 onChange={(value) => onChange({ ...draft, age: value })}
               />
+            </div>
+          ) : null}
+          {visibleStep === 3 ? (
+            <div className={questionClass}>
+              <h1 className="font-serif text-3xl leading-tight">
+                Quelle est ta taille ?
+              </h1>
               <TextInput
                 label="Taille en cm"
                 type="number"
                 value={draft.heightCm}
                 onChange={(value) => onChange({ ...draft, heightCm: value })}
               />
+            </div>
+          ) : null}
+          {visibleStep === 4 ? (
+            <div className={questionClass}>
+              <h1 className="font-serif text-3xl leading-tight">
+                Quel est ton poids actuel ?
+              </h1>
               <TextInput
-                label="Poids actuel"
+                label="Poids en kg"
                 type="number"
                 value={draft.startWeightKg}
                 onChange={(value) =>
                   onChange({ ...draft, startWeightKg: value })
                 }
               />
+            </div>
+          ) : null}
+          {visibleStep === 5 ? (
+            <div className={questionClass}>
+              <h1 className="font-serif text-3xl leading-tight">
+                Quel objectif veux-tu viser ?
+              </h1>
+              <p className="leading-7 text-[#3A3732]">
+                Un repère suffit. Il pourra changer plus tard.
+              </p>
               <TextInput
-                label="Poids objectif"
+                label="Objectif en kg"
                 type="number"
                 value={draft.goalWeightKg}
                 onChange={(value) => onChange({ ...draft, goalWeightKg: value })}
               />
-              <TextInput
-                label="Date de début"
-                type="date"
-                value={draft.startDate}
-                onChange={(value) => onChange({ ...draft, startDate: value })}
-              />
             </div>
           ) : null}
-          {step === 2 ? (
-            <div className="mt-10 space-y-6">
+          {visibleStep === 6 ? (
+            <div className={questionClass}>
               <h1 className="font-serif text-3xl leading-tight">
                 Quel point semble le plus te freiner aujourd’hui ?
               </h1>
               <ChoiceLine
                 options={frictionLabels}
                 value={draft.initialFriction}
-                onChange={(value) => onChange({ ...draft, initialFriction: value })}
+                onChange={(value) => {
+                  const nextDraft = { ...draft, initialFriction: value };
+                  onAnswer(
+                    nextDraft,
+                    getNextOnboardingStep(visibleStep, nextDraft),
+                  );
+                }}
               />
               <p className="leading-7 text-[#7A7166]">
                 Ce choix n’est pas définitif. Les données pourront te contredire.
               </p>
             </div>
           ) : null}
-          {step === 3 ? (
-            <div className="mt-10 space-y-6">
+          {visibleStep === 7 ? (
+            <div className={questionClass}>
               <h1 className="font-serif text-3xl leading-tight">
-                Fumez-vous actuellement ?
+                Tu fumes actuellement ?
               </h1>
               <ChoiceLine
-                options={smokingStatusLabels}
+                options={onboardingSmokingLabels}
                 value={draft.smokingStatus}
-                onChange={(value) =>
-                  onChange({
+                onChange={(value) => {
+                  const nextDraft = {
                     ...draft,
                     smokingStatus: value,
-                    smokingGoal: needsSmokingGoal(value)
-                      ? draft.smokingGoal
-                      : "pas-maintenant",
-                  })
-                }
+                    smokingGoal: "pas-maintenant" as SmokingGoal,
+                  };
+                  onAnswer(
+                    nextDraft,
+                    getNextOnboardingStep(visibleStep, nextDraft),
+                  );
+                }}
               />
-              {needsSmokingGoal(draft.smokingStatus) ? (
-                <>
-                  <h2 className="font-serif text-2xl">
-                    Quel objectif voulez-vous suivre ?
-                  </h2>
-                  <ChoiceLine
-                    options={smokingGoalLabels}
-                    value={draft.smokingGoal}
-                    onChange={(value) => onChange({ ...draft, smokingGoal: value })}
-                  />
-                </>
-              ) : null}
               <p className="leading-7 text-[#7A7166]">
                 Le tabac sera suivi séparément de l’alimentation.
               </p>
             </div>
           ) : null}
-          {step === 4 ? (
+          {visibleStep === 8 ? (
+            <div className={questionClass}>
+              <h1 className="font-serif text-3xl leading-tight">
+                Souhaites-tu arrêter ?
+              </h1>
+              <ChoiceLine
+                options={onboardingSmokingGoalLabels}
+                value={draft.smokingGoal}
+                onChange={(value) => {
+                  const nextDraft = { ...draft, smokingGoal: value };
+                  onAnswer(nextDraft, onboardingFinalStep);
+                }}
+              />
+              <p className="leading-7 text-[#7A7166]">
+                Cette réponse sert seulement à adapter le suivi tabac.
+              </p>
+            </div>
+          ) : null}
+          {visibleStep === onboardingFinalStep ? (
             <div className="mt-24 space-y-6">
               <p className={annotationClass}>Priorité initiale</p>
               <h1 className="font-serif text-3xl leading-tight">
@@ -1523,7 +1673,7 @@ function Onboarding({
           ) : null}
         </div>
         <div className="mt-8 flex items-center justify-between gap-3">
-          {step > 0 ? (
+          {visibleStep > 0 ? (
             <Button onClick={onBack} variant="line">
               <ChevronLeft aria-hidden="true" size={17} />
               Retour
@@ -1531,10 +1681,14 @@ function Onboarding({
           ) : (
             <span />
           )}
-          <Button onClick={onNext}>
-            {step === 0 ? "Commencer" : step === 4 ? "Ouvrir la page du jour" : "Continuer"}
-            <ChevronRight aria-hidden="true" size={17} />
-          </Button>
+          {showPrimaryAction ? (
+            <Button onClick={onNext}>
+              {primaryLabel}
+              <ChevronRight aria-hidden="true" size={17} />
+            </Button>
+          ) : (
+            <span />
+          )}
         </div>
       </div>
     </main>
