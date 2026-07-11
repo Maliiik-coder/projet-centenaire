@@ -3,7 +3,7 @@ import { LogoHorizontal } from "@/components/Logo";
 
 export default function OfflinePage() {
   return (
-    <main className="min-h-dvh bg-[#F6F4EC] px-5 py-8 text-[#171512]">
+    <main className="app-screen">
       <section className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center gap-6">
         <LogoHorizontal
           markClassName="size-11 shrink-0 text-[#171512]"

@@ -3,6 +3,11 @@
 :root {
   --background: #f6f4ec;
   --foreground: #171512;
+  --app-gutter: clamp(1rem, 5vw, 1.5rem);
+  --app-safe-top: max(1rem, env(safe-area-inset-top));
+  --app-safe-bottom: max(1rem, env(safe-area-inset-bottom));
+  --app-safe-left: max(var(--app-gutter), env(safe-area-inset-left));
+  --app-safe-right: max(var(--app-gutter), env(safe-area-inset-right));
 }
 
 @theme inline {
@@ -15,13 +20,23 @@
 html {
   background: var(--background);
   color-scheme: light;
+  min-height: 100%;
+  overflow-x: clip;
 }
 
 body {
   min-width: 320px;
+  min-height: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: clip;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 button,
@@ -29,6 +44,58 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+  font-size: 16px;
+}
+
+.app-screen {
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  background: var(--background);
+  color: var(--foreground);
+  padding-left: var(--app-safe-left);
+  padding-right: var(--app-safe-right);
+  padding-top: calc(var(--app-safe-top) + 0.5rem);
+  padding-bottom: calc(var(--app-safe-bottom) + 0.5rem);
+}
+
+.app-screen-with-nav {
+  padding-bottom: calc(6.5rem + var(--app-safe-bottom));
+}
+
+.app-inner-screen {
+  min-height: calc(100svh - var(--app-safe-top) - var(--app-safe-bottom) - 1rem);
+}
+
+@supports (min-height: 100dvh) {
+  .app-inner-screen {
+    min-height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom) - 1rem);
+  }
+}
+
+.app-fixed-panel {
+  position: fixed;
+  inset: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  background: var(--background);
+  color: var(--foreground);
+  padding-left: var(--app-safe-left);
+  padding-right: var(--app-safe-right);
+  padding-top: calc(var(--app-safe-top) + 0.5rem);
+  padding-bottom: calc(var(--app-safe-bottom) + 0.5rem);
+}
+
+.app-bottom-nav {
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+  padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
 }
 
 input[type="number"] {

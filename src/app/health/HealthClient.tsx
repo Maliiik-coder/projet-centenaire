@@ -62,8 +62,8 @@ export function HealthClient({ status }: { status: HealthStatus }) {
   ];
 
   return (
-    <main className="min-h-dvh bg-[#F6F4EC] px-5 py-6 text-[#171512]">
-      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] max-w-md flex-col gap-8">
+    <main className="app-screen">
+      <div className="app-inner-screen mx-auto flex max-w-md flex-col gap-8">
         <header className="flex items-center justify-between gap-4">
           <LogoHorizontal
             markClassName="size-12 shrink-0 text-[#171512]"

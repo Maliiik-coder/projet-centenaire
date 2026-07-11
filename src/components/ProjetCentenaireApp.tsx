@@ -507,7 +507,7 @@ function PageTitle({
 
 function LoadingScreen() {
   return (
-    <main className="min-h-dvh bg-[#F6F4EC] px-5 py-8 text-[#171512]">
+    <main className="app-screen">
       <div className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center gap-4">
         <LogoFull
           className="items-start"
@@ -1343,7 +1343,7 @@ export function ProjetCentenaireApp() {
   }[activeTab]();
 
   return (
-    <main className="min-h-dvh bg-[#F6F4EC] px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-6 text-[#171512]">
+    <main className="app-screen app-screen-with-nav">
       <div className="mx-auto max-w-md">
         <header className="mb-5 flex items-center justify-center">
           <LogoMark className="size-12 text-[#171512]" />
@@ -1446,7 +1446,7 @@ export function ProjetCentenaireApp() {
         />
       ) : null}
 
-      <nav className="fixed inset-x-0 bottom-0 bg-transparent px-3 pb-[calc(0.6rem+env(safe-area-inset-bottom))] pt-2">
+      <nav className="app-bottom-nav fixed inset-x-0 bottom-0 bg-transparent pt-2">
         <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-[26px] border border-[#DDD5C7] bg-[#FAF8F1]/95 p-1 shadow-[0_16px_34px_rgba(23,21,18,0.12)] backdrop-blur">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -1501,18 +1501,40 @@ function Onboarding({
       : visibleStep === onboardingFinalStep
         ? "Ouvrir la page du jour"
         : "Continuer";
-  const questionClass = "mt-16 space-y-6";
+  const progressStep = Math.min(visibleStep, onboardingFinalStep - 1);
+  const progressPercent =
+    visibleStep === onboardingFinalStep
+      ? 100
+      : Math.max(0, Math.round((progressStep / (onboardingFinalStep - 1)) * 100));
+  const questionClass =
+    "mt-8 space-y-6 rounded-[28px] border border-[#DDD5C7] bg-[#FAF8F1] p-5 shadow-[0_16px_34px_rgba(23,21,18,0.07)]";
 
   return (
-    <main className="min-h-dvh bg-[#F6F4EC] px-5 py-8 text-[#171512]">
-      <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md flex-col justify-between">
-        <div>
+    <main className="app-screen">
+      <div className="app-inner-screen mx-auto flex max-w-md flex-col">
+        <div className="min-w-0">
           <LogoHorizontal
-            markClassName="size-10 shrink-0 text-[#171512]"
-            textClassName="whitespace-nowrap font-serif text-xl leading-none text-[#171512]"
+            markClassName="size-12 shrink-0 text-[#171512]"
+            textClassName="hidden whitespace-nowrap font-serif text-xl leading-none text-[#171512] min-[430px]:inline"
           />
+          {visibleStep > 0 && visibleStep < onboardingFinalStep ? (
+            <div className="mt-8 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <p className={annotationClass}>Profil initial</p>
+                <p className="text-xs font-semibold tabular-nums text-[#7A7166]">
+                  {progressStep}/{onboardingFinalStep - 1}
+                </p>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-[#E6DFD3]">
+                <div
+                  className="h-full rounded-full bg-[#3E6670] transition-[width] duration-200"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
           {visibleStep === 0 ? (
-            <div className="mt-24 space-y-6">
+            <div className="mt-[clamp(3rem,14svh,7rem)] space-y-6 rounded-[28px] border border-[#DDD5C7] bg-[#FAF8F1] p-5 shadow-[0_16px_34px_rgba(23,21,18,0.07)]">
               <h1 className="font-serif text-4xl leading-tight">
                 Un carnet pour observer les faits.
               </h1>
@@ -1672,7 +1694,7 @@ function Onboarding({
             </p>
           ) : null}
         </div>
-        <div className="mt-8 flex items-center justify-between gap-3">
+        <div className="mt-6 flex items-center justify-between gap-3">
           {visibleStep > 0 ? (
             <Button onClick={onBack} variant="line">
               <ChevronLeft aria-hidden="true" size={17} />
@@ -1764,8 +1786,8 @@ function ActionPanel({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-30 bg-[#F6F4EC] px-5 py-6 text-[#171512]">
-      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] max-w-md flex-col">
+    <div className="app-fixed-panel z-30">
+      <div className="app-inner-screen mx-auto flex max-w-md flex-col">
         <div className="flex flex-col items-start gap-3 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_22px_rgba(23,21,18,0.045)] min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
           <h1 className="font-serif text-2xl leading-tight min-[390px]:text-3xl">{title}</h1>
           <button
@@ -1924,8 +1946,8 @@ function MealObservation({
   const tagsToShow = editingTags ? componentKeys : detectedTags;
 
   return (
-    <div className="fixed inset-0 z-30 overflow-y-auto bg-[#F6F4EC] px-5 py-6 text-[#171512]">
-      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] max-w-md flex-col">
+    <div className="app-fixed-panel z-30">
+      <div className="app-inner-screen mx-auto flex max-w-md flex-col">
         <div className="mb-8 flex items-center justify-between rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
           <p className={annotationClass}>
             Observation {step + 1}/{MEAL_TUNNEL_STEPS}

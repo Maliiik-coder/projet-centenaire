@@ -108,8 +108,8 @@ export function LoginForm() {
   };
 
   return (
-    <main className="min-h-dvh bg-[#F6F4EC] px-5 py-6 text-[#171512]">
-      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] max-w-md flex-col">
+    <main className="app-screen">
+      <div className="app-inner-screen mx-auto flex max-w-md flex-col">
         <header className="mb-8 flex flex-col items-start gap-2 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_22px_rgba(23,21,18,0.045)] min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
           <LogoHorizontal
             className="min-w-0"
