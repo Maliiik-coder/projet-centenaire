@@ -118,6 +118,7 @@ const frictionLabels: Record<FrictionChoice, string> = {
 };
 
 const smokingStatusLabels: Record<SmokingStatus, string> = {
+  "non-renseigne": "Non renseigné",
   non: "Non",
   occasionnellement: "Occasionnellement",
   "tous-les-jours": "Tous les jours",
@@ -310,7 +311,7 @@ function initialPriorityText(friction: FrictionChoice): string {
 }
 
 function needsSmokingGoal(status: SmokingStatus): boolean {
-  return status !== "non";
+  return status !== "non" && status !== "non-renseigne";
 }
 
 function buildProfile(draft: OnboardingDraft): Profile {
@@ -447,15 +448,15 @@ export function ProjetCentenaireApp() {
   const [pendingSync, setPendingSync] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraft>({
-    firstName: "Mickael",
-    age: "38",
-    heightCm: "200",
-    startWeightKg: "150",
-    goalWeightKg: "100",
+    firstName: "",
+    age: "",
+    heightCm: "",
+    startWeightKg: "",
+    goalWeightKg: "",
     startDate: today,
     initialFriction: "unknown",
-    smokingStatus: "non",
-    smokingGoal: "observer",
+    smokingStatus: "non-renseigne",
+    smokingGoal: "pas-maintenant",
   });
   const [mealOpen, setMealOpen] = useState(false);
   const [mealStep, setMealStep] = useState(0);
@@ -1420,15 +1421,17 @@ function Onboarding({
                 value={draft.firstName}
                 onChange={(value) => onChange({ ...draft, firstName: value })}
               />
-              <NumberInput
+              <TextInput
                 label="Âge"
-                value={Number(draft.age)}
-                onChange={(value) => onChange({ ...draft, age: String(value) })}
+                type="number"
+                value={draft.age}
+                onChange={(value) => onChange({ ...draft, age: value })}
               />
-              <NumberInput
+              <TextInput
                 label="Taille en cm"
-                value={Number(draft.heightCm)}
-                onChange={(value) => onChange({ ...draft, heightCm: String(value) })}
+                type="number"
+                value={draft.heightCm}
+                onChange={(value) => onChange({ ...draft, heightCm: value })}
               />
               <TextInput
                 label="Poids actuel"

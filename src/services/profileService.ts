@@ -23,12 +23,13 @@ function normalizeFriction(value: string | null): FrictionChoice {
 }
 
 function normalizeSmokingStatus(value: string | null): SmokingStatus {
-  return value === "non" ||
+  return value === "non-renseigne" ||
+    value === "non" ||
     value === "occasionnellement" ||
     value === "tous-les-jours" ||
     value === "arrete"
     ? value
-    : "non";
+    : "non-renseigne";
 }
 
 function normalizeSmokingGoal(value: string | null): SmokingGoal | undefined {
@@ -58,6 +59,7 @@ function fromProfileRow(row: ProfileRow): Profile {
 
 function toProfileInsert(userId: string, profile: Profile): ProfileInsert {
   const smokingEnabled =
+    profile.smokingStatus !== "non-renseigne" &&
     profile.smokingStatus !== "non" &&
     profile.smokingGoal !== undefined &&
     profile.smokingGoal !== "pas-maintenant";

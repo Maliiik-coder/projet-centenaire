@@ -9,8 +9,22 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 let browserClient: SupabaseClient<Database> | null = null;
 
+function isValidHttpUrl(value: string | undefined): value is string {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function isSupabaseConfigured(): boolean {
-  return Boolean(supabaseUrl && supabaseAnonKey);
+  return isValidHttpUrl(supabaseUrl) && Boolean(supabaseAnonKey);
 }
 
 export function getSupabaseBrowserClient(): SupabaseClient<Database> | null {
@@ -18,10 +32,14 @@ export function getSupabaseBrowserClient(): SupabaseClient<Database> | null {
     return null;
   }
 
-  browserClient ??= createBrowserClient<Database>(
-    supabaseUrl as string,
-    supabaseAnonKey as string,
-  );
+  const url = supabaseUrl as string;
+  const anonKey = supabaseAnonKey as string;
+
+  try {
+    browserClient ??= createBrowserClient<Database>(url, anonKey);
+  } catch {
+    return null;
+  }
 
   return browserClient;
 }

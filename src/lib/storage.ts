@@ -63,12 +63,13 @@ function normalizeFriction(value: unknown): FrictionChoice {
 }
 
 function normalizeSmokingStatus(value: unknown): SmokingStatus {
-  return value === "non" ||
+  return value === "non-renseigne" ||
+    value === "non" ||
     value === "occasionnellement" ||
     value === "tous-les-jours" ||
     value === "arrete"
     ? value
-    : "non";
+    : "non-renseigne";
 }
 
 function normalizeSmokingGoal(value: unknown): SmokingGoal | undefined {

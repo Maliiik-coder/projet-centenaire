@@ -3,6 +3,7 @@ import {
   EMPTY_COMPONENTS,
   buildImmediateFinding,
   calculateWeeklyAnalysis,
+  isSmokingTrackingEnabled,
 } from "@/lib/analytics";
 import type { AppData, MealEntry, Profile } from "@/lib/types";
 
@@ -271,6 +272,20 @@ describe("calculateWeeklyAnalysis", () => {
 
     expect(analysis.smokingEntries).toBe(0);
     expect(analysis.smokeFreeDays).toBe(0);
+  });
+
+  it("ne considère pas le tabac non renseigné comme un suivi actif", () => {
+    expect(
+      isSmokingTrackingEnabled(
+        data([], {
+          profile: {
+            ...profile,
+            smokingStatus: "non-renseigne",
+            smokingGoal: undefined,
+          },
+        }),
+      ),
+    ).toBe(false);
   });
 
   it("conserve l'analyse repas malgré les données stabilisées autour", () => {

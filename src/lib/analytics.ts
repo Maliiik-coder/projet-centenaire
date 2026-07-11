@@ -435,6 +435,7 @@ export function isActivityCompleted(activity?: ActivityEntry | null): boolean {
 export function isSmokingTrackingEnabled(data: AppData): boolean {
   return (
     data.profile?.smokingStatus !== undefined &&
+    data.profile.smokingStatus !== "non-renseigne" &&
     data.profile.smokingStatus !== "non" &&
     data.profile.smokingGoal !== undefined &&
     data.profile.smokingGoal !== "pas-maintenant"

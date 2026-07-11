@@ -9,6 +9,7 @@ export type FrictionChoice =
   | "unknown";
 
 export type SmokingStatus =
+  | "non-renseigne"
   | "non"
   | "occasionnellement"
   | "tous-les-jours"
