@@ -618,7 +618,7 @@ function Button({
     <button
       className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/35 active:translate-y-px active:scale-[0.99] ${classes}`}
       type={type}
-      onClick={onClick}
+      onClick={() => onClick?.()}
     >
       {children}
     </button>
