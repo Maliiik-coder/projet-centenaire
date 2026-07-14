@@ -27,6 +27,8 @@ export interface Profile {
   initialFriction: FrictionChoice;
   smokingStatus: SmokingStatus;
   smokingGoal?: SmokingGoal;
+  showActiveMission: boolean;
+  darkMode: boolean;
   weeklyActivityGoal: number;
   createdAt: string;
 }
@@ -44,7 +46,13 @@ export interface MealComponents {
   alcohol: boolean;
 }
 
-export type MealKind = "dejeuner" | "diner" | "collation" | "autre";
+export type MealKind =
+  | "petit-dejeuner"
+  | "dejeuner"
+  | "diner"
+  | "grignotage"
+  | "collation"
+  | "autre";
 export type ServedQuantity =
   | "reasonable-plate"
   | "loaded-plate"

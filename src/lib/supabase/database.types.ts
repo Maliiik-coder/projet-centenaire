@@ -23,6 +23,8 @@ export interface Database {
           smoking_status: string | null;
           smoking_goal: string | null;
           initial_friction: string | null;
+          show_active_mission: boolean;
+          dark_mode: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -39,6 +41,8 @@ export interface Database {
           smoking_status?: string | null;
           smoking_goal?: string | null;
           initial_friction?: string | null;
+          show_active_mission?: boolean;
+          dark_mode?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -53,6 +57,8 @@ export interface Database {
           smoking_status?: string | null;
           smoking_goal?: string | null;
           initial_friction?: string | null;
+          show_active_mission?: boolean;
+          dark_mode?: boolean;
           updated_at?: string;
         };
         Relationships: [];

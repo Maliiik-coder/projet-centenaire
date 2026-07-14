@@ -6,7 +6,7 @@ export default function OfflinePage() {
     <main className="app-screen">
       <section className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center gap-6">
         <LogoHorizontal
-          markClassName="size-11 shrink-0 text-[#171512]"
+          markClassName="h-11 w-auto shrink-0 text-[#171512]"
           textClassName="whitespace-nowrap font-serif text-2xl leading-none text-[#171512]"
         />
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7A7166]">

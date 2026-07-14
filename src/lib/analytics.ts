@@ -34,32 +34,126 @@ const componentKeywords: Array<{
 }> = [
   {
     key: "proteins",
-    words: ["steak", "poulet", "oeuf", "œuf", "thon", "poisson", "viande", "jambon"],
+    words: [
+      "bacon",
+      "boeuf",
+      "dinde",
+      "jambon",
+      "lardon",
+      "merguez",
+      "oeuf",
+      "omelette",
+      "poisson",
+      "porc",
+      "poulet",
+      "saumon",
+      "saucisse",
+      "steak",
+      "thon",
+      "viande",
+    ],
   },
   {
     key: "vegetables",
-    words: ["salade", "haricot", "courgette", "tomate", "legume", "légume"],
+    words: [
+      "aubergine",
+      "brocoli",
+      "carotte",
+      "champignon",
+      "concombre",
+      "courgette",
+      "epinard",
+      "haricot",
+      "legume",
+      "lentille",
+      "oignon",
+      "poireau",
+      "poivron",
+      "salade",
+      "tomate",
+    ],
   },
   {
     key: "starches",
-    words: ["pate", "pâtes", "riz", "pain", "frites", "pomme de terre", "semoule"],
+    words: [
+      "bagel",
+      "biscotte",
+      "brioche",
+      "cereale",
+      "croissant",
+      "frites",
+      "galette",
+      "muffin",
+      "pain",
+      "pate",
+      "pizza",
+      "pomme de terre",
+      "quinoa",
+      "riz",
+      "semoule",
+      "tortilla",
+      "wrap",
+    ],
   },
-  { key: "fried", words: ["frit", "frites", "beignet", "nuggets"] },
-  { key: "dessert", words: ["dessert", "gateau", "gâteau", "glace", "tarte"] },
+  {
+    key: "fried",
+    words: ["beignet", "chips", "cordon bleu", "frit", "frites", "nuggets", "pane"],
+  },
+  {
+    key: "dessert",
+    words: [
+      "bonbon",
+      "brownie",
+      "chocolat",
+      "cookie",
+      "dessert",
+      "flan",
+      "gateau",
+      "glace",
+      "muffin",
+      "tarte",
+    ],
+  },
   {
     key: "richSauce",
-    words: ["sauce", "mayonnaise", "fromage", "creme", "crème"],
+    words: [
+      "beurre",
+      "cheddar",
+      "creme",
+      "fromage",
+      "ketchup",
+      "mayonnaise",
+      "mozzarella",
+      "raclette",
+      "sauce",
+    ],
   },
   {
     key: "ultraProcessed",
-    words: ["burger", "pizza", "kebab", "chips", "nuggets", "sandwich industriel"],
+    words: [
+      "bacon",
+      "burger",
+      "chips",
+      "cordon bleu",
+      "hot dog",
+      "kebab",
+      "muffin",
+      "nuggets",
+      "pizza",
+      "sandwich industriel",
+      "saucisse",
+      "viennoiserie",
+    ],
   },
   {
     key: "sugaryDrink",
-    words: ["coca", "soda", "jus", "ice tea", "limonade"],
+    words: ["coca", "ice tea", "jus", "limonade", "orangina", "soda", "sprite"],
   },
-  { key: "zeroDrink", words: ["zero", "zéro", "light"] },
-  { key: "alcohol", words: ["vin", "biere", "bière", "alcool", "whisky"] },
+  { key: "zeroDrink", words: ["coca zero", "light", "pepsi max", "zero"] },
+  {
+    key: "alcohol",
+    words: ["alcool", "aperitif", "biere", "champagne", "cocktail", "vin", "whisky"],
+  },
 ];
 
 export function roundOne(value: number): number {
@@ -67,7 +161,11 @@ export function roundOne(value: number): number {
 }
 
 export function detectMealComponents(text: string): MealComponents {
-  const normalized = text.toLowerCase();
+  const normalized = text
+    .toLowerCase()
+    .replaceAll("œ", "oe")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
 
   return componentKeywords.reduce<MealComponents>(
     (components, item) => ({
@@ -82,7 +180,7 @@ export function buildImmediateFinding(
   quantity: ServedQuantity,
   hungerBefore: HungerBefore,
   afterMeal: MealAfter,
-  snackingAfter: SnackingAfter,
+  _snackingAfter: SnackingAfter,
   stopReason: StopReason = "rassasie",
 ) {
   const importantQuantity =
@@ -92,11 +190,6 @@ export function buildImmediateFinding(
   const multiPlate =
     quantity === "two-plates" || quantity === "three-plus-plates";
   const tooFull = afterMeal === "trop-plein" || afterMeal === "inconfortable";
-  const importantSnacking = snackingAfter === "oui-important";
-  const addSnackingSignal = (reading: string) =>
-    importantSnacking
-      ? `${reading} Le grignotage important après le repas ajoute aussi un signal à surveiller.`
-      : reading;
   const finding = ({
     fact,
     reading,
@@ -109,7 +202,7 @@ export function buildImmediateFinding(
     frictionPoint: string;
   }) => ({
     fact,
-    reading: addSnackingSignal(reading),
+    reading,
     nextAction,
     frictionPoint,
     evidenceLevel: "observation unique" as const,
@@ -119,8 +212,7 @@ export function buildImmediateFinding(
     quantity === "reasonable-plate" &&
     (hungerBefore === "vraie-faim" || hungerBefore === "tres-faim") &&
     afterMeal === "satisfait" &&
-    (stopReason === "rassasie" || stopReason === "arret-volontaire") &&
-    snackingAfter === "non"
+    (stopReason === "rassasie" || stopReason === "arret-volontaire")
   ) {
     return finding({
       fact: "Repas cohérent.",
@@ -164,7 +256,7 @@ export function buildImmediateFinding(
     });
   }
 
-  if (quantity === "loaded-plate" && afterMeal === "satisfait" && snackingAfter === "non") {
+  if (quantity === "loaded-plate" && afterMeal === "satisfait") {
     return finding({
       fact: "Une assiette chargée, mais un repas cohérent.",
       reading:
@@ -172,17 +264,6 @@ export function buildImmediateFinding(
       nextAction:
         "Ne corrige rien brutalement. Observe si ce type de portion revient souvent.",
       frictionPoint: "portion initiale",
-    });
-  }
-
-  if (importantSnacking) {
-    return finding({
-      fact: "Grignotage sans faim ajouté.",
-      reading:
-        "Le contenu du repas compte moins ici que l’automatisme après le repas.",
-      nextAction:
-        "Identifier le déclencheur : ennui, stress, hôtel, voiture ou habitude.",
-      frictionPoint: "contexte",
     });
   }
 
@@ -279,6 +360,17 @@ export function calculatePriority({
     );
   }
 
+  if (snackingWithoutHunger >= 2) {
+    return priority(
+      "context",
+      "Priorité contexte",
+      snackingWithoutHunger >= 3 ? "tendance confirmée" : "tendance",
+      `${snackingWithoutHunger} épisodes de grignotage sans faim sont notés.`,
+      "Noter le lieu et l’heure du prochain épisode avant toute correction.",
+      "alimentation",
+    );
+  }
+
   const noHungerRatio = mealsStartedWithoutHunger / mealCount;
   if (noHungerRatio >= 0.3) {
     return priority(
@@ -299,17 +391,6 @@ export function calculatePriority({
       getEvidenceLevel(tooFullRatio),
       `${mealsEndedTooFull} repas sur ${mealCount} se terminent trop plein.`,
       "Réduire légèrement le volume de départ au repas similaire suivant.",
-      "alimentation",
-    );
-  }
-
-  if (snackingWithoutHunger >= 2) {
-    return priority(
-      "context",
-      "Priorité contexte",
-      snackingWithoutHunger >= 3 ? "tendance confirmée" : "tendance",
-      `${snackingWithoutHunger} épisodes de grignotage sans faim sont notés.`,
-      "Noter le lieu et l’heure du prochain épisode avant toute correction.",
       "alimentation",
     );
   }
@@ -336,10 +417,6 @@ function getAverageWeight(weights: WeightEntry[]): number | null {
 
 function isTooFull(value: MealAfter): boolean {
   return value === "trop-plein" || value === "inconfortable";
-}
-
-function hasSnackingAfter(value: SnackingAfter): boolean {
-  return value === "oui-leger" || value === "oui-important";
 }
 
 export function calculateWeeklyAnalysis(
@@ -375,7 +452,7 @@ export function calculateWeeklyAnalysis(
   ).length;
   const mealsEndedTooFull = meals.filter((meal) => isTooFull(meal.afterMeal)).length;
   const snackingWithoutHunger = meals.filter((meal) =>
-    hasSnackingAfter(meal.snackingAfter),
+    meal.kind === "grignotage" && meal.hungerBefore === "pas-faim",
   ).length;
   const activityGoal = data.profile?.weeklyActivityGoal ?? 5;
   const smokeFreeDates = new Set(

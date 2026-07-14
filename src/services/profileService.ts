@@ -52,6 +52,8 @@ function fromProfileRow(row: ProfileRow): Profile {
     initialFriction: normalizeFriction(row.initial_friction),
     smokingStatus: normalizeSmokingStatus(row.smoking_status),
     smokingGoal: normalizeSmokingGoal(row.smoking_goal),
+    showActiveMission: row.show_active_mission ?? true,
+    darkMode: row.dark_mode ?? false,
     weeklyActivityGoal: 5,
     createdAt: row.created_at,
   };
@@ -76,6 +78,8 @@ function toProfileInsert(userId: string, profile: Profile): ProfileInsert {
     smoking_status: profile.smokingStatus,
     smoking_goal: profile.smokingGoal ?? null,
     initial_friction: profile.initialFriction,
+    show_active_mission: profile.showActiveMission,
+    dark_mode: profile.darkMode,
     created_at: profile.createdAt,
     updated_at: new Date().toISOString(),
   };

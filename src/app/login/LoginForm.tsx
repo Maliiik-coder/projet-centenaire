@@ -113,7 +113,7 @@ export function LoginForm() {
         <header className="mb-8 flex flex-col items-start gap-2 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_22px_rgba(23,21,18,0.045)] min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
           <LogoHorizontal
             className="min-w-0"
-            markClassName="size-10 shrink-0 text-[#171512]"
+            markClassName="h-10 w-auto shrink-0 text-[#171512]"
             textClassName="whitespace-nowrap font-serif text-xl leading-none text-[#171512]"
           />
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7A7166] min-[390px]:shrink-0">

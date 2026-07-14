@@ -3,6 +3,7 @@ import {
   EMPTY_COMPONENTS,
   buildImmediateFinding,
   calculateWeeklyAnalysis,
+  detectMealComponents,
   isSmokingTrackingEnabled,
 } from "@/lib/analytics";
 import type { AppData, MealEntry, Profile } from "@/lib/types";
@@ -17,6 +18,8 @@ const profile: Profile = {
   initialFriction: "unknown",
   smokingStatus: "tous-les-jours",
   smokingGoal: "observer",
+  showActiveMission: true,
+  darkMode: false,
   weeklyActivityGoal: 5,
   createdAt: "2026-07-06T08:00:00.000Z",
 };
@@ -165,7 +168,7 @@ describe("calculateWeeklyAnalysis", () => {
     expect(finding.nextAction).toContain("attendre 10 minutes");
   });
 
-  it("mentionne obligatoirement le grignotage important", () => {
+  it("ignore l'ancien champ de grignotage post-repas dans le constat immédiat", () => {
     const finding = buildImmediateFinding(
       "two-plates",
       "vraie-faim",
@@ -175,14 +178,14 @@ describe("calculateWeeklyAnalysis", () => {
     );
 
     expect(finding.fact).toBe("Resservice observé.");
-    expect(finding.reading).toContain("grignotage important");
+    expect(finding.reading).not.toContain("après le repas");
   });
 
-  it("détecte la priorité grignotage", () => {
+  it("détecte la priorité grignotage depuis le type de repas", () => {
     const analysis = calculateWeeklyAnalysis(
       data([
-        meal("1", { snackingAfter: "oui-leger" }),
-        meal("2", { snackingAfter: "oui-important" }),
+        meal("1", { kind: "grignotage", hungerBefore: "pas-faim" }),
+        meal("2", { kind: "grignotage", hungerBefore: "pas-faim" }),
         meal("3"),
         meal("4"),
         meal("5"),
@@ -191,6 +194,15 @@ describe("calculateWeeklyAnalysis", () => {
     );
 
     expect(analysis.priority.id).toBe("context");
+  });
+
+  it("détecte plusieurs étiquettes simples sur un repas mixte", () => {
+    expect(detectMealComponents("Muffin oeuf bacon")).toMatchObject({
+      proteins: true,
+      starches: true,
+      dessert: true,
+      ultraProcessed: true,
+    });
   });
 
   it("renvoie données insuffisantes sous cinq repas", () => {

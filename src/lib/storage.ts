@@ -7,7 +7,6 @@ import type {
   MealAfter,
   MealComponents,
   MealEntry,
-  MealKind,
   Profile,
   ServedQuantity,
   SmokingEntry,
@@ -22,6 +21,7 @@ import {
   dedupeDailyWeights,
   stabilizeSmokingEntries,
 } from "@/lib/dataStabilization";
+import { normalizeMealKind } from "@/lib/mealKinds";
 
 const STORAGE_KEY = "projet-centenaire-fieldbook-v0";
 
@@ -96,6 +96,11 @@ function normalizeProfile(value: unknown): Profile | null {
     initialFriction: normalizeFriction(value.initialFriction),
     smokingStatus: normalizeSmokingStatus(value.smokingStatus),
     smokingGoal: normalizeSmokingGoal(value.smokingGoal),
+    showActiveMission:
+      typeof value.showActiveMission === "boolean"
+        ? value.showActiveMission
+        : true,
+    darkMode: typeof value.darkMode === "boolean" ? value.darkMode : false,
     weeklyActivityGoal: Math.min(
       7,
       Math.max(1, Math.round(asNumber(value.weeklyActivityGoal, 5))),
@@ -131,19 +136,6 @@ function normalizeWeight(value: unknown): WeightEntry | null {
     weightKg,
     createdAt: asString(value.createdAt, new Date().toISOString()),
   };
-}
-
-function normalizeMealKind(value: unknown): MealKind {
-  if (
-    value === "dejeuner" ||
-    value === "diner" ||
-    value === "collation" ||
-    value === "autre"
-  ) {
-    return value;
-  }
-
-  return "autre";
 }
 
 function normalizeQuantity(value: unknown, legacyPlateCount: unknown): ServedQuantity {

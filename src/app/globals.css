@@ -10,6 +10,11 @@
   --app-safe-right: max(var(--app-gutter), env(safe-area-inset-right));
 }
 
+:root[data-pc-theme="dark"] {
+  --background: #171512;
+  --foreground: #f6f4ec;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -24,6 +29,10 @@ html {
   overflow-x: clip;
 }
 
+html[data-pc-theme="dark"] {
+  color-scheme: dark;
+}
+
 body {
   min-width: 320px;
   min-height: 100%;
@@ -31,6 +40,44 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   overflow-x: clip;
+}
+
+html[data-pc-theme="dark"] .bg-\[\#FAF8F1\],
+html[data-pc-theme="dark"] .bg-\[\#FAF8F1\]\/75,
+html[data-pc-theme="dark"] .bg-\[\#FAF8F1\]\/80,
+html[data-pc-theme="dark"] .bg-\[\#FAF8F1\]\/95 {
+  background-color: #24211d !important;
+}
+
+html[data-pc-theme="dark"] .bg-\[\#F6F4EC\],
+html[data-pc-theme="dark"] .bg-\[\#F3EDE2\] {
+  background-color: #171512 !important;
+}
+
+html[data-pc-theme="dark"] .bg-\[\#E6EFED\],
+html[data-pc-theme="dark"] .bg-\[\#E6EFED\]\/65 {
+  background-color: #263a3f !important;
+}
+
+html[data-pc-theme="dark"] .text-\[\#171512\],
+html[data-pc-theme="dark"] .text-\[\#3A3732\] {
+  color: #f3ede2 !important;
+}
+
+html[data-pc-theme="dark"] .text-\[\#6E665C\],
+html[data-pc-theme="dark"] .text-\[\#7A7166\] {
+  color: #b7ad9d !important;
+}
+
+html[data-pc-theme="dark"] .text-\[\#2F5E68\],
+html[data-pc-theme="dark"] .text-\[\#2F4E55\] {
+  color: #b9d5d7 !important;
+}
+
+html[data-pc-theme="dark"] .border-\[\#DDD5C7\],
+html[data-pc-theme="dark"] .border-\[\#D7CEC0\],
+html[data-pc-theme="dark"] .border-\[\#C7D4D2\] {
+  border-color: #4a4037 !important;
 }
 
 *,

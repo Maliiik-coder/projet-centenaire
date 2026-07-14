@@ -13,6 +13,8 @@ create table if not exists public.profiles (
   smoking_status text,
   smoking_goal text,
   initial_friction text default 'unknown',
+  show_active_mission boolean default true,
+  dark_mode boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

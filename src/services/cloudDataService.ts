@@ -42,7 +42,10 @@ export async function saveCloudData(
 
   await Promise.all([
     upsertWeightEntries(supabase, userId, normalized.weights),
-    upsertMealObservations(supabase, userId, normalized.meals),
+    (async () => {
+      await deleteMealObservations(supabase, userId);
+      await upsertMealObservations(supabase, userId, normalized.meals);
+    })(),
     upsertTobaccoEvents(supabase, userId, normalized.smokingEntries),
   ]);
 

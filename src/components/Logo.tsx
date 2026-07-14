@@ -14,10 +14,13 @@ export function LogoMark({
   return (
     <svg
       aria-label={title}
-      className={className}
+      className={className ?? "h-8 w-auto"}
       fill="none"
+      height="320"
+      preserveAspectRatio="xMidYMid meet"
       role="img"
-      viewBox="152 96 252 320"
+      viewBox="104 96 320 320"
+      width="320"
     >
       <path
         d="M256 116 V396"
@@ -56,7 +59,7 @@ export function LogoHorizontal({
   return (
     <div className={`inline-flex items-center gap-2 ${className ?? ""}`}>
       <LogoMark
-        className={markClassName ?? "size-8 text-[#171512]"}
+        className={markClassName ?? "h-8 w-auto text-[#171512]"}
         title="Projet Centenaire"
       />
       <span className={textClassName ?? "font-serif text-xl text-[#171512]"}>
@@ -74,7 +77,7 @@ export function LogoFull({
   return (
     <div className={`inline-flex flex-col items-center gap-3 ${className ?? ""}`}>
       <LogoMark
-        className={markClassName ?? "size-20 text-[#171512]"}
+        className={markClassName ?? "h-20 w-auto text-[#171512]"}
         title="Projet Centenaire"
       />
       <span className={textClassName ?? "font-serif text-3xl text-[#171512]"}>

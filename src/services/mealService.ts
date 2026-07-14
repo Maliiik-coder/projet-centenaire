@@ -1,11 +1,11 @@
 import { EMPTY_COMPONENTS } from "@/lib/analytics";
+import { normalizeMealKind } from "@/lib/mealKinds";
 import type { Database } from "@/lib/supabase/database.types";
 import type {
   HungerBefore,
   MealAfter,
   MealComponents,
   MealEntry,
-  MealKind,
   ServedQuantity,
   SnackingAfter,
   StopReason,
@@ -40,12 +40,6 @@ function dateFromMealRow(row: MealRow): string {
 
 function timeFromMealRow(row: MealRow): string {
   return row.observed_time ?? timeFromTimestamp(row.observed_at);
-}
-
-function normalizeMealKind(value: string | null): MealKind {
-  return value === "dejeuner" || value === "diner" || value === "collation" || value === "autre"
-    ? value
-    : "autre";
 }
 
 function normalizeQuantity(value: string | null): ServedQuantity {

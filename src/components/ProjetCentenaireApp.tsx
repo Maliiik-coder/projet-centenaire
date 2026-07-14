@@ -29,17 +29,28 @@ import {
   daysBetween,
   formatLongDate,
   formatShortDate,
+  shouldUpdateCurrentDate,
   todayISO,
 } from "@/lib/dates";
 import {
   upsertDailyWeightEntry,
   upsertSmokingEntry,
 } from "@/lib/dataStabilization";
+import { activeMealKindLabels, mealKindLabels } from "@/lib/mealKinds";
+import { deleteMealEntry, updateMealEntry } from "@/lib/mealMutations";
+import {
+  MEAL_FINDING_STEP,
+  MEAL_LAST_STEP,
+  MEAL_TAGS_STEP,
+  MEAL_TEXT_STEP,
+  MEAL_TUNNEL_STEPS,
+} from "@/lib/mealTunnel";
+import { shouldShowActiveMission } from "@/lib/mission";
 import { localDataStore, normalizeData } from "@/lib/storage";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { WeightTrendChart } from "@/components/WeightTrendChart";
 import { LogoFull, LogoHorizontal, LogoMark } from "@/components/Logo";
-import { deleteUserApplicationData, loadCloudData, saveCloudData } from "@/services/cloudDataService";
+import { loadCloudData, saveCloudData } from "@/services/cloudDataService";
 import {
   hasLocalData,
   migrateLocalDataToSupabase,
@@ -142,13 +153,6 @@ const onboardingSmokingGoalLabels: Partial<Record<SmokingGoal, string>> = {
   observer: "Pas maintenant",
 };
 
-const mealKindLabels: Record<MealKind, string> = {
-  dejeuner: "Déjeuner",
-  diner: "Dîner",
-  collation: "Collation / grignotage",
-  autre: "Autre",
-};
-
 const quantityLabels: Record<ServedQuantity, string> = {
   "reasonable-plate": "1 assiette raisonnable",
   "loaded-plate": "1 assiette très chargée",
@@ -175,12 +179,6 @@ const stopLabels: Record<StopReason, string> = {
   "assiette-vide": "Assiette terminée",
   "arret-volontaire": "Arrêt volontaire",
   "contrainte-exterieure": "Contrainte extérieure",
-};
-
-const snackingLabels: Record<SnackingAfter, string> = {
-  non: "Non",
-  "oui-leger": "Oui, léger",
-  "oui-important": "Oui, important",
 };
 
 const smokingDayLabels: Record<SmokingDayState, string> = {
@@ -221,10 +219,6 @@ const emptyMealDraft: MealDraft = {
   snackingAfter: "non",
   components: { ...EMPTY_COMPONENTS },
 };
-
-const MEAL_TUNNEL_STEPS = 9;
-const MEAL_TEXT_STEP = 1;
-const MEAL_LAST_STEP = MEAL_TUNNEL_STEPS - 1;
 
 const today = todayISO();
 
@@ -335,6 +329,8 @@ function buildProfile(draft: OnboardingDraft): Profile {
     initialFriction: draft.initialFriction,
     smokingStatus: draft.smokingStatus,
     smokingGoal: needsSmokingGoal(draft.smokingStatus) ? draft.smokingGoal : undefined,
+    showActiveMission: true,
+    darkMode: false,
     weeklyActivityGoal: 5,
     createdAt: new Date().toISOString(),
   };
@@ -487,6 +483,35 @@ function ChoiceLine<T extends string>({
   );
 }
 
+function SwitchRow({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      aria-checked={checked}
+      className="flex min-h-14 w-full items-center justify-between gap-4 rounded-[18px] border border-[#DDD5C7] bg-[#F6F4EC] px-4 py-3 text-left transition active:scale-[0.99]"
+      role="switch"
+      type="button"
+      onClick={() => onChange(!checked)}
+    >
+      <span className="text-sm font-semibold text-[#171512]">{label}</span>
+      <span
+        className={`flex h-8 w-14 items-center rounded-full p-1 transition ${
+          checked ? "justify-end bg-[#3E6670]" : "justify-start bg-[#D7CEC0]"
+        }`}
+      >
+        <span className="size-6 rounded-full bg-[#FAF8F1] shadow-[0_2px_8px_rgba(23,21,18,0.18)]" />
+      </span>
+    </button>
+  );
+}
+
 function PageTitle({
   kicker,
   title,
@@ -511,7 +536,7 @@ function LoadingScreen() {
       <div className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center gap-4">
         <LogoFull
           className="items-start"
-          markClassName="size-20 text-[#171512]"
+          markClassName="h-20 w-auto text-[#171512]"
           textClassName="font-serif text-3xl leading-tight text-[#171512]"
         />
         <h1 className="mt-4 font-serif text-4xl">Ouverture du carnet.</h1>
@@ -522,7 +547,7 @@ function LoadingScreen() {
 
 export function ProjetCentenaireApp() {
   const [data, setData] = useState<AppData | null>(null);
-  const [currentDate] = useState<ISODate>(() => today);
+  const [currentDate, setCurrentDate] = useState<ISODate>(() => todayISO());
   const [activeTab, setActiveTab] = useState<TabId>("today");
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -545,6 +570,9 @@ export function ProjetCentenaireApp() {
   const [mealOpen, setMealOpen] = useState(false);
   const [mealStep, setMealStep] = useState(0);
   const [mealDraft, setMealDraft] = useState<MealDraft>(emptyMealDraft);
+  const [editingMealId, setEditingMealId] = useState<string | null>(null);
+  const [openMealActionId, setOpenMealActionId] = useState<string | null>(null);
+  const mealLongPressTimeoutRef = useRef<number | null>(null);
   const [weightOpen, setWeightOpen] = useState(false);
   const [weightDraft, setWeightDraft] = useState("");
   const [smokingOpen, setSmokingOpen] = useState(false);
@@ -552,6 +580,7 @@ export function ProjetCentenaireApp() {
   const [smokingState, setSmokingState] = useState<SmokingDayState>("aucun");
   const [smokingNote, setSmokingNote] = useState("");
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -635,6 +664,31 @@ export function ProjetCentenaireApp() {
   }, []);
 
   useEffect(() => {
+    const syncCurrentDate = () => {
+      setCurrentDate((current) => {
+        const next = todayISO();
+        return shouldUpdateCurrentDate(current, next) ? next : current;
+      });
+    };
+
+    const syncOnVisibility = () => {
+      if (document.visibilityState === "visible") {
+        syncCurrentDate();
+      }
+    };
+
+    const interval = window.setInterval(syncCurrentDate, 60_000);
+    window.addEventListener("focus", syncCurrentDate);
+    document.addEventListener("visibilitychange", syncOnVisibility);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", syncCurrentDate);
+      document.removeEventListener("visibilitychange", syncOnVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!cloudUserId) {
       return;
     }
@@ -676,6 +730,37 @@ export function ProjetCentenaireApp() {
 
     return () => window.clearTimeout(timeout);
   }, [notice, error]);
+
+  useEffect(() => {
+    document.documentElement.dataset.pcTheme = data?.profile?.darkMode
+      ? "dark"
+      : "light";
+  }, [data?.profile?.darkMode]);
+
+  useEffect(
+    () => () => {
+      if (mealLongPressTimeoutRef.current !== null) {
+        window.clearTimeout(mealLongPressTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!openMealActionId) {
+      return;
+    }
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenMealActionId(null);
+      }
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [openMealActionId]);
 
   const analysis = useMemo(
     () => (data ? calculateWeeklyAnalysis(data, currentDate) : null),
@@ -802,6 +887,11 @@ export function ProjetCentenaireApp() {
     analysis.priority.id === "insufficient-data"
       ? initialPriorityText(profile.initialFriction)
       : analysis.priority.action;
+  const showMissionBlock = shouldShowActiveMission({
+    showActiveMission: profile.showActiveMission,
+    priority: analysis.priority,
+    initialFriction: profile.initialFriction,
+  });
   const mealCountText = countLabel(todayMeals.length, "observation", "observations");
   const smokingSummary = buildSmokingDaySummary(todaySmokingEntries);
   const supabaseConfigured = isSupabaseConfigured();
@@ -870,9 +960,85 @@ export function ProjetCentenaireApp() {
     );
   };
 
+  const updateProfilePreferences = (
+    nextPreferences: Partial<Pick<Profile, "darkMode" | "showActiveMission">>,
+  ) => {
+    const nextProfile = {
+      ...profile,
+      ...nextPreferences,
+    };
+
+    saveData({ ...data, profile: nextProfile }, "Préférence mise à jour.");
+  };
+
+  const clearMealLongPress = () => {
+    if (mealLongPressTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(mealLongPressTimeoutRef.current);
+    mealLongPressTimeoutRef.current = null;
+  };
+
+  const startMealLongPress = (mealId: string) => {
+    clearMealLongPress();
+    mealLongPressTimeoutRef.current = window.setTimeout(() => {
+      setOpenMealActionId(mealId);
+      mealLongPressTimeoutRef.current = null;
+    }, 2000);
+  };
+
   const openWeightPanel = () => {
     setWeightDraft(latestTodayWeight ? String(latestTodayWeight.weightKg) : "");
     setWeightOpen(true);
+  };
+
+  const openMealPanel = () => {
+    setEditingMealId(null);
+    setOpenMealActionId(null);
+    setMealDraft(emptyMealDraft);
+    setMealStep(0);
+    setMealOpen(true);
+  };
+
+  const closeMealPanel = () => {
+    setMealOpen(false);
+    setEditingMealId(null);
+    setMealStep(0);
+    setMealDraft(emptyMealDraft);
+  };
+
+  const openMealEditor = (meal: MealEntry) => {
+    setOpenMealActionId(null);
+    setEditingMealId(meal.id);
+    setMealDraft({
+      kind: meal.kind,
+      freeText: meal.freeText,
+      quantity: meal.quantity,
+      hungerBefore: meal.hungerBefore,
+      afterMeal: meal.afterMeal,
+      stopReason: meal.stopReason,
+      snackingAfter: "non",
+      components: { ...meal.components },
+    });
+    setMealStep(0);
+    setMealOpen(true);
+  };
+
+  const deleteMealFromJournal = (meal: MealEntry) => {
+    setOpenMealActionId(null);
+
+    if (!window.confirm("Supprimer cette observation repas ?")) {
+      return;
+    }
+
+    saveData(
+      {
+        ...data,
+        meals: deleteMealEntry(data.meals, meal.id),
+      },
+      "Observation supprimée.",
+    );
   };
 
   const addWeight = (event: React.FormEvent<HTMLFormElement>) => {
@@ -916,10 +1082,13 @@ export function ProjetCentenaireApp() {
       mealDraft.snackingAfter,
       mealDraft.stopReason,
     );
+    const editedMeal = editingMealId
+      ? data.meals.find((meal) => meal.id === editingMealId)
+      : null;
     const entry: MealEntry = {
-      id: createId("meal"),
-      date: currentDate,
-      time: currentTime(),
+      id: editedMeal?.id ?? createId("meal"),
+      date: editedMeal?.date ?? currentDate,
+      time: editedMeal?.time ?? currentTime(),
       kind: mealDraft.kind,
       freeText: mealDraft.freeText.trim(),
       quantity: mealDraft.quantity,
@@ -929,19 +1098,19 @@ export function ProjetCentenaireApp() {
       snackingAfter: mealDraft.snackingAfter,
       components: mealDraft.components,
       finding,
-      createdAt: new Date().toISOString(),
+      createdAt: editedMeal?.createdAt ?? new Date().toISOString(),
     };
 
     saveData(
       {
         ...data,
-        meals: [...data.meals, entry],
+        meals: editedMeal
+          ? updateMealEntry(data.meals, editedMeal.id, entry)
+          : [...data.meals, entry],
       },
-      "Observation ajoutée au carnet.",
+      editedMeal ? "Observation mise à jour." : "Observation ajoutée au carnet.",
     );
-    setMealOpen(false);
-    setMealStep(0);
-    setMealDraft(emptyMealDraft);
+    closeMealPanel();
   };
 
   const addSmokingEntry = () => {
@@ -966,6 +1135,16 @@ export function ProjetCentenaireApp() {
     setSmokingOpen(false);
   };
 
+  const signOut = async () => {
+    const supabase = getSupabaseBrowserClient();
+    localDataStore.save(data);
+    await supabase?.auth.signOut();
+    setCloudUserId(null);
+    setCloudEmail(null);
+    setPendingSync(false);
+    setNotice("Déconnecté du compte cloud.");
+  };
+
   const renderToday = () => (
     <div className="space-y-4">
       <header className="space-y-1">
@@ -977,12 +1156,14 @@ export function ProjetCentenaireApp() {
         </div>
       </header>
 
-      <section className="rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-2.5 shadow-[0_10px_26px_rgba(23,21,18,0.045)]">
-        <p className={annotationClass}>Priorité active</p>
-        <p className="mt-1.5 text-base leading-6 text-[#171512]">
-          {activePriorityText}
-        </p>
-      </section>
+      {showMissionBlock ? (
+        <section className="rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-2.5 shadow-[0_10px_26px_rgba(23,21,18,0.045)]">
+          <p className={annotationClass}>Mission en cours</p>
+          <p className="mt-1.5 text-base leading-6 text-[#171512]">
+            {activePriorityText}
+          </p>
+        </section>
+      ) : null}
 
       <section className="space-y-2.5">
         <h2 className="font-serif text-2xl leading-tight text-[#171512]">
@@ -1008,7 +1189,7 @@ export function ProjetCentenaireApp() {
               size="compact"
               tone="primary"
               value={mealCountText}
-              onClick={() => setMealOpen(true)}
+              onClick={openMealPanel}
             />
             {smokingEnabled ? (
               <TodayTile
@@ -1028,6 +1209,14 @@ export function ProjetCentenaireApp() {
           <p className={annotationClass}>Chronologie du jour</p>
           <p className="text-xs text-[#7A7166]">{mealCountText}</p>
         </div>
+        {openMealActionId ? (
+          <button
+            aria-label="Fermer le menu repas"
+            className="fixed inset-0 z-10 cursor-default bg-transparent"
+            type="button"
+            onClick={() => setOpenMealActionId(null)}
+          />
+        ) : null}
         <div className="mt-4 space-y-3">
           {todayMeals.length === 0 ? (
             <p className="rounded-[18px] bg-[#FAF8F1]/75 px-4 py-3 text-sm leading-6 text-[#7A7166] shadow-[0_6px_18px_rgba(23,21,18,0.035)]">
@@ -1035,7 +1224,16 @@ export function ProjetCentenaireApp() {
             </p>
           ) : (
             todayMeals.map((meal) => (
-              <TodayChronologyMeal key={meal.id} meal={meal} />
+              <TodayChronologyMeal
+                key={meal.id}
+                meal={meal}
+                menuOpen={openMealActionId === meal.id}
+                onDelete={() => deleteMealFromJournal(meal)}
+                onEdit={() => openMealEditor(meal)}
+                onLongPressCancel={clearMealLongPress}
+                onLongPressStart={() => startMealLongPress(meal.id)}
+                onOpenMenu={() => setOpenMealActionId(meal.id)}
+              />
             ))
           )}
         </div>
@@ -1163,180 +1361,277 @@ export function ProjetCentenaireApp() {
     </div>
   );
 
-  const renderProfile = () => (
-    <div className="space-y-5">
-      <PageTitle kicker="Profil" title="Paramètres du carnet">
-        <p>Le carnet t’appartient. Tu peux exporter tes données à tout moment.</p>
-      </PageTitle>
-      {profileDraft ? (
-        <form
-          className="space-y-6"
-          onSubmit={(event) => {
-            event.preventDefault();
+  const renderProfile = () => {
+    const smokingSummaryText = profile.smokingGoal
+      ? `${smokingStatusLabels[profile.smokingStatus]} · ${smokingGoalLabels[profile.smokingGoal]}`
+      : smokingStatusLabels[profile.smokingStatus];
 
-            if (
-              profileDraft.firstName.trim().length === 0 ||
-              profileDraft.age < 16 ||
-              profileDraft.heightCm < 120 ||
-              profileDraft.startWeightKg < 40 ||
-              profileDraft.goalWeightKg < 40
-            ) {
-              setError("Vérifie les données du profil.");
-              return;
-            }
+    return (
+      <div className="space-y-5">
+        <PageTitle kicker="Profil" title="Paramètres">
+          <p>Les réglages essentiels, le compte et les options avancées.</p>
+        </PageTitle>
 
-            saveData({ ...data, profile: profileDraft }, "Profil mis à jour.");
-          }}
-        >
-          <ProfileSection title="Identité">
-            <TextInput
-              label="Prénom"
-              value={profileDraft.firstName}
-              onChange={(value) =>
-                setProfileDraft({ ...profileDraft, firstName: value })
-              }
-            />
-            <NumberInput
-              label="Âge"
-              value={profileDraft.age}
-              onChange={(value) => setProfileDraft({ ...profileDraft, age: value })}
-            />
-            <NumberInput
-              label="Taille en cm"
-              value={profileDraft.heightCm}
-              onChange={(value) =>
-                setProfileDraft({ ...profileDraft, heightCm: value })
-              }
-            />
-          </ProfileSection>
-          <ProfileSection title="Objectif">
-            <NumberInput
-              label="Poids actuel"
-              value={profileDraft.startWeightKg}
-              onChange={(value) =>
-                setProfileDraft({ ...profileDraft, startWeightKg: value })
-              }
-            />
-            <NumberInput
-              label="Poids objectif"
-              value={profileDraft.goalWeightKg}
-              onChange={(value) =>
-                setProfileDraft({ ...profileDraft, goalWeightKg: value })
-              }
-            />
-          </ProfileSection>
-          <ProfileSection title="Contexte">
-            <ChoiceLine
-              options={frictionLabels}
-              value={profileDraft.initialFriction}
-              onChange={(value) =>
-                setProfileDraft({ ...profileDraft, initialFriction: value })
-              }
-            />
-          </ProfileSection>
-          <ProfileSection title="Tabac">
-            <ChoiceLine
-              options={smokingStatusLabels}
-              value={profileDraft.smokingStatus}
-              onChange={(value) =>
-                setProfileDraft({
-                  ...profileDraft,
-                  smokingStatus: value,
-                  smokingGoal: needsSmokingGoal(value)
-                    ? profileDraft.smokingGoal ?? "observer"
-                    : undefined,
-                })
-              }
-            />
-            {needsSmokingGoal(profileDraft.smokingStatus) ? (
-              <ChoiceLine
-                options={smokingGoalLabels}
-                value={profileDraft.smokingGoal ?? "observer"}
-                onChange={(value) =>
-                  setProfileDraft({ ...profileDraft, smokingGoal: value })
-                }
-              />
+        {profileDraft ? (
+          <section className={sectionClass}>
+            <div className="flex items-center justify-between gap-3">
+              <p className={annotationClass}>Profil</p>
+              <button
+                className="rounded-full border border-[#C7D4D2] bg-[#E6EFED] px-3 py-1 text-xs font-semibold text-[#2F5E68] transition active:scale-[0.98]"
+                type="button"
+                onClick={() => setProfileEditorOpen((open) => !open)}
+              >
+                {profileEditorOpen ? "Fermer" : "Modifier"}
+              </button>
+            </div>
+            <button
+              className="mt-4 grid w-full gap-3 rounded-[20px] border border-[#DDD5C7] bg-[#F6F4EC] p-4 text-left shadow-[0_6px_14px_rgba(23,21,18,0.03)] transition active:scale-[0.99]"
+              type="button"
+              onClick={() => setProfileEditorOpen(true)}
+            >
+              <div>
+                <p className="font-serif text-2xl leading-tight text-[#171512]">
+                  {profile.firstName || "Profil"}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-[#7A7166]">
+                  {profile.age} ans · {profile.heightCm} cm
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm text-[#3A3732]">
+                <span>Départ · {formatKg(profile.startWeightKg)}</span>
+                <span>Objectif · {formatKg(profile.goalWeightKg)}</span>
+                <span className="col-span-2">Tabac · {smokingSummaryText}</span>
+              </div>
+            </button>
+
+            {profileEditorOpen ? (
+              <form
+                className="mt-5 grid gap-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  if (
+                    profileDraft.firstName.trim().length === 0 ||
+                    profileDraft.age < 16 ||
+                    profileDraft.heightCm < 120 ||
+                    profileDraft.startWeightKg < 40 ||
+                    profileDraft.goalWeightKg < 40
+                  ) {
+                    setError("Vérifie les données du profil.");
+                    return;
+                  }
+
+                  saveData({ ...data, profile: profileDraft }, "Profil mis à jour.");
+                  setProfileEditorOpen(false);
+                }}
+              >
+                <TextInput
+                  label="Prénom"
+                  value={profileDraft.firstName}
+                  onChange={(value) =>
+                    setProfileDraft({ ...profileDraft, firstName: value })
+                  }
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberInput
+                    label="Âge"
+                    value={profileDraft.age}
+                    onChange={(value) =>
+                      setProfileDraft({ ...profileDraft, age: value })
+                    }
+                  />
+                  <NumberInput
+                    label="Taille en cm"
+                    value={profileDraft.heightCm}
+                    onChange={(value) =>
+                      setProfileDraft({ ...profileDraft, heightCm: value })
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberInput
+                    label="Poids de départ"
+                    value={profileDraft.startWeightKg}
+                    onChange={(value) =>
+                      setProfileDraft({ ...profileDraft, startWeightKg: value })
+                    }
+                  />
+                  <NumberInput
+                    label="Poids objectif"
+                    value={profileDraft.goalWeightKg}
+                    onChange={(value) =>
+                      setProfileDraft({ ...profileDraft, goalWeightKg: value })
+                    }
+                  />
+                </div>
+                <ChoiceLine
+                  options={smokingStatusLabels}
+                  value={profileDraft.smokingStatus}
+                  onChange={(value) =>
+                    setProfileDraft({
+                      ...profileDraft,
+                      smokingStatus: value,
+                      smokingGoal: needsSmokingGoal(value)
+                        ? profileDraft.smokingGoal ?? "observer"
+                        : undefined,
+                    })
+                  }
+                />
+                {needsSmokingGoal(profileDraft.smokingStatus) ? (
+                  <ChoiceLine
+                    options={smokingGoalLabels}
+                    value={profileDraft.smokingGoal ?? "observer"}
+                    onChange={(value) =>
+                      setProfileDraft({ ...profileDraft, smokingGoal: value })
+                    }
+                  />
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button type="submit">Enregistrer</Button>
+                  <Button
+                    variant="line"
+                    onClick={() => {
+                      setProfileDraft(profile);
+                      setProfileEditorOpen(false);
+                    }}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </form>
             ) : null}
-          </ProfileSection>
-          <Button type="submit">Ajouter au carnet</Button>
-        </form>
-      ) : null}
+          </section>
+        ) : null}
 
-      <section className={sectionClass}>
-        <p className={annotationClass}>Données</p>
-        <div className="mt-4 grid gap-3">
-          <Link
-            className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#C7D4D2] bg-[#E6EFED] px-5 text-sm font-semibold text-[#2F5E68] shadow-[0_6px_14px_rgba(62,102,112,0.08)] transition active:scale-[0.99]"
-            href={cloudUserId ? "/account" : "/login"}
-          >
-            {cloudUserId ? "Compte cloud" : "Connexion cloud"}
-          </Link>
-          <Button
-            onClick={() => {
-              exportJson(data, `projet-centenaire-carnet-${currentDate}.json`);
-            }}
-            variant="line"
-          >
-            <Download aria-hidden="true" size={17} />
-            Export JSON
-          </Button>
-          <Button onClick={() => importInputRef.current?.click()} variant="line">
-            <Upload aria-hidden="true" size={17} />
-            Import JSON
-          </Button>
-          <input
-            ref={importInputRef}
-            accept="application/json"
-            className="hidden"
-            type="file"
-            onChange={async (event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-
-              try {
-                const imported = normalizeData(JSON.parse(await file.text()));
-                saveData(imported, "Import terminé.");
-              } catch {
-                setError("Le fichier JSON n'a pas pu être importé.");
-              } finally {
-                event.target.value = "";
+        <section className={sectionClass}>
+          <p className={annotationClass}>Préférences</p>
+          <div className="mt-4 grid gap-3">
+            <SwitchRow
+              checked={profile.darkMode}
+              label="Mode sombre"
+              onChange={(checked) => updateProfilePreferences({ darkMode: checked })}
+            />
+            <SwitchRow
+              checked={profile.showActiveMission}
+              label="Afficher la mission en cours"
+              onChange={(checked) =>
+                updateProfilePreferences({ showActiveMission: checked })
               }
-            }}
-          />
-          <Button
-            onClick={async () => {
-              const message = cloudUserId
-                ? "Réinitialiser le carnet cloud et local ?"
-                : "Réinitialiser le carnet local ?";
+            />
+          </div>
+        </section>
 
-              if (!window.confirm(message)) {
-                return;
-              }
+        <section className={sectionClass}>
+          <p className={annotationClass}>Compte</p>
+          <div className="mt-4 space-y-3">
+            <div className="rounded-[18px] border border-[#DDD5C7] bg-[#F6F4EC] p-4">
+              <p className="text-sm font-semibold text-[#171512]">
+                {cloudUserId ? "Connecté" : "Non connecté"}
+              </p>
+              <p className="mt-1 break-words text-sm text-[#7A7166]">
+                {cloudUserId
+                  ? cloudEmail ?? "Compte cloud actif"
+                  : "Le carnet fonctionne en local sur cet appareil."}
+              </p>
+            </div>
+            {cloudUserId ? (
+              <div className="grid gap-2">
+                <Button onClick={signOut} variant="line">
+                  Se déconnecter
+                </Button>
+                <Link
+                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#D7B8B2] bg-[#FFF7F3] px-5 text-sm font-semibold text-[#8A3B32] transition active:scale-[0.99]"
+                  href="/account"
+                >
+                  Supprimer mon compte
+                </Link>
+              </div>
+            ) : (
+              <Link
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#C7D4D2] bg-[#E6EFED] px-5 text-sm font-semibold text-[#2F5E68] shadow-[0_6px_14px_rgba(62,102,112,0.08)] transition active:scale-[0.99]"
+                href="/login"
+              >
+                Se connecter
+              </Link>
+            )}
+          </div>
+        </section>
 
-              const supabase = getSupabaseBrowserClient();
-              const reset =
-                supabase && cloudUserId
-                  ? await deleteUserApplicationData(supabase, cloudUserId)
-                  : localDataStore.reset();
+        <section className={sectionClass}>
+          <p className={annotationClass}>Options avancées</p>
+          <details className="mt-4 rounded-[18px] border border-[#DDD5C7] bg-[#F6F4EC] p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-[#171512]">
+              Export, import et réinitialisation
+            </summary>
+            <div className="mt-4 grid gap-2">
+              <Button
+                onClick={() => {
+                  exportJson(data, `projet-centenaire-carnet-${currentDate}.json`);
+                }}
+                variant="line"
+              >
+                <Download aria-hidden="true" size={17} />
+                Export JSON
+              </Button>
+              <Button onClick={() => importInputRef.current?.click()} variant="line">
+                <Upload aria-hidden="true" size={17} />
+                Import JSON
+              </Button>
+              <input
+                ref={importInputRef}
+                accept="application/json"
+                className="hidden"
+                type="file"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
 
-              localDataStore.reset();
-              clearPendingSyncData();
-              setData(reset);
-              setProfileDraft(null);
-              setMigrationData(null);
-              setPendingSync(false);
-              setOnboardingStep(0);
-              setNotice("Carnet réinitialisé.");
-            }}
-            variant="signal"
-          >
-            <RefreshCw aria-hidden="true" size={17} />
-            Réinitialiser le carnet
-          </Button>
-        </div>
-      </section>
-    </div>
-  );
+                  try {
+                    const imported = normalizeData(JSON.parse(await file.text()));
+                    saveData(imported, "Import terminé.");
+                  } catch {
+                    setError("Le fichier JSON n'a pas pu être importé.");
+                  } finally {
+                    event.target.value = "";
+                  }
+                }}
+              />
+              <Button
+                onClick={async () => {
+                  if (
+                    !window.confirm(
+                      "Réinitialiser les données locales de cet appareil ?",
+                    )
+                  ) {
+                    return;
+                  }
+
+                  const reset = localDataStore.reset();
+                  clearPendingSyncData();
+                  if (!cloudUserId) {
+                    setData(reset);
+                    setProfileDraft(null);
+                    setOnboardingStep(0);
+                  }
+                  setMigrationData(null);
+                  setPendingSync(false);
+                  setNotice(
+                    cloudUserId
+                      ? "Données locales réinitialisées."
+                      : "Carnet local réinitialisé.",
+                  );
+                }}
+                variant="signal"
+              >
+                <RefreshCw aria-hidden="true" size={17} />
+                Réinitialiser données locales
+              </Button>
+            </div>
+          </details>
+        </section>
+      </div>
+    );
+  };
 
   const content = {
     today: renderToday,
@@ -1349,7 +1644,7 @@ export function ProjetCentenaireApp() {
     <main className="app-screen app-screen-with-nav">
       <div className="mx-auto max-w-md">
         <header className="mb-3 flex items-center justify-center">
-          <LogoMark className="size-12 text-[#171512]" />
+          <LogoMark className="h-12 w-auto text-[#171512]" />
         </header>
 
         {notice ? (
@@ -1423,12 +1718,10 @@ export function ProjetCentenaireApp() {
         <MealObservation
           draft={mealDraft}
           step={mealStep}
+          submitLabel={editingMealId ? "Mettre à jour" : "Ajouter au carnet"}
           onAdd={addMealToJournal}
           onChange={setMealDraft}
-          onClose={() => {
-            setMealOpen(false);
-            setMealStep(0);
-          }}
+          onClose={closeMealPanel}
           onNext={() => {
             if (mealStep === MEAL_TEXT_STEP && mealDraft.freeText.trim().length < 2) {
               setError("Ajoute une observation courte avant de continuer.");
@@ -1517,7 +1810,7 @@ function Onboarding({
       <div className="app-inner-screen mx-auto flex max-w-md flex-col">
         <div className="min-w-0">
           <LogoHorizontal
-            markClassName="size-12 shrink-0 text-[#171512]"
+            markClassName="h-12 w-auto shrink-0 text-[#171512]"
             textClassName="hidden whitespace-nowrap font-serif text-xl leading-none text-[#171512] min-[430px]:inline"
           />
           {visibleStep > 0 && visibleStep < onboardingFinalStep ? (
@@ -1929,6 +2222,7 @@ function SmokingPanel({
 function MealObservation({
   draft,
   step,
+  submitLabel,
   onAdd,
   onChange,
   onClose,
@@ -1937,6 +2231,7 @@ function MealObservation({
 }: {
   draft: MealDraft;
   step: number;
+  submitLabel: string;
   onAdd: () => void;
   onChange: (draft: MealDraft) => void;
   onClose: () => void;
@@ -1975,7 +2270,7 @@ function MealObservation({
           {step === 0 ? (
             <TunnelQuestion title="Type d'observation">
               <TunnelChoiceLine
-                options={mealKindLabels}
+                options={activeMealKindLabels}
                 value={draft.kind}
                 onPick={(value) => choose({ ...draft, kind: value })}
               />
@@ -2039,17 +2334,7 @@ function MealObservation({
             </TunnelQuestion>
           ) : null}
 
-          {step === 6 ? (
-            <TunnelQuestion title="Grignotage après le repas ?">
-              <TunnelChoiceLine
-                options={snackingLabels}
-                value={draft.snackingAfter}
-                onPick={(value) => choose({ ...draft, snackingAfter: value })}
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {step === 7 ? (
+          {step === MEAL_TAGS_STEP ? (
             <section className="space-y-4">
               <p className={annotationClass}>Étiquettes détectées</p>
               <div className="flex flex-wrap gap-2">
@@ -2095,7 +2380,7 @@ function MealObservation({
             </section>
           ) : null}
 
-          {step === 8 ? (
+          {step === MEAL_FINDING_STEP ? (
             <section className="space-y-6">
               <ConstatPart title="Constat" text={finding.fact} emphasized />
               <div className="space-y-5 rounded-[22px] bg-[#FAF8F1] p-4 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
@@ -2118,16 +2403,16 @@ function MealObservation({
           ) : (
             <span />
           )}
-          {step === 1 || step === 7 ? (
+          {step === MEAL_TEXT_STEP || step === MEAL_TAGS_STEP ? (
             <Button onClick={onNext}>
-              {step === 7 ? "Voir le constat" : "Continuer"}
+              {step === MEAL_TAGS_STEP ? "Voir le constat" : "Continuer"}
               <ChevronRight aria-hidden="true" size={17} />
             </Button>
           ) : null}
-          {step === 8 ? (
+          {step === MEAL_FINDING_STEP ? (
             <Button onClick={onAdd}>
               <Archive aria-hidden="true" size={17} />
-              Ajouter au carnet
+              {submitLabel}
             </Button>
           ) : null}
         </div>
@@ -2159,7 +2444,7 @@ function TunnelChoiceLine<T extends string>({
   onPick,
 }: {
   value: T;
-  options: Record<T, string>;
+  options: Partial<Record<T, string>>;
   onPick: (value: T) => void;
 }) {
   return (
@@ -2220,12 +2505,73 @@ function EmptyState({ title, text }: { title: string; text: string }) {
   );
 }
 
-function TodayChronologyMeal({ meal }: { meal: MealEntry }) {
+function TodayChronologyMeal({
+  meal,
+  menuOpen,
+  onDelete,
+  onEdit,
+  onLongPressCancel,
+  onLongPressStart,
+  onOpenMenu,
+}: {
+  meal: MealEntry;
+  menuOpen: boolean;
+  onDelete: () => void;
+  onEdit: () => void;
+  onLongPressCancel: () => void;
+  onLongPressStart: () => void;
+  onOpenMenu: () => void;
+}) {
   return (
-    <article className="grid grid-cols-[3rem_1fr] gap-3 rounded-[18px] bg-[#FAF8F1]/80 p-3 shadow-[0_8px_20px_rgba(23,21,18,0.04)]">
+    <article
+      aria-label="Observation repas. Appui long pour modifier ou supprimer."
+      className={`relative grid cursor-pointer grid-cols-[3rem_1fr] gap-3 rounded-[18px] bg-[#FAF8F1]/80 p-3 shadow-[0_8px_20px_rgba(23,21,18,0.04)] transition active:scale-[0.99] ${
+        menuOpen ? "z-20" : ""
+      }`}
+      role="button"
+      tabIndex={0}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onOpenMenu();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpenMenu();
+        }
+      }}
+      onPointerCancel={onLongPressCancel}
+      onPointerDown={() => {
+        if (!menuOpen) {
+          onLongPressStart();
+        }
+      }}
+      onPointerLeave={onLongPressCancel}
+      onPointerUp={onLongPressCancel}
+    >
       <p className="pt-1 text-xs font-semibold tabular-nums text-[#7A7166]">
         {meal.time}
       </p>
+      {menuOpen ? (
+        <div className="absolute right-2 top-11 z-30 grid min-w-32 gap-1 rounded-[16px] border border-[#DDD5C7] bg-[#FAF8F1] p-1 text-sm shadow-[0_16px_34px_rgba(23,21,18,0.14)]">
+          <button
+            className="rounded-[12px] px-3 py-2 text-left font-semibold text-[#171512] transition hover:bg-[#E6DFD3]"
+            type="button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={onEdit}
+          >
+            Modifier
+          </button>
+          <button
+            className="rounded-[12px] px-3 py-2 text-left font-semibold text-[#8A3B32] transition hover:bg-[#FFF7F3]"
+            type="button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={onDelete}
+          >
+            Supprimer
+          </button>
+        </div>
+      ) : null}
       <div className="flex min-w-0 gap-2">
         <span className="mt-2 size-2 shrink-0 rounded-full bg-[#3E6670]" />
         <div className="min-w-0">
@@ -2352,21 +2698,6 @@ function Fact({ label, value }: { label: string; value: string | number }) {
         {value}
       </dd>
     </div>
-  );
-}
-
-function ProfileSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className={sectionClass}>
-      <p className={annotationClass}>{title}</p>
-      <div className="mt-4 grid gap-4">{children}</div>
-    </section>
   );
 }
 

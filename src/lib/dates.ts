@@ -21,6 +21,13 @@ export function todayISO(): ISODate {
   return toISODate(new Date());
 }
 
+export function shouldUpdateCurrentDate(
+  currentDate: ISODate,
+  nextDate: ISODate = todayISO(),
+): boolean {
+  return currentDate !== nextDate;
+}
+
 export function parseISODate(value: ISODate): Date {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year, month - 1, day);
