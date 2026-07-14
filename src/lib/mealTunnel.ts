@@ -12,6 +12,16 @@ export const mealTunnelStepIds = [
   "finding",
 ] as const;
 
+export const breakfastMealTunnelStepIds = [
+  "kind",
+  "text",
+  "serving",
+  "hunger",
+  "fullness",
+  "tags",
+  "finding",
+] as const;
+
 export const snackMealTunnelStepIds = [
   "kind",
   "snack-text",
@@ -23,13 +33,23 @@ export const snackMealTunnelStepIds = [
 
 export type MealTunnelStepId =
   | (typeof mealTunnelStepIds)[number]
+  | (typeof breakfastMealTunnelStepIds)[number]
   | (typeof snackMealTunnelStepIds)[number];
 
 export function getMealTunnelStepIds(kind: ActiveMealKind): readonly MealTunnelStepId[] {
-  return kind === "grignotage" ? snackMealTunnelStepIds : mealTunnelStepIds;
+  if (kind === "grignotage") {
+    return snackMealTunnelStepIds;
+  }
+
+  if (kind === "petit-dejeuner") {
+    return breakfastMealTunnelStepIds;
+  }
+
+  return mealTunnelStepIds;
 }
 
 export const MEAL_TUNNEL_STEPS = mealTunnelStepIds.length;
+export const BREAKFAST_MEAL_TUNNEL_STEPS = breakfastMealTunnelStepIds.length;
 export const SNACK_MEAL_TUNNEL_STEPS = snackMealTunnelStepIds.length;
 export const MEAL_TEXT_STEP = mealTunnelStepIds.indexOf("text");
 export const MEAL_TAGS_STEP = mealTunnelStepIds.indexOf("tags");

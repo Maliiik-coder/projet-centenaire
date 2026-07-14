@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  BREAKFAST_MEAL_TUNNEL_STEPS,
   MEAL_TUNNEL_STEPS,
   SNACK_MEAL_TUNNEL_STEPS,
+  breakfastMealTunnelStepIds,
   getMealTunnelStepIds,
   mealTunnelStepIds,
   snackMealTunnelStepIds,
@@ -24,6 +26,27 @@ describe("meal tunnel", () => {
       "snack-fullness",
       "finding",
     ]);
+  });
+
+  it("retire entrée et dessert du petit déjeuner", () => {
+    expect(BREAKFAST_MEAL_TUNNEL_STEPS).toBe(7);
+    expect(getMealTunnelStepIds("petit-dejeuner")).toEqual([
+      "kind",
+      "text",
+      "serving",
+      "hunger",
+      "fullness",
+      "tags",
+      "finding",
+    ]);
+    expect(breakfastMealTunnelStepIds).not.toContain("starter");
+    expect(breakfastMealTunnelStepIds).not.toContain("dessert");
+  });
+
+  it("conserve entrée et dessert pour déjeuner et dîner", () => {
     expect(getMealTunnelStepIds("dejeuner")).toEqual(mealTunnelStepIds);
+    expect(getMealTunnelStepIds("diner")).toEqual(mealTunnelStepIds);
+    expect(getMealTunnelStepIds("dejeuner")).toContain("starter");
+    expect(getMealTunnelStepIds("diner")).toContain("dessert");
   });
 });

@@ -1160,7 +1160,7 @@ export function ProjetCentenaireApp() {
     mealLongPressTimeoutRef.current = window.setTimeout(() => {
       setOpenMealActionId(mealId);
       mealLongPressTimeoutRef.current = null;
-    }, 2000);
+    }, 1000);
   };
 
   const openWeightPanel = () => {
@@ -1893,26 +1893,31 @@ export function ProjetCentenaireApp() {
 
   return (
     <main className="app-screen app-screen-with-nav">
+      {notice || error || pendingSync ? (
+        <div aria-live="polite" className="app-toast-stack">
+          {notice ? (
+            <p className="app-toast app-toast-auto border-[#CAD8C8] bg-[#F3FAF0] text-[#3A3732]">
+              {notice}
+            </p>
+          ) : null}
+          {error ? (
+            <p className="app-toast app-toast-auto border-[#D7B8B2] bg-[#FFF7F3] text-[#3A3732]">
+              {error}
+            </p>
+          ) : null}
+          {pendingSync ? (
+            <p className="app-toast border-[#C7D4D2] bg-[#E6EFED] text-[#2F5E68]">
+              Données en attente de synchronisation.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mx-auto max-w-md">
         <header className="mb-3 flex items-center justify-center">
           <LogoMark className="h-12 w-auto text-[#171512]" />
         </header>
 
-        {notice ? (
-          <p className="mb-4 rounded-[18px] border border-[#CAD8C8] bg-[#F3FAF0] p-3 text-sm text-[#3A3732] shadow-[0_8px_18px_rgba(23,21,18,0.035)]">
-            {notice}
-          </p>
-        ) : null}
-        {error ? (
-          <p className="mb-4 rounded-[18px] border border-[#D7B8B2] bg-[#FFF7F3] p-3 text-sm text-[#3A3732] shadow-[0_8px_18px_rgba(23,21,18,0.035)]">
-            {error}
-          </p>
-        ) : null}
-        {pendingSync ? (
-          <p className="mb-4 rounded-[18px] border border-[#C7D4D2] bg-[#E6EFED] p-3 text-sm text-[#2F5E68] shadow-[0_8px_18px_rgba(23,21,18,0.035)]">
-            Données en attente de synchronisation.
-          </p>
-        ) : null}
         {migrationData && cloudUserId ? (
           <section className="mb-5 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 shadow-[0_12px_28px_rgba(23,21,18,0.045)]">
             <p className={annotationClass}>Sauvegarde cloud</p>
@@ -2928,7 +2933,7 @@ function TodayChronologyMeal({
   return (
     <article
       aria-label="Observation repas. Appui long pour modifier ou supprimer."
-      className={`relative grid cursor-pointer grid-cols-[3rem_1fr] gap-3 rounded-[18px] bg-[#FAF8F1]/80 p-3 shadow-[0_8px_20px_rgba(23,21,18,0.04)] transition active:scale-[0.99] ${
+      className={`relative grid cursor-pointer select-none grid-cols-[3rem_1fr] gap-3 rounded-[18px] bg-[#FAF8F1]/80 p-3 shadow-[0_8px_20px_rgba(23,21,18,0.04)] transition [-webkit-touch-callout:none] [-webkit-user-select:none] active:scale-[0.99] ${
         menuOpen ? "z-20" : ""
       }`}
       role="button"
