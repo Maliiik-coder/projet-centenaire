@@ -25,31 +25,49 @@ const profile: Profile = {
 };
 
 function meal(id: string, overrides: Partial<MealEntry> = {}): MealEntry {
+  const servingPattern = overrides.servingPattern ?? "none";
   const quantity = overrides.quantity ?? "reasonable-plate";
-  const hungerBefore = overrides.hungerBefore ?? "vraie-faim";
-  const afterMeal = overrides.afterMeal ?? "satisfait";
+  const hungerBefore = overrides.hungerBefore ?? "yes";
+  const fullnessAfter = overrides.fullnessAfter ?? "fine";
+  const afterMeal = overrides.afterMeal ?? fullnessAfter;
   const stopReason = overrides.stopReason ?? "rassasie";
   const snackingAfter = overrides.snackingAfter ?? "non";
+  const kind = overrides.kind ?? "dejeuner";
+  const components = overrides.components ?? EMPTY_COMPONENTS;
 
   return {
     id,
     date: "2026-07-06",
     time: "12:30",
-    kind: "dejeuner",
+    kind,
     freeText: "repas noté",
     quantity,
+    servingPattern,
     hungerBefore,
     afterMeal,
+    fullnessAfter,
     stopReason,
     snackingAfter,
-    components: EMPTY_COMPONENTS,
-    finding: buildImmediateFinding(
-      quantity,
+    starterTaken: overrides.starterTaken ?? false,
+    starterText: overrides.starterText ?? null,
+    dessertTaken: overrides.dessertTaken ?? false,
+    dessertText: overrides.dessertText ?? null,
+    snackTrigger: overrides.snackTrigger ?? null,
+    snackContext: overrides.snackContext ?? null,
+    clarifications: overrides.clarifications ?? [],
+    questionnaireVersion: overrides.questionnaireVersion ?? "v0.7",
+    components,
+    finding: buildImmediateFinding({
+      kind,
+      servingPattern,
       hungerBefore,
-      afterMeal,
-      snackingAfter,
-      stopReason,
-    ),
+      fullnessAfter,
+      starterTaken: overrides.starterTaken ?? false,
+      dessertTaken: overrides.dessertTaken ?? false,
+      snackTrigger: overrides.snackTrigger ?? null,
+      snackContext: overrides.snackContext ?? null,
+      components,
+    }),
     createdAt: `2026-07-06T12:${id.padStart(2, "0")}:00.000Z`,
     ...overrides,
   };
@@ -67,38 +85,39 @@ function data(meals: MealEntry[], extra: Partial<AppData> = {}): AppData {
 }
 
 describe("calculateWeeklyAnalysis", () => {
-  it("qualifie un repas cohérent sans surinterprétation", () => {
-    const finding = buildImmediateFinding(
-      "reasonable-plate",
-      "vraie-faim",
-      "satisfait",
-      "non",
-      "rassasie",
-    );
+  it("qualifie une observation simple sans surinterprétation", () => {
+    const finding = buildImmediateFinding({
+      kind: "dejeuner",
+      servingPattern: "none",
+      hungerBefore: "yes",
+      fullnessAfter: "fine",
+      components: EMPTY_COMPONENTS,
+    });
 
-    expect(finding.fact).toBe("Repas cohérent.");
-    expect(finding.reading).toContain("ne signale un excès clair");
+    expect(finding.fact).toBe("Observation ajoutée.");
+    expect(finding.reading).toContain("si le même signal se répète");
     expect(finding.evidenceLevel).toBe("observation unique");
   });
 
-  it("nuance une assiette chargée mais satisfaisante", () => {
-    const finding = buildImmediateFinding(
-      "loaded-plate",
-      "vraie-faim",
-      "satisfait",
-      "non",
-      "rassasie",
-    );
+  it("détecte pas vraiment faim + dessert + trop plein", () => {
+    const finding = buildImmediateFinding({
+      kind: "dejeuner",
+      servingPattern: "none",
+      hungerBefore: "not_really",
+      fullnessAfter: "too_full",
+      dessertTaken: true,
+      components: { ...EMPTY_COMPONENTS, dessert: true },
+    });
 
-    expect(finding.fact).toContain("repas cohérent");
-    expect(finding.reading).toContain("ne suffit pas à conclure");
+    expect(finding.fact).toContain("pas vraiment faim");
+    expect(finding.reading).toContain("écart entre la faim de départ");
   });
 
   it("détecte la priorité resservice", () => {
     const analysis = calculateWeeklyAnalysis(
       data([
-        meal("1", { quantity: "two-plates" }),
-        meal("2", { quantity: "two-plates" }),
+        meal("1", { servingPattern: "once" }),
+        meal("2", { servingPattern: "once" }),
         meal("3"),
         meal("4"),
         meal("5"),
@@ -107,14 +126,14 @@ describe("calculateWeeklyAnalysis", () => {
     );
 
     expect(analysis.priority.id).toBe("quantity");
-    expect(analysis.priority.rationale).toContain("deux assiettes");
+    expect(analysis.priority.rationale).toContain("resservice");
   });
 
-  it("détecte la priorité portion initiale sur assiette très chargée", () => {
+  it("détecte la priorité resservice sur plusieurs passages", () => {
     const analysis = calculateWeeklyAnalysis(
       data([
-        meal("1", { quantity: "loaded-plate" }),
-        meal("2", { quantity: "loaded-plate" }),
+        meal("1", { servingPattern: "multiple" }),
+        meal("2", { servingPattern: "buffet" }),
         meal("3"),
         meal("4"),
         meal("5"),
@@ -122,15 +141,15 @@ describe("calculateWeeklyAnalysis", () => {
       "2026-07-10",
     );
 
-    expect(analysis.priority.id).toBe("initial-portion");
-    expect(analysis.priority.rationale).toContain("très chargée");
+    expect(analysis.priority.id).toBe("quantity");
+    expect(analysis.priority.rationale).toContain("plusieurs passages");
   });
 
   it("détecte la priorité faim réelle", () => {
     const analysis = calculateWeeklyAnalysis(
       data([
-        meal("1", { hungerBefore: "pas-faim" }),
-        meal("2", { hungerBefore: "pas-faim" }),
+        meal("1", { hungerBefore: "no" }),
+        meal("2", { hungerBefore: "not_really" }),
         meal("3"),
         meal("4"),
         meal("5"),
@@ -142,33 +161,33 @@ describe("calculateWeeklyAnalysis", () => {
   });
 
   it("détecte l’inconfort après repas", () => {
-    const finding = buildImmediateFinding(
-      "loaded-plate",
-      "vraie-faim",
-      "inconfortable",
-      "non",
-      "assiette-vide",
-    );
+    const finding = buildImmediateFinding({
+      kind: "dejeuner",
+      servingPattern: "none",
+      hungerBefore: "yes",
+      fullnessAfter: "uncomfortable",
+      components: EMPTY_COMPONENTS,
+    });
 
-    expect(finding.fact).toBe("Une seule assiette, mais poussée trop loin.");
-    expect(finding.frictionPoint).toBe("portion initiale");
-    expect(finding.reading).toContain("sensation après le repas");
+    expect(finding.fact).toBe("Tu termines trop plein.");
+    expect(finding.frictionPoint).toBe("sensation après repas");
+    expect(finding.reading).toContain("volume ou de rythme");
   });
 
-  it("détecte une quantité importante sans faim réelle", () => {
-    const finding = buildImmediateFinding(
-      "two-plates",
-      "pas-faim",
-      "satisfait",
-      "non",
-      "assiette-vide",
-    );
+  it("détecte un resservice qui finit trop plein", () => {
+    const finding = buildImmediateFinding({
+      kind: "dejeuner",
+      servingPattern: "once",
+      hungerBefore: "yes",
+      fullnessAfter: "too_full",
+      components: EMPTY_COMPONENTS,
+    });
 
-    expect(finding.fact).toBe("Repas peu guidé par la faim.");
-    expect(finding.nextAction).toContain("attendre 10 minutes");
+    expect(finding.fact).toBe("Tu t’es resservi et tu termines trop plein.");
+    expect(finding.nextAction).toContain("10 à 15 minutes");
   });
 
-  it("ignore l'ancien champ de grignotage post-repas dans le constat immédiat", () => {
+  it("garde la signature héritée du constat immédiat compatible", () => {
     const finding = buildImmediateFinding(
       "two-plates",
       "vraie-faim",
@@ -177,15 +196,15 @@ describe("calculateWeeklyAnalysis", () => {
       "assiette-vide",
     );
 
-    expect(finding.fact).toBe("Resservice observé.");
+    expect(finding.frictionPoint).toBe("resservice");
     expect(finding.reading).not.toContain("après le repas");
   });
 
   it("détecte la priorité grignotage depuis le type de repas", () => {
     const analysis = calculateWeeklyAnalysis(
       data([
-        meal("1", { kind: "grignotage", hungerBefore: "pas-faim" }),
-        meal("2", { kind: "grignotage", hungerBefore: "pas-faim" }),
+        meal("1", { kind: "grignotage", snackTrigger: "boredom" }),
+        meal("2", { kind: "grignotage", snackTrigger: "stress" }),
         meal("3"),
         meal("4"),
         meal("5"),
@@ -200,7 +219,7 @@ describe("calculateWeeklyAnalysis", () => {
     expect(detectMealComponents("Muffin oeuf bacon")).toMatchObject({
       proteins: true,
       starches: true,
-      dessert: true,
+      dessert: false,
       ultraProcessed: true,
     });
   });
@@ -304,8 +323,8 @@ describe("calculateWeeklyAnalysis", () => {
     const analysis = calculateWeeklyAnalysis(
       data(
         [
-          meal("1", { quantity: "loaded-plate" }),
-          meal("2", { quantity: "loaded-plate" }),
+          meal("1", { servingPattern: "multiple" }),
+          meal("2", { servingPattern: "buffet" }),
           meal("3"),
           meal("4"),
           meal("5"),
@@ -333,6 +352,6 @@ describe("calculateWeeklyAnalysis", () => {
     );
 
     expect(analysis.mealCount).toBe(5);
-    expect(analysis.priority.id).toBe("initial-portion");
+    expect(analysis.priority.id).toBe("quantity");
   });
 });

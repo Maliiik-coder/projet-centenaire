@@ -1,11 +1,11 @@
-import type { MealKind } from "@/lib/types";
+import type { ActiveMealKind, MealKind } from "@/lib/types";
 
 export const activeMealKindLabels = {
   "petit-dejeuner": "Petit déjeuner",
   dejeuner: "Déjeuner",
   diner: "Dîner",
   grignotage: "Grignotage",
-} satisfies Record<Exclude<MealKind, "collation" | "autre">, string>;
+} satisfies Record<ActiveMealKind, string>;
 
 export const mealKindLabels: Record<MealKind, string> = {
   ...activeMealKindLabels,

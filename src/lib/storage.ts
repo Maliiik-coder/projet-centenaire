@@ -2,16 +2,22 @@ import type {
   ActivityEntry,
   AppData,
   FrictionChoice,
+  FullnessAfter,
   HungerBefore,
   ImmediateFinding,
   MealAfter,
+  MealClarification,
   MealComponents,
   MealEntry,
   Profile,
+  QuestionnaireVersion,
   ServedQuantity,
+  ServingPattern,
+  SnackContext,
   SmokingEntry,
   SmokingGoal,
   SmokingStatus,
+  SnackTrigger,
   SnackingAfter,
   StopReason,
   WeightEntry,
@@ -164,7 +170,11 @@ function normalizeHunger(value: unknown): HungerBefore {
     value === "pas-faim" ||
     value === "petite-faim" ||
     value === "vraie-faim" ||
-    value === "tres-faim"
+    value === "tres-faim" ||
+    value === "yes" ||
+    value === "not_really" ||
+    value === "no" ||
+    value === "unsure"
   ) {
     return value;
   }
@@ -185,7 +195,11 @@ function normalizeAfter(value: unknown): MealAfter {
     value === "encore-faim" ||
     value === "satisfait" ||
     value === "trop-plein" ||
-    value === "inconfortable"
+    value === "inconfortable" ||
+    value === "still_hungry" ||
+    value === "fine" ||
+    value === "too_full" ||
+    value === "uncomfortable"
   ) {
     return value;
   }
@@ -234,6 +248,93 @@ function normalizeSnacking(value: unknown): SnackingAfter {
   return "non";
 }
 
+function normalizeServingPattern(
+  value: unknown,
+  legacyQuantity: ServedQuantity,
+): ServingPattern {
+  if (
+    value === "none" ||
+    value === "once" ||
+    value === "multiple" ||
+    value === "buffet"
+  ) {
+    return value;
+  }
+
+  if (legacyQuantity === "two-plates") {
+    return "once";
+  }
+
+  if (legacyQuantity === "three-plus-plates") {
+    return "multiple";
+  }
+
+  return "none";
+}
+
+function normalizeFullness(value: unknown, legacyAfter: MealAfter): FullnessAfter {
+  if (
+    value === "still_hungry" ||
+    value === "fine" ||
+    value === "too_full" ||
+    value === "uncomfortable"
+  ) {
+    return value;
+  }
+
+  if (legacyAfter === "encore-faim") {
+    return "still_hungry";
+  }
+
+  if (legacyAfter === "trop-plein") {
+    return "too_full";
+  }
+
+  if (legacyAfter === "inconfortable") {
+    return "uncomfortable";
+  }
+
+  return "fine";
+}
+
+function normalizeSnackTrigger(value: unknown): SnackTrigger | null {
+  return value === "hunger" ||
+    value === "boredom" ||
+    value === "stress" ||
+    value === "habit" ||
+    value === "craving" ||
+    value === "unsure"
+    ? value
+    : null;
+}
+
+function normalizeSnackContext(value: unknown): SnackContext | null {
+  return value === "hotel" ||
+    value === "car" ||
+    value === "home" ||
+    value === "work" ||
+    value === "other"
+    ? value
+    : null;
+}
+
+function normalizeQuestionnaireVersion(value: unknown): QuestionnaireVersion {
+  return value === "v0.7" ? "v0.7" : "legacy";
+}
+
+function normalizeClarifications(value: unknown): MealClarification[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(isRecord).map((item) => ({
+    key: asString(item.key, "clarification"),
+    question: asString(item.question, ""),
+    value: typeof item.value === "string" ? item.value : null,
+    customText: typeof item.customText === "string" ? item.customText : null,
+  }));
+}
+
 function normalizeComponents(value: unknown): MealComponents {
   const record = isRecord(value) ? value : {};
 
@@ -280,16 +381,25 @@ function normalizeMeal(value: unknown): MealEntry | null {
   const quantity = normalizeQuantity(value.quantity, value.plateCount);
   const hungerBefore = normalizeHunger(value.hungerBefore);
   const afterMeal = normalizeAfter(value.afterMeal);
+  const servingPattern = normalizeServingPattern(value.servingPattern, quantity);
+  const fullnessAfter = normalizeFullness(value.fullnessAfter, afterMeal);
   const snackingAfter = normalizeSnacking(value.snackingAfter);
+  const components = isRecord(value.components)
+    ? normalizeComponents(value.components)
+    : { ...EMPTY_COMPONENTS };
   const finding =
     normalizeFinding(value.finding) ??
-    buildImmediateFinding(
-      quantity,
+    buildImmediateFinding({
+      kind: normalizeMealKind(value.kind),
+      servingPattern,
       hungerBefore,
-      afterMeal,
-      snackingAfter,
-      normalizeStopReason(value.stopReason),
-    );
+      fullnessAfter,
+      starterTaken: value.starterTaken === true,
+      dessertTaken: value.dessertTaken === true,
+      snackTrigger: normalizeSnackTrigger(value.snackTrigger),
+      snackContext: normalizeSnackContext(value.snackContext),
+      components,
+    });
 
   return {
     id: asString(value.id, `meal-${Date.now()}`),
@@ -298,13 +408,21 @@ function normalizeMeal(value: unknown): MealEntry | null {
     kind: normalizeMealKind(value.kind),
     freeText,
     quantity,
+    servingPattern,
     hungerBefore,
     afterMeal,
+    fullnessAfter,
     stopReason: normalizeStopReason(value.stopReason),
     snackingAfter,
-    components: isRecord(value.components)
-      ? normalizeComponents(value.components)
-      : { ...EMPTY_COMPONENTS },
+    starterTaken: value.starterTaken === true,
+    starterText: asString(value.starterText, "") || null,
+    dessertTaken: value.dessertTaken === true,
+    dessertText: asString(value.dessertText, "") || null,
+    snackTrigger: normalizeSnackTrigger(value.snackTrigger),
+    snackContext: normalizeSnackContext(value.snackContext),
+    clarifications: normalizeClarifications(value.clarifications),
+    questionnaireVersion: normalizeQuestionnaireVersion(value.questionnaireVersion),
+    components,
     finding,
     createdAt: asString(value.createdAt, new Date().toISOString()),
   };

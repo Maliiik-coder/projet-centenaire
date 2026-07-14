@@ -1,15 +1,36 @@
+import type { ActiveMealKind } from "@/lib/types";
+
 export const mealTunnelStepIds = [
   "kind",
   "text",
-  "quantity",
+  "starter",
+  "dessert",
+  "serving",
   "hunger",
-  "after",
-  "stop",
+  "fullness",
   "tags",
   "finding",
 ] as const;
 
+export const snackMealTunnelStepIds = [
+  "kind",
+  "snack-text",
+  "snack-trigger",
+  "snack-context",
+  "snack-fullness",
+  "finding",
+] as const;
+
+export type MealTunnelStepId =
+  | (typeof mealTunnelStepIds)[number]
+  | (typeof snackMealTunnelStepIds)[number];
+
+export function getMealTunnelStepIds(kind: ActiveMealKind): readonly MealTunnelStepId[] {
+  return kind === "grignotage" ? snackMealTunnelStepIds : mealTunnelStepIds;
+}
+
 export const MEAL_TUNNEL_STEPS = mealTunnelStepIds.length;
+export const SNACK_MEAL_TUNNEL_STEPS = snackMealTunnelStepIds.length;
 export const MEAL_TEXT_STEP = mealTunnelStepIds.indexOf("text");
 export const MEAL_TAGS_STEP = mealTunnelStepIds.indexOf("tags");
 export const MEAL_FINDING_STEP = mealTunnelStepIds.indexOf("finding");

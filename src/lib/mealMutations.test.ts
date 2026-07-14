@@ -5,8 +5,10 @@ import type { MealEntry } from "@/lib/types";
 
 function meal(id: string, freeText = "repas note"): MealEntry {
   const quantity = "reasonable-plate";
-  const hungerBefore = "vraie-faim";
-  const afterMeal = "satisfait";
+  const servingPattern = "none";
+  const hungerBefore = "yes";
+  const fullnessAfter = "fine";
+  const afterMeal = fullnessAfter;
   const stopReason = "rassasie";
   const snackingAfter = "non";
 
@@ -17,18 +19,28 @@ function meal(id: string, freeText = "repas note"): MealEntry {
     kind: "dejeuner",
     freeText,
     quantity,
+    servingPattern,
     hungerBefore,
     afterMeal,
+    fullnessAfter,
     stopReason,
     snackingAfter,
+    starterTaken: false,
+    starterText: null,
+    dessertTaken: false,
+    dessertText: null,
+    snackTrigger: null,
+    snackContext: null,
+    clarifications: [],
+    questionnaireVersion: "v0.7",
     components: EMPTY_COMPONENTS,
-    finding: buildImmediateFinding(
-      quantity,
+    finding: buildImmediateFinding({
+      kind: "dejeuner",
+      servingPattern,
       hungerBefore,
-      afterMeal,
-      snackingAfter,
-      stopReason,
-    ),
+      fullnessAfter,
+      components: EMPTY_COMPONENTS,
+    }),
     createdAt: `2026-07-11T12:${id.padStart(2, "0")}:00.000Z`,
   };
 }

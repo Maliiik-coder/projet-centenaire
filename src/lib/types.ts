@@ -53,6 +53,7 @@ export type MealKind =
   | "grignotage"
   | "collation"
   | "autre";
+export type ActiveMealKind = Exclude<MealKind, "collation" | "autre">;
 export type ServedQuantity =
   | "reasonable-plate"
   | "loaded-plate"
@@ -62,18 +63,48 @@ export type HungerBefore =
   | "pas-faim"
   | "petite-faim"
   | "vraie-faim"
-  | "tres-faim";
+  | "tres-faim"
+  | "yes"
+  | "not_really"
+  | "no"
+  | "unsure";
 export type MealAfter =
   | "encore-faim"
   | "satisfait"
   | "trop-plein"
-  | "inconfortable";
+  | "inconfortable"
+  | "still_hungry"
+  | "fine"
+  | "too_full"
+  | "uncomfortable";
 export type StopReason =
   | "rassasie"
   | "assiette-vide"
   | "arret-volontaire"
   | "contrainte-exterieure";
 export type SnackingAfter = "non" | "oui-leger" | "oui-important";
+export type ServingPattern = "none" | "once" | "multiple" | "buffet";
+export type FullnessAfter =
+  | "still_hungry"
+  | "fine"
+  | "too_full"
+  | "uncomfortable";
+export type SnackTrigger =
+  | "hunger"
+  | "boredom"
+  | "stress"
+  | "habit"
+  | "craving"
+  | "unsure";
+export type SnackContext = "hotel" | "car" | "home" | "work" | "other";
+export type QuestionnaireVersion = "legacy" | "v0.7";
+
+export interface MealClarification {
+  key: string;
+  question: string;
+  value: string | null;
+  customText?: string | null;
+}
 
 export interface ImmediateFinding {
   fact: string;
@@ -90,10 +121,20 @@ export interface MealEntry {
   kind: MealKind;
   freeText: string;
   quantity: ServedQuantity;
+  servingPattern: ServingPattern;
   hungerBefore: HungerBefore;
   afterMeal: MealAfter;
+  fullnessAfter: FullnessAfter;
   stopReason: StopReason;
   snackingAfter: SnackingAfter;
+  starterTaken: boolean;
+  starterText: string | null;
+  dessertTaken: boolean;
+  dessertText: string | null;
+  snackTrigger: SnackTrigger | null;
+  snackContext: SnackContext | null;
+  clarifications: MealClarification[];
+  questionnaireVersion: QuestionnaireVersion;
   components: MealComponents;
   finding: ImmediateFinding;
   createdAt: string;

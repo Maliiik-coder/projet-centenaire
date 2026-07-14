@@ -1,12 +1,17 @@
 import { EMPTY_COMPONENTS } from "@/lib/analytics";
 import { normalizeMealKind } from "@/lib/mealKinds";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
 import type {
+  FullnessAfter,
   HungerBefore,
+  MealClarification,
   MealAfter,
   MealComponents,
   MealEntry,
   ServedQuantity,
+  ServingPattern,
+  SnackContext,
+  SnackTrigger,
   SnackingAfter,
   StopReason,
 } from "@/lib/types";
@@ -55,7 +60,11 @@ function normalizeHunger(value: string | null): HungerBefore {
   return value === "pas-faim" ||
     value === "petite-faim" ||
     value === "vraie-faim" ||
-    value === "tres-faim"
+    value === "tres-faim" ||
+    value === "yes" ||
+    value === "not_really" ||
+    value === "no" ||
+    value === "unsure"
     ? value
     : "vraie-faim";
 }
@@ -64,7 +73,11 @@ function normalizeAfter(value: string | null): MealAfter {
   return value === "encore-faim" ||
     value === "satisfait" ||
     value === "trop-plein" ||
-    value === "inconfortable"
+    value === "inconfortable" ||
+    value === "still_hungry" ||
+    value === "fine" ||
+    value === "too_full" ||
+    value === "uncomfortable"
     ? value
     : "satisfait";
 }
@@ -84,6 +97,93 @@ function normalizeSnacking(value: string | null): SnackingAfter {
     : "non";
 }
 
+function normalizeServingPattern(
+  value: string | null,
+  legacyQuantity: ServedQuantity,
+): ServingPattern {
+  if (
+    value === "none" ||
+    value === "once" ||
+    value === "multiple" ||
+    value === "buffet"
+  ) {
+    return value;
+  }
+
+  if (legacyQuantity === "two-plates") {
+    return "once";
+  }
+
+  if (legacyQuantity === "three-plus-plates") {
+    return "multiple";
+  }
+
+  return "none";
+}
+
+function normalizeFullness(value: string | null, legacyAfter: MealAfter): FullnessAfter {
+  if (
+    value === "still_hungry" ||
+    value === "fine" ||
+    value === "too_full" ||
+    value === "uncomfortable"
+  ) {
+    return value;
+  }
+
+  if (legacyAfter === "encore-faim") {
+    return "still_hungry";
+  }
+
+  if (legacyAfter === "trop-plein") {
+    return "too_full";
+  }
+
+  if (legacyAfter === "inconfortable") {
+    return "uncomfortable";
+  }
+
+  return "fine";
+}
+
+function normalizeSnackTrigger(value: string | null): SnackTrigger | null {
+  return value === "hunger" ||
+    value === "boredom" ||
+    value === "stress" ||
+    value === "habit" ||
+    value === "craving" ||
+    value === "unsure"
+    ? value
+    : null;
+}
+
+function normalizeSnackContext(value: string | null): SnackContext | null {
+  return value === "hotel" ||
+    value === "car" ||
+    value === "home" ||
+    value === "work" ||
+    value === "other"
+    ? value
+    : null;
+}
+
+function normalizeClarifications(value: Json | null): MealClarification[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, Json | undefined> =>
+      typeof item === "object" && item !== null && !Array.isArray(item),
+    )
+    .map((item) => ({
+      key: typeof item.key === "string" ? item.key : "clarification",
+      question: typeof item.question === "string" ? item.question : "",
+      value: typeof item.value === "string" ? item.value : null,
+      customText: typeof item.customText === "string" ? item.customText : null,
+    }));
+}
+
 function componentsFromTags(tags: string[]): MealComponents {
   return componentKeys.reduce<MealComponents>(
     (components, key) => ({
@@ -99,17 +199,32 @@ function tagsFromComponents(components: MealComponents): string[] {
 }
 
 function fromMealRow(row: MealRow, tags: string[]): MealEntry {
+  const quantity = normalizeQuantity(row.quantity_served);
+  const afterMeal = normalizeAfter(row.fullness_after);
+  const servingPattern = normalizeServingPattern(row.serving_pattern, quantity);
+  const fullnessAfter = normalizeFullness(row.fullness_after, afterMeal);
+
   return {
     id: row.id,
     date: dateFromMealRow(row),
     time: timeFromMealRow(row),
     kind: normalizeMealKind(row.meal_type),
     freeText: row.raw_text ?? "",
-    quantity: normalizeQuantity(row.quantity_served),
+    quantity,
+    servingPattern,
     hungerBefore: normalizeHunger(row.hunger_before),
-    afterMeal: normalizeAfter(row.fullness_after),
+    afterMeal,
+    fullnessAfter,
     stopReason: normalizeStopReason(row.stop_reason),
     snackingAfter: normalizeSnacking(row.post_meal_snacking),
+    starterTaken: row.starter_taken === true,
+    starterText: row.starter_text ?? null,
+    dessertTaken: row.dessert_taken === true,
+    dessertText: row.dessert_text ?? null,
+    snackTrigger: normalizeSnackTrigger(row.snack_trigger),
+    snackContext: normalizeSnackContext(row.snack_context),
+    clarifications: normalizeClarifications(row.clarifications),
+    questionnaireVersion: row.questionnaire_version === "v0.7" ? "v0.7" : "legacy",
     components: componentsFromTags(tags),
     finding: {
       fact: row.immediate_constat ?? "Observation ajoutée.",
@@ -178,10 +293,19 @@ export async function upsertMealObservations(
           meal_type: meal.kind,
           raw_text: meal.freeText,
           quantity_served: meal.quantity,
+          serving_pattern: meal.servingPattern,
           hunger_before: meal.hungerBefore,
-          fullness_after: meal.afterMeal,
+          fullness_after: meal.fullnessAfter,
           stop_reason: meal.stopReason,
           post_meal_snacking: meal.snackingAfter,
+          starter_taken: meal.starterTaken,
+          starter_text: meal.starterText,
+          dessert_taken: meal.dessertTaken,
+          dessert_text: meal.dessertText,
+          snack_trigger: meal.snackTrigger,
+          snack_context: meal.snackContext,
+          clarifications: meal.clarifications as unknown as Json,
+          questionnaire_version: meal.questionnaireVersion,
           main_signal: meal.finding.frictionPoint,
           immediate_constat: meal.finding.fact,
           immediate_reading: meal.finding.reading,

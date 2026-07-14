@@ -20,7 +20,6 @@ import {
   EMPTY_COMPONENTS,
   buildImmediateFinding,
   calculateWeeklyAnalysis,
-  detectMealComponents,
   getLatestWeight,
   isSmokingTrackingEnabled,
   roundOne,
@@ -39,12 +38,14 @@ import {
 import { activeMealKindLabels, mealKindLabels } from "@/lib/mealKinds";
 import { deleteMealEntry, updateMealEntry } from "@/lib/mealMutations";
 import {
-  MEAL_FINDING_STEP,
-  MEAL_LAST_STEP,
-  MEAL_TAGS_STEP,
-  MEAL_TEXT_STEP,
-  MEAL_TUNNEL_STEPS,
+  getMealTunnelStepIds,
+  type MealTunnelStepId,
 } from "@/lib/mealTunnel";
+import {
+  clarificationChoices,
+  detectMealComponents,
+  mergeDetectedClarifications,
+} from "@/lib/foodDetection";
 import { shouldShowActiveMission } from "@/lib/mission";
 import { localDataStore, normalizeData } from "@/lib/storage";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -63,15 +64,22 @@ import {
 } from "@/services/offlineSyncService";
 import type {
   AppData,
+  ActiveMealKind,
   FrictionChoice,
+  FullnessAfter,
   HungerBefore,
   ISODate,
   MealAfter,
+  MealClarification,
   MealComponents,
   MealEntry,
   MealKind,
   Profile,
+  QuestionnaireVersion,
   ServedQuantity,
+  ServingPattern,
+  SnackContext,
+  SnackTrigger,
   SmokingDayState,
   SmokingGoal,
   SmokingStatus,
@@ -102,13 +110,23 @@ interface OnboardingDraft {
 }
 
 interface MealDraft {
-  kind: MealKind;
+  kind: ActiveMealKind;
   freeText: string;
   quantity: ServedQuantity;
+  servingPattern: ServingPattern;
   hungerBefore: HungerBefore;
   afterMeal: MealAfter;
+  fullnessAfter: FullnessAfter;
   stopReason: StopReason;
   snackingAfter: SnackingAfter;
+  starterTaken: boolean;
+  starterText: string;
+  dessertTaken: boolean;
+  dessertText: string;
+  snackTrigger: SnackTrigger | null;
+  snackContext: SnackContext | null;
+  clarifications: MealClarification[];
+  questionnaireVersion: QuestionnaireVersion;
   components: MealComponents;
 }
 
@@ -153,11 +171,11 @@ const onboardingSmokingGoalLabels: Partial<Record<SmokingGoal, string>> = {
   observer: "Pas maintenant",
 };
 
-const quantityLabels: Record<ServedQuantity, string> = {
-  "reasonable-plate": "1 assiette raisonnable",
-  "loaded-plate": "1 assiette très chargée",
-  "two-plates": "2 assiettes",
-  "three-plus-plates": "3 assiettes ou plus",
+const servingPatternLabels: Record<ServingPattern, string> = {
+  none: "Non",
+  once: "Oui, une fois",
+  multiple: "Oui, plusieurs fois",
+  buffet: "Buffet / plusieurs passages",
 };
 
 const hungerLabels: Record<HungerBefore, string> = {
@@ -165,20 +183,17 @@ const hungerLabels: Record<HungerBefore, string> = {
   "petite-faim": "Petite faim",
   "vraie-faim": "Vraie faim",
   "tres-faim": "Très faim",
+  yes: "Oui",
+  not_really: "Pas vraiment",
+  no: "Non",
+  unsure: "Je ne sais pas",
 };
 
-const afterLabels: Record<MealAfter, string> = {
-  "encore-faim": "Encore faim",
-  satisfait: "Satisfait",
-  "trop-plein": "Trop plein",
-  inconfortable: "Inconfortable",
-};
-
-const stopLabels: Record<StopReason, string> = {
-  rassasie: "Rassasié",
-  "assiette-vide": "Assiette terminée",
-  "arret-volontaire": "Arrêt volontaire",
-  "contrainte-exterieure": "Contrainte extérieure",
+const fullnessLabels: Record<FullnessAfter, string> = {
+  still_hungry: "Encore faim",
+  fine: "Bien",
+  too_full: "Trop plein",
+  uncomfortable: "Inconfortable",
 };
 
 const smokingDayLabels: Record<SmokingDayState, string> = {
@@ -195,6 +210,23 @@ const smokingTriggerOptions = [
   "ennui",
   "autre",
 ];
+
+const snackTriggerLabels: Record<SnackTrigger, string> = {
+  hunger: "Faim",
+  boredom: "Ennui",
+  stress: "Stress",
+  habit: "Habitude",
+  craving: "Envie",
+  unsure: "Je ne sais pas",
+};
+
+const snackContextLabels: Record<SnackContext, string> = {
+  hotel: "Hôtel",
+  car: "Voiture",
+  home: "Maison",
+  work: "Travail",
+  other: "Autre",
+};
 
 const componentLabels: Record<keyof MealComponents, string> = {
   proteins: "Protéines",
@@ -213,10 +245,20 @@ const emptyMealDraft: MealDraft = {
   kind: "dejeuner",
   freeText: "",
   quantity: "reasonable-plate",
-  hungerBefore: "vraie-faim",
-  afterMeal: "satisfait",
+  servingPattern: "none",
+  hungerBefore: "yes",
+  afterMeal: "fine",
+  fullnessAfter: "fine",
   stopReason: "rassasie",
   snackingAfter: "non",
+  starterTaken: false,
+  starterText: "",
+  dessertTaken: false,
+  dessertText: "",
+  snackTrigger: null,
+  snackContext: null,
+  clarifications: [],
+  questionnaireVersion: "v0.7",
   components: { ...EMPTY_COMPONENTS },
 };
 
@@ -276,6 +318,139 @@ function currentTime(): string {
 
 function countLabel(count: number, singular: string, plural: string): string {
   return `${count} ${count > 1 ? plural : singular}`;
+}
+
+function activeKindFromMealKind(kind: MealKind): ActiveMealKind {
+  if (kind === "petit-dejeuner" || kind === "dejeuner" || kind === "diner") {
+    return kind;
+  }
+
+  if (kind === "grignotage" || kind === "collation") {
+    return "grignotage";
+  }
+
+  return "dejeuner";
+}
+
+function quantityFromServingPattern(value: ServingPattern): ServedQuantity {
+  if (value === "once") {
+    return "two-plates";
+  }
+
+  if (value === "multiple" || value === "buffet") {
+    return "three-plus-plates";
+  }
+
+  return "reasonable-plate";
+}
+
+function servingPatternFromQuantity(value: ServedQuantity): ServingPattern {
+  if (value === "two-plates") {
+    return "once";
+  }
+
+  if (value === "three-plus-plates") {
+    return "multiple";
+  }
+
+  return "none";
+}
+
+function fullnessFromAfterMeal(value: MealAfter): FullnessAfter {
+  if (
+    value === "still_hungry" ||
+    value === "fine" ||
+    value === "too_full" ||
+    value === "uncomfortable"
+  ) {
+    return value;
+  }
+
+  if (value === "encore-faim") {
+    return "still_hungry";
+  }
+
+  if (value === "trop-plein") {
+    return "too_full";
+  }
+
+  if (value === "inconfortable") {
+    return "uncomfortable";
+  }
+
+  return "fine";
+}
+
+function hungerForTunnel(value: HungerBefore): HungerBefore {
+  if (value === "pas-faim") {
+    return "no";
+  }
+
+  if (value === "petite-faim") {
+    return "not_really";
+  }
+
+  if (value === "vraie-faim" || value === "tres-faim") {
+    return "yes";
+  }
+
+  return value;
+}
+
+function mealDetectionText(draft: MealDraft): string {
+  return [
+    draft.freeText,
+    draft.starterTaken ? draft.starterText : "",
+    draft.dessertTaken ? draft.dessertText : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function prepareDetectedMealDraft(draft: MealDraft): MealDraft {
+  const text = mealDetectionText(draft);
+
+  return {
+    ...draft,
+    components: detectMealComponents(text),
+    clarifications: mergeDetectedClarifications(text, draft.clarifications),
+  };
+}
+
+function mealDetailLine(meal: MealEntry): string {
+  const details = [];
+  const servingPattern = meal.servingPattern ?? servingPatternFromQuantity(meal.quantity);
+  const fullness = meal.fullnessAfter ?? fullnessFromAfterMeal(meal.afterMeal);
+
+  if (meal.starterTaken && meal.starterText) {
+    details.push(`Entrée · ${meal.starterText}`);
+  }
+
+  if (meal.dessertTaken && meal.dessertText) {
+    details.push(`Dessert · ${meal.dessertText}`);
+  }
+
+  if (meal.kind === "grignotage") {
+    if (meal.snackTrigger) {
+      details.push(snackTriggerLabels[meal.snackTrigger].toLowerCase());
+    }
+    if (meal.snackContext) {
+      details.push(snackContextLabels[meal.snackContext].toLowerCase());
+    }
+  } else {
+    details.push(servingPatternLabels[servingPattern].toLowerCase());
+    details.push(hungerLabels[meal.hungerBefore].toLowerCase());
+  }
+
+  details.push(fullnessLabels[fullness].toLowerCase());
+
+  return details.join(" · ");
+}
+
+function mealTagLabels(components: MealComponents): string[] {
+  return (Object.keys(componentLabels) as Array<keyof MealComponents>)
+    .filter((key) => components[key])
+    .map((key) => componentLabels[key]);
 }
 
 function buildSmokingDaySummary(
@@ -1012,13 +1187,23 @@ export function ProjetCentenaireApp() {
     setOpenMealActionId(null);
     setEditingMealId(meal.id);
     setMealDraft({
-      kind: meal.kind,
+      kind: activeKindFromMealKind(meal.kind),
       freeText: meal.freeText,
       quantity: meal.quantity,
-      hungerBefore: meal.hungerBefore,
+      servingPattern: meal.servingPattern ?? servingPatternFromQuantity(meal.quantity),
+      hungerBefore: hungerForTunnel(meal.hungerBefore),
       afterMeal: meal.afterMeal,
+      fullnessAfter: meal.fullnessAfter ?? fullnessFromAfterMeal(meal.afterMeal),
       stopReason: meal.stopReason,
       snackingAfter: "non",
+      starterTaken: meal.starterTaken ?? false,
+      starterText: meal.starterText ?? "",
+      dessertTaken: meal.dessertTaken ?? false,
+      dessertText: meal.dessertText ?? "",
+      snackTrigger: meal.snackTrigger ?? null,
+      snackContext: meal.snackContext ?? null,
+      clarifications: meal.clarifications ?? [],
+      questionnaireVersion: "v0.7",
       components: { ...meal.components },
     });
     setMealStep(0);
@@ -1075,13 +1260,19 @@ export function ProjetCentenaireApp() {
       return;
     }
 
-    const finding = buildImmediateFinding(
-      mealDraft.quantity,
-      mealDraft.hungerBefore,
-      mealDraft.afterMeal,
-      mealDraft.snackingAfter,
-      mealDraft.stopReason,
-    );
+    const preparedDraft = prepareDetectedMealDraft(mealDraft);
+    const quantity = quantityFromServingPattern(preparedDraft.servingPattern);
+    const finding = buildImmediateFinding({
+      kind: preparedDraft.kind,
+      servingPattern: preparedDraft.servingPattern,
+      hungerBefore: preparedDraft.hungerBefore,
+      fullnessAfter: preparedDraft.fullnessAfter,
+      starterTaken: preparedDraft.starterTaken,
+      dessertTaken: preparedDraft.dessertTaken,
+      snackTrigger: preparedDraft.snackTrigger,
+      snackContext: preparedDraft.snackContext,
+      components: preparedDraft.components,
+    });
     const editedMeal = editingMealId
       ? data.meals.find((meal) => meal.id === editingMealId)
       : null;
@@ -1089,14 +1280,30 @@ export function ProjetCentenaireApp() {
       id: editedMeal?.id ?? createId("meal"),
       date: editedMeal?.date ?? currentDate,
       time: editedMeal?.time ?? currentTime(),
-      kind: mealDraft.kind,
-      freeText: mealDraft.freeText.trim(),
-      quantity: mealDraft.quantity,
-      hungerBefore: mealDraft.hungerBefore,
-      afterMeal: mealDraft.afterMeal,
-      stopReason: mealDraft.stopReason,
-      snackingAfter: mealDraft.snackingAfter,
-      components: mealDraft.components,
+      kind: preparedDraft.kind,
+      freeText: preparedDraft.freeText.trim(),
+      quantity,
+      servingPattern: preparedDraft.servingPattern,
+      hungerBefore: preparedDraft.hungerBefore,
+      afterMeal: preparedDraft.fullnessAfter,
+      fullnessAfter: preparedDraft.fullnessAfter,
+      stopReason: preparedDraft.stopReason,
+      snackingAfter: preparedDraft.snackingAfter,
+      starterTaken: preparedDraft.starterTaken,
+      starterText:
+        preparedDraft.starterTaken && preparedDraft.starterText.trim()
+          ? preparedDraft.starterText.trim()
+          : null,
+      dessertTaken: preparedDraft.dessertTaken,
+      dessertText:
+        preparedDraft.dessertTaken && preparedDraft.dessertText.trim()
+          ? preparedDraft.dessertText.trim()
+          : null,
+      snackTrigger: preparedDraft.kind === "grignotage" ? preparedDraft.snackTrigger : null,
+      snackContext: preparedDraft.kind === "grignotage" ? preparedDraft.snackContext : null,
+      clarifications: preparedDraft.clarifications,
+      questionnaireVersion: "v0.7",
+      components: preparedDraft.components,
       finding,
       createdAt: editedMeal?.createdAt ?? new Date().toISOString(),
     };
@@ -1111,6 +1318,50 @@ export function ProjetCentenaireApp() {
       editedMeal ? "Observation mise à jour." : "Observation ajoutée au carnet.",
     );
     closeMealPanel();
+  };
+
+  const goToNextMealStep = (draftOverride?: MealDraft) => {
+    const currentDraft = draftOverride ?? mealDraft;
+    const stepIds = getMealTunnelStepIds(currentDraft.kind);
+    const currentStepId = stepIds[mealStep];
+    const nextStepIndex = Math.min(stepIds.length - 1, mealStep + 1);
+    const nextStepId = stepIds[nextStepIndex];
+
+    if (
+      (currentStepId === "text" || currentStepId === "snack-text") &&
+      currentDraft.freeText.trim().length < 2
+    ) {
+      setError("Ajoute une observation courte avant de continuer.");
+      return;
+    }
+
+    if (
+      currentStepId === "starter" &&
+      currentDraft.starterTaken &&
+      currentDraft.starterText.trim().length < 2
+    ) {
+      setError("Note rapidement l’entrée, ou choisis Non.");
+      return;
+    }
+
+    if (
+      currentStepId === "dessert" &&
+      currentDraft.dessertTaken &&
+      currentDraft.dessertText.trim().length < 2
+    ) {
+      setError("Note rapidement le dessert, ou choisis Non.");
+      return;
+    }
+
+    const nextDraft =
+      nextStepId === "tags" ||
+      (currentDraft.kind === "grignotage" && nextStepId === "finding")
+        ? prepareDetectedMealDraft(currentDraft)
+        : currentDraft;
+
+    setError(null);
+    setMealDraft(nextDraft);
+    setMealStep(nextStepIndex);
   };
 
   const addSmokingEntry = () => {
@@ -1722,22 +1973,7 @@ export function ProjetCentenaireApp() {
           onAdd={addMealToJournal}
           onChange={setMealDraft}
           onClose={closeMealPanel}
-          onNext={() => {
-            if (mealStep === MEAL_TEXT_STEP && mealDraft.freeText.trim().length < 2) {
-              setError("Ajoute une observation courte avant de continuer.");
-              return;
-            }
-
-            if (mealStep === MEAL_TEXT_STEP) {
-              setMealDraft((current) => ({
-                ...current,
-                components: detectMealComponents(current.freeText),
-              }));
-            }
-
-            setError(null);
-            setMealStep((step) => Math.min(MEAL_LAST_STEP, step + 1));
-          }}
+          onNext={goToNextMealStep}
           onPrevious={() => setMealStep((step) => Math.max(0, step - 1))}
         />
       ) : null}
@@ -2235,31 +2471,43 @@ function MealObservation({
   onAdd: () => void;
   onChange: (draft: MealDraft) => void;
   onClose: () => void;
-  onNext: () => void;
+  onNext: (draftOverride?: MealDraft) => void;
   onPrevious: () => void;
 }) {
-  const finding = buildImmediateFinding(
-    draft.quantity,
-    draft.hungerBefore,
-    draft.afterMeal,
-    draft.snackingAfter,
-    draft.stopReason,
-  );
+  const stepIds = getMealTunnelStepIds(draft.kind);
+  const stepId: MealTunnelStepId = stepIds[step] ?? stepIds[0];
+  const finding = buildImmediateFinding({
+    kind: draft.kind,
+    servingPattern: draft.servingPattern,
+    hungerBefore: draft.hungerBefore,
+    fullnessAfter: draft.fullnessAfter,
+    starterTaken: draft.starterTaken,
+    dessertTaken: draft.dessertTaken,
+    snackTrigger: draft.snackTrigger,
+    snackContext: draft.snackContext,
+    components: draft.components,
+  });
   const componentKeys = Object.keys(componentLabels) as Array<keyof MealComponents>;
   const detectedTags = componentKeys.filter((key) => draft.components[key]);
   const [editingTags, setEditingTags] = useState(false);
   const choose = (nextDraft: MealDraft) => {
     onChange(nextDraft);
-    onNext();
+    onNext(nextDraft);
   };
   const tagsToShow = editingTags ? componentKeys : detectedTags;
+  const showNextButton =
+    stepId === "text" ||
+    stepId === "snack-text" ||
+    stepId === "starter" ||
+    stepId === "dessert" ||
+    stepId === "tags";
 
   return (
     <div className="app-fixed-panel z-30">
       <div className="app-inner-screen mx-auto flex max-w-md flex-col">
         <div className="mb-8 flex items-center justify-between rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
           <p className={annotationClass}>
-            Observation {step + 1}/{MEAL_TUNNEL_STEPS}
+            Observation {step + 1}/{stepIds.length}
           </p>
           <button className="text-sm font-semibold text-[#3A3732]" type="button" onClick={onClose}>
             Fermer
@@ -2267,8 +2515,8 @@ function MealObservation({
         </div>
 
         <div className="flex flex-1 flex-col justify-center py-3">
-          {step === 0 ? (
-            <TunnelQuestion title="Type d'observation">
+          {stepId === "kind" ? (
+            <TunnelQuestion title="Type de repas">
               <TunnelChoiceLine
                 options={activeMealKindLabels}
                 value={draft.kind}
@@ -2277,11 +2525,13 @@ function MealObservation({
             </TunnelQuestion>
           ) : null}
 
-          {step === 1 ? (
+          {stepId === "text" || stepId === "snack-text" ? (
             <section className="space-y-6">
-              <p className={annotationClass}>Contenu libre</p>
+              <p className={annotationClass}>Contenu</p>
               <h1 className="font-serif text-3xl leading-tight">
-                Note ce que tu as mangé, simplement.
+                {stepId === "snack-text"
+                  ? "Tu as grignoté quoi ?"
+                  : "Note ce que tu as mangé, simplement."}
               </h1>
               <textarea
                 className="min-h-40 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 text-lg leading-8 text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.035)] outline-none placeholder:text-[#7A7166] focus:border-[#3E6670] focus:ring-2 focus:ring-[#3E6670]/15"
@@ -2294,49 +2544,126 @@ function MealObservation({
             </section>
           ) : null}
 
-          {step === 2 ? (
-            <TunnelQuestion title="Quantité servie">
+          {stepId === "starter" ? (
+            <TunnelQuestion title="Tu as pris une entrée ?">
               <TunnelChoiceLine
-                options={quantityLabels}
-                value={draft.quantity}
-                onPick={(value) => choose({ ...draft, quantity: value })}
+                options={{ non: "Non", oui: "Oui" }}
+                value={draft.starterTaken ? "oui" : "non"}
+                onPick={(value) => {
+                  if (value === "non") {
+                    choose({ ...draft, starterTaken: false, starterText: "" });
+                    return;
+                  }
+
+                  onChange({ ...draft, starterTaken: true });
+                }}
+              />
+              {draft.starterTaken ? (
+                <input
+                  className={inputClass}
+                  value={draft.starterText}
+                  onChange={(event) =>
+                    onChange({ ...draft, starterText: event.target.value })
+                  }
+                  placeholder="C’était quoi ?"
+                />
+              ) : null}
+            </TunnelQuestion>
+          ) : null}
+
+          {stepId === "dessert" ? (
+            <TunnelQuestion title="Tu as pris un dessert ?">
+              <TunnelChoiceLine
+                options={{ non: "Non", oui: "Oui" }}
+                value={draft.dessertTaken ? "oui" : "non"}
+                onPick={(value) => {
+                  if (value === "non") {
+                    choose({ ...draft, dessertTaken: false, dessertText: "" });
+                    return;
+                  }
+
+                  onChange({ ...draft, dessertTaken: true });
+                }}
+              />
+              {draft.dessertTaken ? (
+                <input
+                  className={inputClass}
+                  value={draft.dessertText}
+                  onChange={(event) =>
+                    onChange({ ...draft, dessertText: event.target.value })
+                  }
+                  placeholder="C’était quoi ?"
+                />
+              ) : null}
+            </TunnelQuestion>
+          ) : null}
+
+          {stepId === "serving" ? (
+            <TunnelQuestion title="Tu as repris ou ajouté une portion ?">
+              <TunnelChoiceLine
+                options={servingPatternLabels}
+                value={draft.servingPattern}
+                onPick={(value) => choose({ ...draft, servingPattern: value })}
               />
             </TunnelQuestion>
           ) : null}
 
-          {step === 3 ? (
-            <TunnelQuestion title="Faim avant le repas">
+          {stepId === "hunger" ? (
+            <TunnelQuestion title="Tu avais vraiment faim ?">
               <TunnelChoiceLine
-                options={hungerLabels}
+                options={{
+                  yes: hungerLabels.yes,
+                  not_really: hungerLabels.not_really,
+                  no: hungerLabels.no,
+                  unsure: hungerLabels.unsure,
+                }}
                 value={draft.hungerBefore}
                 onPick={(value) => choose({ ...draft, hungerBefore: value })}
               />
             </TunnelQuestion>
           ) : null}
 
-          {step === 4 ? (
-            <TunnelQuestion title="Après le repas">
+          {stepId === "fullness" || stepId === "snack-fullness" ? (
+            <TunnelQuestion
+              title={
+                stepId === "snack-fullness"
+                  ? "Après, tu étais comment ?"
+                  : "Après le repas, tu étais comment ?"
+              }
+            >
               <TunnelChoiceLine
-                options={afterLabels}
-                value={draft.afterMeal}
-                onPick={(value) => choose({ ...draft, afterMeal: value })}
+                options={fullnessLabels}
+                value={draft.fullnessAfter}
+                onPick={(value) =>
+                  choose({ ...draft, fullnessAfter: value, afterMeal: value })
+                }
               />
             </TunnelQuestion>
           ) : null}
 
-          {step === 5 ? (
-            <TunnelQuestion title="Pourquoi l'arrêt ?">
+          {stepId === "snack-trigger" ? (
+            <TunnelQuestion title="Pourquoi tu as mangé ?">
               <TunnelChoiceLine
-                options={stopLabels}
-                value={draft.stopReason}
-                onPick={(value) => choose({ ...draft, stopReason: value })}
+                options={snackTriggerLabels}
+                value={draft.snackTrigger ?? "unsure"}
+                onPick={(value) => choose({ ...draft, snackTrigger: value })}
               />
             </TunnelQuestion>
           ) : null}
 
-          {step === MEAL_TAGS_STEP ? (
+          {stepId === "snack-context" ? (
+            <TunnelQuestion title="Tu étais où ?">
+              <TunnelChoiceLine
+                options={snackContextLabels}
+                value={draft.snackContext ?? "other"}
+                onPick={(value) => choose({ ...draft, snackContext: value })}
+              />
+            </TunnelQuestion>
+          ) : null}
+
+          {stepId === "tags" ? (
             <section className="space-y-4">
-              <p className={annotationClass}>Étiquettes détectées</p>
+              <p className={annotationClass}>Ce que l’application a repéré</p>
               <div className="flex flex-wrap gap-2">
                 {tagsToShow.map((key) => {
                   const selected = draft.components[key];
@@ -2377,18 +2704,38 @@ function MealObservation({
               >
                 {editingTags ? "Masquer les étiquettes" : "Modifier les étiquettes"}
               </button>
+              {draft.clarifications.length > 0 ? (
+                <div className="space-y-4 pt-2">
+                  {draft.clarifications.slice(0, 2).map((clarification) => (
+                    <ClarificationQuestion
+                      clarification={clarification}
+                      key={clarification.key}
+                      onChange={(nextClarification) =>
+                        onChange({
+                          ...draft,
+                          clarifications: draft.clarifications.map((item) =>
+                            item.key === nextClarification.key
+                              ? nextClarification
+                              : item,
+                          ),
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              ) : null}
             </section>
           ) : null}
 
-          {step === MEAL_FINDING_STEP ? (
+          {stepId === "finding" ? (
             <section className="space-y-6">
-              <ConstatPart title="Constat" text={finding.fact} emphasized />
+              <ConstatPart title="Ce que je vois" text={finding.fact} emphasized />
               <div className="space-y-5 rounded-[22px] bg-[#FAF8F1] p-4 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
-                <ConstatPart title="Lecture" text={finding.reading} />
-                <ConstatPart title="Prochaine action" text={finding.nextAction} />
+                <ConstatPart title="Point à surveiller" text={finding.reading} />
+                <ConstatPart title="Prochaine fois" text={finding.nextAction} />
               </div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7A7166]">
-                Niveau de preuve : {finding.evidenceLevel}
+                {finding.evidenceLevel}
               </p>
             </section>
           ) : null}
@@ -2403,13 +2750,13 @@ function MealObservation({
           ) : (
             <span />
           )}
-          {step === MEAL_TEXT_STEP || step === MEAL_TAGS_STEP ? (
+          {showNextButton ? (
             <Button onClick={onNext}>
-              {step === MEAL_TAGS_STEP ? "Voir le constat" : "Continuer"}
+              {stepId === "tags" ? "Voir le retour" : "Continuer"}
               <ChevronRight aria-hidden="true" size={17} />
             </Button>
           ) : null}
-          {step === MEAL_FINDING_STEP ? (
+          {stepId === "finding" ? (
             <Button onClick={onAdd}>
               <Archive aria-hidden="true" size={17} />
               {submitLabel}
@@ -2467,6 +2814,62 @@ function TunnelChoiceLine<T extends string>({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function ClarificationQuestion({
+  clarification,
+  onChange,
+}: {
+  clarification: MealClarification;
+  onChange: (clarification: MealClarification) => void;
+}) {
+  return (
+    <div className="rounded-[18px] border border-[#DDD5C7] bg-[#FAF8F1] p-3 shadow-[0_6px_14px_rgba(23,21,18,0.03)]">
+      <p className="mb-3 text-sm font-semibold text-[#171512]">
+        {clarification.question}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {clarificationChoices.map((choice) => {
+          const selected = clarification.value === choice;
+
+          return (
+            <button
+              className={`min-h-9 rounded-full border px-3 text-xs font-semibold transition active:scale-[0.98] ${
+                selected
+                  ? "border-[#3E6670] bg-[#E6EFED] text-[#2F5E68]"
+                  : "border-[#DDD5C7] bg-[#FFFDF7] text-[#3A3732]"
+              }`}
+              key={choice}
+              type="button"
+              onClick={() =>
+                onChange({
+                  ...clarification,
+                  value: choice,
+                  customText:
+                    choice === "Autre" ? clarification.customText ?? "" : null,
+                })
+              }
+            >
+              {choice}
+            </button>
+          );
+        })}
+      </div>
+      {clarification.value === "Autre" ? (
+        <input
+          className={`${inputClass} mt-3`}
+          value={clarification.customText ?? ""}
+          onChange={(event) =>
+            onChange({
+              ...clarification,
+              customText: event.target.value,
+            })
+          }
+          placeholder="Précise en quelques mots"
+        />
+      ) : null}
     </div>
   );
 }
@@ -2580,10 +2983,13 @@ function TodayChronologyMeal({
           </p>
           <p className="mt-0.5 truncate text-sm text-[#171512]">{meal.freeText}</p>
           <p className="mt-1 truncate text-xs text-[#7A7166]">
-            {quantityLabels[meal.quantity]} ·{" "}
-            {hungerLabels[meal.hungerBefore].toLowerCase()} ·{" "}
-            {afterLabels[meal.afterMeal].toLowerCase()}
+            {mealDetailLine(meal)}
           </p>
+          {mealTagLabels(meal.components).length > 0 ? (
+            <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8B8277]">
+              {mealTagLabels(meal.components).slice(0, 3).join(" · ")}
+            </p>
+          ) : null}
           <p className="mt-2 inline-flex w-fit rounded-full border border-[#C7D4D2] bg-[#E6EFED]/65 px-2.5 py-1 text-xs font-semibold text-[#2F5E68]">
             Signal · {meal.finding.frictionPoint}
           </p>
@@ -2604,10 +3010,13 @@ function ChronologyMeal({ meal }: { meal: MealEntry }) {
       </div>
       <p className="mt-2 leading-7 text-[#171512]">{meal.freeText}</p>
       <p className="mt-2 text-sm text-[#6E665C]">
-        {quantityLabels[meal.quantity]} ·{" "}
-        {hungerLabels[meal.hungerBefore].toLowerCase()} ·{" "}
-        {afterLabels[meal.afterMeal].toLowerCase()}
+        {mealDetailLine(meal)}
       </p>
+      {mealTagLabels(meal.components).length > 0 ? (
+        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#8B8277]">
+          {mealTagLabels(meal.components).slice(0, 4).join(" · ")}
+        </p>
+      ) : null}
       <p className="mt-3 inline-flex rounded-full bg-[#E6EFED] px-3 py-1 text-xs font-semibold text-[#2F5E68]">
         Signal : {meal.finding.frictionPoint}
       </p>

@@ -3,193 +3,151 @@ import type {
   ActivityEntry,
   AppData,
   EvidenceLevel,
+  FullnessAfter,
   HungerBefore,
   MealAfter,
   MealComponents,
+  MealKind,
   Priority,
   ServedQuantity,
+  ServingPattern,
+  SnackContext,
   SnackingAfter,
+  SnackTrigger,
   StopReason,
   WeeklyAnalysis,
   WeightEntry,
 } from "@/lib/types";
 import { dedupeDailyWeights } from "@/lib/dataStabilization";
+import { EMPTY_COMPONENTS, detectMealComponents } from "@/lib/foodDetection";
 
-export const EMPTY_COMPONENTS: MealComponents = {
-  proteins: false,
-  vegetables: false,
-  starches: false,
-  fried: false,
-  dessert: false,
-  richSauce: false,
-  ultraProcessed: false,
-  sugaryDrink: false,
-  zeroDrink: false,
-  alcohol: false,
-};
-
-const componentKeywords: Array<{
-  key: keyof MealComponents;
-  words: string[];
-}> = [
-  {
-    key: "proteins",
-    words: [
-      "bacon",
-      "boeuf",
-      "dinde",
-      "jambon",
-      "lardon",
-      "merguez",
-      "oeuf",
-      "omelette",
-      "poisson",
-      "porc",
-      "poulet",
-      "saumon",
-      "saucisse",
-      "steak",
-      "thon",
-      "viande",
-    ],
-  },
-  {
-    key: "vegetables",
-    words: [
-      "aubergine",
-      "brocoli",
-      "carotte",
-      "champignon",
-      "concombre",
-      "courgette",
-      "epinard",
-      "haricot",
-      "legume",
-      "lentille",
-      "oignon",
-      "poireau",
-      "poivron",
-      "salade",
-      "tomate",
-    ],
-  },
-  {
-    key: "starches",
-    words: [
-      "bagel",
-      "biscotte",
-      "brioche",
-      "cereale",
-      "croissant",
-      "frites",
-      "galette",
-      "muffin",
-      "pain",
-      "pate",
-      "pizza",
-      "pomme de terre",
-      "quinoa",
-      "riz",
-      "semoule",
-      "tortilla",
-      "wrap",
-    ],
-  },
-  {
-    key: "fried",
-    words: ["beignet", "chips", "cordon bleu", "frit", "frites", "nuggets", "pane"],
-  },
-  {
-    key: "dessert",
-    words: [
-      "bonbon",
-      "brownie",
-      "chocolat",
-      "cookie",
-      "dessert",
-      "flan",
-      "gateau",
-      "glace",
-      "muffin",
-      "tarte",
-    ],
-  },
-  {
-    key: "richSauce",
-    words: [
-      "beurre",
-      "cheddar",
-      "creme",
-      "fromage",
-      "ketchup",
-      "mayonnaise",
-      "mozzarella",
-      "raclette",
-      "sauce",
-    ],
-  },
-  {
-    key: "ultraProcessed",
-    words: [
-      "bacon",
-      "burger",
-      "chips",
-      "cordon bleu",
-      "hot dog",
-      "kebab",
-      "muffin",
-      "nuggets",
-      "pizza",
-      "sandwich industriel",
-      "saucisse",
-      "viennoiserie",
-    ],
-  },
-  {
-    key: "sugaryDrink",
-    words: ["coca", "ice tea", "jus", "limonade", "orangina", "soda", "sprite"],
-  },
-  { key: "zeroDrink", words: ["coca zero", "light", "pepsi max", "zero"] },
-  {
-    key: "alcohol",
-    words: ["alcool", "aperitif", "biere", "champagne", "cocktail", "vin", "whisky"],
-  },
-];
+export { EMPTY_COMPONENTS, detectMealComponents };
 
 export function roundOne(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-export function detectMealComponents(text: string): MealComponents {
-  const normalized = text
-    .toLowerCase()
-    .replaceAll("œ", "oe")
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
+export interface ImmediateFindingInput {
+  kind: MealKind;
+  servingPattern: ServingPattern;
+  hungerBefore: HungerBefore;
+  fullnessAfter: FullnessAfter;
+  starterTaken?: boolean;
+  dessertTaken?: boolean;
+  snackTrigger?: SnackTrigger | null;
+  snackContext?: SnackContext | null;
+  components?: MealComponents;
+}
 
-  return componentKeywords.reduce<MealComponents>(
-    (components, item) => ({
-      ...components,
-      [item.key]: item.words.some((word) => normalized.includes(word)),
-    }),
-    { ...EMPTY_COMPONENTS },
+function servingPatternFromQuantity(quantity: ServedQuantity): ServingPattern {
+  if (quantity === "two-plates") {
+    return "once";
+  }
+
+  if (quantity === "three-plus-plates") {
+    return "multiple";
+  }
+
+  return "none";
+}
+
+function fullnessFromMealAfter(value: MealAfter): FullnessAfter {
+  if (value === "still_hungry" || value === "fine" || value === "too_full" || value === "uncomfortable") {
+    return value;
+  }
+
+  if (value === "encore-faim") {
+    return "still_hungry";
+  }
+
+  if (value === "trop-plein") {
+    return "too_full";
+  }
+
+  if (value === "inconfortable") {
+    return "uncomfortable";
+  }
+
+  return "fine";
+}
+
+function hasLowHunger(value: HungerBefore): boolean {
+  return value === "no" || value === "not_really" || value === "pas-faim";
+}
+
+function hasNoHunger(value: HungerBefore): boolean {
+  return value === "no" || value === "pas-faim";
+}
+
+function isTooFull(value: FullnessAfter | MealAfter): boolean {
+  return (
+    value === "too_full" ||
+    value === "uncomfortable" ||
+    value === "trop-plein" ||
+    value === "inconfortable"
+  );
+}
+
+function hasReservice(value: ServingPattern): boolean {
+  return value === "once" || value === "multiple" || value === "buffet";
+}
+
+function hasMultiplePassages(value: ServingPattern): boolean {
+  return value === "multiple" || value === "buffet";
+}
+
+function isRichMeal(components?: MealComponents): boolean {
+  return Boolean(
+    components?.fried ||
+      components?.richSauce ||
+      components?.ultraProcessed ||
+      components?.dessert,
   );
 }
 
 export function buildImmediateFinding(
+  input: ImmediateFindingInput,
+): {
+  fact: string;
+  reading: string;
+  nextAction: string;
+  frictionPoint: string;
+  evidenceLevel: "observation unique";
+};
+export function buildImmediateFinding(
   quantity: ServedQuantity,
   hungerBefore: HungerBefore,
   afterMeal: MealAfter,
-  _snackingAfter: SnackingAfter,
-  stopReason: StopReason = "rassasie",
+  snackingAfter: SnackingAfter,
+  stopReason?: StopReason,
+): {
+  fact: string;
+  reading: string;
+  nextAction: string;
+  frictionPoint: string;
+  evidenceLevel: "observation unique";
+};
+export function buildImmediateFinding(
+  inputOrQuantity: ImmediateFindingInput | ServedQuantity,
+  legacyHungerBefore?: HungerBefore,
+  legacyAfterMeal?: MealAfter,
 ) {
-  const importantQuantity =
-    quantity === "loaded-plate" ||
-    quantity === "two-plates" ||
-    quantity === "three-plus-plates";
-  const multiPlate =
-    quantity === "two-plates" || quantity === "three-plus-plates";
-  const tooFull = afterMeal === "trop-plein" || afterMeal === "inconfortable";
+  const input =
+    typeof inputOrQuantity === "string"
+      ? {
+          kind: "dejeuner" as const,
+          servingPattern: servingPatternFromQuantity(inputOrQuantity),
+          hungerBefore: legacyHungerBefore ?? "yes",
+          fullnessAfter: fullnessFromMealAfter(legacyAfterMeal ?? "fine"),
+          components: { ...EMPTY_COMPONENTS },
+        }
+      : inputOrQuantity;
+  const tooFull = isTooFull(input.fullnessAfter);
+  const lowHunger = hasLowHunger(input.hungerBefore);
+  const noHunger = hasNoHunger(input.hungerBefore);
+  const reservice = hasReservice(input.servingPattern);
+  const multiplePassages = hasMultiplePassages(input.servingPattern);
+  const richMeal = isRichMeal(input.components);
   const finding = ({
     fact,
     reading,
@@ -208,81 +166,130 @@ export function buildImmediateFinding(
     evidenceLevel: "observation unique" as const,
   });
 
-  if (
-    quantity === "reasonable-plate" &&
-    (hungerBefore === "vraie-faim" || hungerBefore === "tres-faim") &&
-    afterMeal === "satisfait" &&
-    (stopReason === "rassasie" || stopReason === "arret-volontaire")
-  ) {
+  if (input.kind === "grignotage") {
+    if (
+      input.snackContext === "hotel" &&
+      (input.snackTrigger === "boredom" || input.snackTrigger === "habit")
+    ) {
+      return finding({
+        fact: "Ce grignotage semble surtout lié au contexte.",
+        reading: "Hôtel + ennui peut devenir une routine automatique.",
+        nextAction:
+          "Prévoir autre chose à faire avant de sortir la nourriture.",
+        frictionPoint: "contexte",
+      });
+    }
+
+    if (
+      input.snackTrigger === "boredom" ||
+      input.snackTrigger === "stress" ||
+      input.snackTrigger === "habit"
+    ) {
+      return finding({
+        fact: "Ce grignotage semble plus lié au contexte qu’à une vraie faim.",
+        reading:
+          "Le signal utile ici est le déclencheur, pas seulement ce qui a été mangé.",
+        nextAction:
+          "La prochaine fois, noter le lieu ou l’état juste avant de manger.",
+        frictionPoint: "contexte",
+      });
+    }
+
     return finding({
-      fact: "Repas cohérent.",
-      reading:
-        "Rien dans cette observation ne signale un excès clair. Tu avais faim, tu termines satisfait, et tu n’as pas ajouté de grignotage.",
-      nextAction: "Même structure au prochain repas comparable.",
-      frictionPoint: "aucun signal fort",
+      fact: "Grignotage noté.",
+      reading: "Une observation seule ne suffit pas à conclure.",
+      nextAction: "Regarder si le même déclencheur revient dans la semaine.",
+      frictionPoint: "grignotage",
     });
   }
 
-  if (quantity === "loaded-plate" && tooFull) {
+  if (lowHunger && input.dessertTaken && tooFull) {
     return finding({
-      fact: "Une seule assiette, mais poussée trop loin.",
+      fact: "Tu n’avais pas vraiment faim et tu termines trop plein.",
       reading:
-        "Le problème n’est pas le resservice. Le signal fort est le volume initial et la sensation après le repas.",
+        "Le signal n’est pas seulement le dessert. C’est l’écart entre la faim de départ et le volume final.",
       nextAction:
-        "Au prochain repas similaire : réduire légèrement la portion de départ.",
-      frictionPoint: "portion initiale",
+        "Avant de commencer, attendre quelques minutes ou réduire ce qui accompagne le plat.",
+      frictionPoint: "faim et volume",
     });
   }
 
-  if (hungerBefore === "pas-faim" && importantQuantity) {
+  if (reservice && tooFull) {
     return finding({
-      fact: "Repas peu guidé par la faim.",
+      fact: "Tu t’es resservi et tu termines trop plein.",
       reading:
-        "Le signal principal n’est pas l’aliment. C’est le fait de manger une quantité importante sans faim réelle.",
-      nextAction:
-        "Au prochain repas sans faim : réduire la portion de départ ou attendre 10 minutes avant de commencer.",
-      frictionPoint: "faim réelle",
-    });
-  }
-
-  if (multiPlate) {
-    return finding({
-      fact: "Resservice observé.",
-      reading:
-        "C’est exactement le type de comportement que l’application doit surveiller. Ce n’est pas dramatique, mais répété plusieurs fois par semaine, cela devient un frein probable.",
-      nextAction:
-        "Prochain repas comparable : une seule assiette, puis 15 minutes d’attente.",
+        "C’est un comportement important à observer. Répété plusieurs fois, il peut devenir un vrai frein.",
+      nextAction: "Une portion, puis 10 à 15 minutes d’attente.",
       frictionPoint: "resservice",
     });
   }
 
-  if (quantity === "loaded-plate" && afterMeal === "satisfait") {
+  if (multiplePassages) {
     return finding({
-      fact: "Une assiette chargée, mais un repas cohérent.",
+      fact: "Plusieurs passages sont notés.",
       reading:
-        "Tu termines satisfait. Le volume initial est à surveiller, mais cette observation ne suffit pas à conclure à un excès problématique.",
+        "Le signal principal est le volume final, plus que le détail exact du plat.",
       nextAction:
-        "Ne corrige rien brutalement. Observe si ce type de portion revient souvent.",
-      frictionPoint: "portion initiale",
+        "La prochaine fois, choisir une première portion puis attendre avant de reprendre.",
+      frictionPoint: "resservice",
+    });
+  }
+
+  if (reservice) {
+    return finding({
+      fact: "Resservice noté.",
+      reading:
+        "Ce n’est pas un problème en soi. C’est un signal à suivre s’il revient souvent.",
+      nextAction: "Au prochain repas comparable, attendre 10 à 15 minutes avant de reprendre.",
+      frictionPoint: "resservice",
+    });
+  }
+
+  if (lowHunger && richMeal) {
+    return finding({
+      fact: "Le repas commence avec peu de faim réelle.",
+      reading:
+        "Le plat n’est pas forcément le sujet. Le signal ici, c’est le départ avec peu de faim.",
+      nextAction:
+        "La prochaine fois, attendre quelques minutes avant de servir ou réduire l’accompagnement.",
+      frictionPoint: "faim réelle",
+    });
+  }
+
+  if (noHunger) {
+    return finding({
+      fact: "Repas noté sans vraie faim au départ.",
+      reading:
+        "Cette observation ne suffit pas à conclure, mais c’est un signal à suivre.",
+      nextAction: "Au prochain cas similaire, attendre 10 minutes avant de commencer.",
+      frictionPoint: "faim réelle",
+    });
+  }
+
+  if (input.starterTaken && input.dessertTaken && richMeal && tooFull) {
+    return finding({
+      fact: "Entrée, dessert et repas riche finissent trop plein.",
+      reading:
+        "Le signal utile est l’accumulation, pas un aliment isolé.",
+      nextAction: "La prochaine fois, choisir l’entrée ou le dessert, pas forcément les deux.",
+      frictionPoint: "volume final",
     });
   }
 
   if (tooFull) {
     return finding({
-      fact: "Sensation de trop-plein observée.",
+      fact: "Tu termines trop plein.",
       reading:
         "Cette observation montre un signal de volume ou de rythme à surveiller, sans conclure à partir d’un seul repas.",
-      nextAction:
-        "Au prochain repas similaire : ralentir et réduire légèrement le volume de départ.",
+      nextAction: "Au prochain repas comparable, ralentir et réduire légèrement le départ.",
       frictionPoint: "sensation après repas",
     });
   }
 
   return finding({
     fact: "Observation ajoutée.",
-    reading:
-      "Cette observation seule ne suffit pas à conclure. Elle devient utile si le même signal se répète.",
-    nextAction: "Continue d'observer jusqu'à la fin de semaine.",
+    reading: "Cette note devient utile si le même signal se répète.",
+    nextAction: "Continuer à noter les repas comparables.",
     frictionPoint: "observation",
   });
 }
@@ -340,10 +347,10 @@ export function calculatePriority({
   if (multiPlateRatio >= 0.3) {
     return priority(
       "quantity",
-      "Priorité quantité",
+      "Priorité resservice",
       getEvidenceLevel(multiPlateRatio),
-      `${multiPlateMeals} repas sur ${mealCount} comportent deux assiettes ou plus.`,
-      "Prochain repas comparable : une seule assiette, puis 15 minutes d’attente.",
+      `${multiPlateMeals} repas sur ${mealCount} comportent un resservice ou plusieurs passages.`,
+      "Prochain repas comparable : une portion, puis 10 à 15 minutes d’attente.",
       "alimentation",
     );
   }
@@ -352,10 +359,10 @@ export function calculatePriority({
   if (loadedPlateRatio >= 0.3) {
     return priority(
       "initial-portion",
-      "Priorité portion initiale",
+      "Priorité volume final",
       getEvidenceLevel(loadedPlateRatio),
-      `${loadedPlateMeals} repas sur ${mealCount} comportent une assiette très chargée.`,
-      "Réduire légèrement la portion de départ au repas similaire suivant.",
+      `${loadedPlateMeals} repas sur ${mealCount} comportent plusieurs passages ou un volume marqué.`,
+      "Réduire le départ ou attendre avant de reprendre au repas similaire suivant.",
       "alimentation",
     );
   }
@@ -377,7 +384,7 @@ export function calculatePriority({
       "real-hunger",
       "Priorité faim réelle",
       getEvidenceLevel(noHungerRatio),
-      `${mealsStartedWithoutHunger} repas sur ${mealCount} commencent sans faim.`,
+      `${mealsStartedWithoutHunger} repas sur ${mealCount} commencent sans vraie faim.`,
       "Avant le prochain repas, noter le niveau de faim avant de servir.",
       "alimentation",
     );
@@ -387,7 +394,7 @@ export function calculatePriority({
   if (tooFullRatio >= 0.3) {
     return priority(
       "initial-portion",
-      "Priorité portion initiale",
+      "Priorité volume final",
       getEvidenceLevel(tooFullRatio),
       `${mealsEndedTooFull} repas sur ${mealCount} se terminent trop plein.`,
       "Réduire légèrement le volume de départ au repas similaire suivant.",
@@ -415,10 +422,6 @@ function getAverageWeight(weights: WeightEntry[]): number | null {
   );
 }
 
-function isTooFull(value: MealAfter): boolean {
-  return value === "trop-plein" || value === "inconfortable";
-}
-
 export function calculateWeeklyAnalysis(
   data: AppData,
   today: string,
@@ -437,22 +440,31 @@ export function calculateWeeklyAnalysis(
 
   const mealCount = meals.length;
   const onePlateMeals = meals.filter(
-    (meal) =>
-      meal.quantity === "reasonable-plate" || meal.quantity === "loaded-plate",
+    (meal) => !hasReservice(meal.servingPattern ?? servingPatternFromQuantity(meal.quantity)),
   ).length;
   const loadedPlateMeals = meals.filter(
-    (meal) => meal.quantity === "loaded-plate",
+    (meal) =>
+      hasMultiplePassages(meal.servingPattern ?? servingPatternFromQuantity(meal.quantity)) ||
+      meal.quantity === "loaded-plate",
   ).length;
   const multiPlateMeals = meals.filter(
     (meal) =>
-      meal.quantity === "two-plates" || meal.quantity === "three-plus-plates",
+      hasReservice(meal.servingPattern ?? servingPatternFromQuantity(meal.quantity)) ||
+      meal.quantity === "two-plates" ||
+      meal.quantity === "three-plus-plates",
   ).length;
   const mealsStartedWithoutHunger = meals.filter(
-    (meal) => meal.hungerBefore === "pas-faim",
+    (meal) => hasLowHunger(meal.hungerBefore),
   ).length;
-  const mealsEndedTooFull = meals.filter((meal) => isTooFull(meal.afterMeal)).length;
+  const mealsEndedTooFull = meals.filter((meal) =>
+    isTooFull(meal.fullnessAfter ?? meal.afterMeal),
+  ).length;
   const snackingWithoutHunger = meals.filter((meal) =>
-    meal.kind === "grignotage" && meal.hungerBefore === "pas-faim",
+    meal.kind === "grignotage" &&
+    (meal.snackTrigger === "boredom" ||
+      meal.snackTrigger === "stress" ||
+      meal.snackTrigger === "habit" ||
+      hasLowHunger(meal.hungerBefore)),
   ).length;
   const activityGoal = data.profile?.weeklyActivityGoal ?? 5;
   const smokeFreeDates = new Set(
@@ -470,12 +482,12 @@ export function calculateWeeklyAnalysis(
   });
   const facts = [
     `${mealCount} repas enregistrés`,
-    `${onePlateMeals} repas à une assiette`,
-    `${loadedPlateMeals} assiette(s) très chargée(s)`,
-    `${multiPlateMeals} repas à deux assiettes ou plus`,
-    `${mealsStartedWithoutHunger} repas commencés sans faim`,
+    `${onePlateMeals} repas sans resservice`,
+    `${loadedPlateMeals} repas à plusieurs passages`,
+    `${multiPlateMeals} repas avec resservice`,
+    `${mealsStartedWithoutHunger} repas commencés sans vraie faim`,
     `${mealsEndedTooFull} repas terminés trop plein`,
-    `${snackingWithoutHunger} grignotage(s) sans faim`,
+    `${snackingWithoutHunger} grignotage(s) de contexte`,
   ];
 
   return {
