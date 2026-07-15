@@ -49,7 +49,7 @@ Commit de référence :
 
 - Nom définitif : Projet Centenaire.
 - Logo : cercle incomplet + axe vertical + point central + progression en points.
-- Direction artistique : carnet digital contemporain.
+- Direction artistique : interface mobile claire, calme et humaine, pensée comme un compagnon du quotidien.
 - Pas de sport dans la V0.
 - Pas de communauté dans la V0.
 - Pas d’IA tant que le tunnel repas n’est pas stabilisé.
@@ -257,15 +257,32 @@ Changements réalisés :
   - respect safe area iPhone ;
   - ne poussent plus la page vers le bas.
 
+- Cohérence SQL base neuve/base migrée :
+  - ajout de `20260715133410_v071_meal_boolean_defaults.sql` ;
+  - défaut `false` appliqué à `starter_taken` et `dessert_taken` ;
+  - anciennes valeurs nulles normalisées à `false`.
+
 ### État Supabase avant release
 
-Contrôle distant effectué le 15 juillet 2026 avec Supabase CLI 2.109.1 :
+Contrôle distant historique effectué le 15 juillet 2026 avec Supabase CLI
+2.109.1, avant l'ajout de la migration corrective :
 
 - migrations V0.5, stabilisation V0.5 et préférences V0.6 présentes à distance ;
 - migration V0.6.1 `dark_mode` absente à distance ;
 - migration V0.7 tunnel repas absente à distance ;
 - dry-run limité à ces deux migrations manquantes ;
-- aucun push réel effectué pendant la passe de contrôle.
+- aucun push réel effectué pendant cette première passe de contrôle.
+
+La migration corrective V0.7.1 a été ajoutée localement après ce contrôle.
+Le nouveau `migration list --linked` et le nouveau dry-run confirment trois
+migrations locales absentes à distance :
+
+- V0.6.1 `dark_mode` ;
+- V0.7 tunnel repas ;
+- V0.7.1 défauts booléens repas.
+
+Aucun push réel n'a été exécuté pendant cette correction SQL.
+Le dry-run devra être relancé immédiatement avant tout futur push.
 
 La base distante ne doit pas être déclarée prête V0.7.1 avant exécution de
 `npx supabase db push --linked` puis nouvelle vérification de l'historique, des
