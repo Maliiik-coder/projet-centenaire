@@ -11,11 +11,12 @@ Chaque nouvelle idée doit être placée dans une des catégories suivantes :
 
 ## 1. Vision
 
-Haru n’est pas une application de calories.
+Haru n’est pas une application de comptage calorique quotidien.
 C’est un carnet comportemental qui aide l’utilisateur à observer ses faits, comprendre ses habitudes, et identifier ses vrais points de friction.
 
 Principes :
-- pas de calories ;
+- pas d’objectif calorique quotidien, de budget à consommer ni de logique de compensation ;
+- les données nutritionnelles peuvent être utilisées avec prudence pour les recettes et l’analyse qualitative des repas ;
 - pas de jugement de la personne ;
 - vérité factuelle ;
 - une action claire ;
@@ -37,6 +38,7 @@ Haru est actuellement en V0.7.1.
 - V0.6.1 appliquée, commitée et pushée sur `main` après la note initiale ;
 - V0.7 tunnel repas appliquée, commitée et pushée sur `main` ;
 - V0.7.1 corrections ciblées appliquées localement avant redéploiement ;
+- fondations visuelles mobiles et identité Haru intégrées sur `main` ;
 - contrôles de release Supabase renforcés : une base existante n'est plus
   considérée à jour sans comparaison explicite des migrations locales et distantes.
 
@@ -44,6 +46,8 @@ Commit de référence :
 - `a6641db` — `Prepare V0.6.1 production fixes`
 - `da2f90f` — `Prepare V0.7 meal tunnel`
 - `390a051` — `Fix meal tunnel continue button`
+- `37c857b` — `Stabilize V0.7.1 local and cloud data`
+- `168b726` — `Apply Haru mobile redesign foundations`
 
 ## 3. Décisions validées
 
@@ -57,8 +61,11 @@ Commit de référence :
 - Structure visuelle : succession de fenêtres mobiles plein format, avec grands espaces, surfaces blanches, progression courte et action principale basse.
 - Palette active : fond blanc ou bleu brume très clair, texte noir et actions allant du bleu pastel au bleu profond.
 - Typographie d'interface : Nunito Sans variable, choisie pour une présence plus ronde, mobile et chaleureuse ; le futur mot-symbole reste indépendant.
-- Pas de sport dans la V0.
-- Pas de communauté dans la V0.
+- Un module Sport est désormais approuvé. Il reste privé, progressif, sans calories brûlées, sans compétition et sans logique de compensation alimentaire.
+- Un module Recettes est désormais approuvé. Sa dimension communautaire est limitée au partage contrôlé de recettes publiques, aux favoris, à la duplication et au signalement ; aucun fil social, commentaire ou messagerie n’est prévu dans le MVP.
+- Ciqual doit servir de base alimentaire officielle pour structurer les ingrédients, estimer les recettes et préparer une analyse qualitative plus fiable des repas.
+- Les données nutritionnelles ne doivent jamais être inventées lorsqu’un aliment ou une conversion n’est pas fiable.
+- L’affichage nutritionnel détaillé appartient d’abord aux fiches recettes. Son éventuelle visibilité dans le suivi quotidien reste à arbitrer.
 - Pas d’IA tant que le tunnel repas n’est pas stabilisé.
 - Le tabac est intégré mais doit devenir un vrai module plus tard.
 - Le profil par défaut personnel a été supprimé.
@@ -68,6 +75,15 @@ Commit de référence :
 - Les anciennes données “Collation” restent lisibles et sont traitées comme “Grignotage”.
 - Le grignotage doit être un type d’observation, pas une question après repas.
 - Le petit déjeuner ne doit pas demander entrée/dessert.
+
+### Coordination des chantiers parallèles
+
+- commit de base commun : `168b726` ;
+- conversation principale : branche `codex/haru-recipes-ui`, propriétaire de Recettes, de la refonte UX, de la navigation et des fichiers partagés ;
+- conversation Sport : branche `codex/sport` dans un worktree séparé, en attente du feu vert explicite `GO SPORT` ;
+- Sport travaille uniquement dans son domaine isolé et ne modifie pas le shell, la navigation, le stockage partagé, le tunnel repas ou Recettes ;
+- l’intégration finale de Sport dans la navigation, `AppData`, le miroir local et le cloud partagé est réalisée par la conversation principale après validation de la branche Sport ;
+- aucun chantier parallèle ne pousse ou ne fusionne directement dans `main` sans validation explicite.
 
 ## 4. Retours terrain
 
@@ -311,6 +327,40 @@ quatre politiques `auth.uid()` par table. Les six index d'unicité attendus sont
 
 ## 8. Backlog
 
+### Chantier parallèle — Sport
+
+Statut : cadré, worktree prêt, développement non déclenché.
+
+Première tranche validée :
+- questionnaire dédié à la première ouverture de Sport ;
+- profil, matériel, limitations et capacités multidimensionnelles ;
+- bibliothèque initiale de renforcement avec variantes ;
+- génération déterministe, versionnée et explicable ;
+- aperçu, chronomètre, pause, reprise et fin de séance ;
+- retour neutre, adaptation d’une seule variable à la fois et historique basique ;
+- aucune calorie brûlée, IA décisionnelle, compétition ou diagnostic médical.
+
+Itérations suivantes :
+- marche et course progressives ;
+- natation et mode bassin ;
+- enrichissement des contenus après validation appropriée.
+
+### Chantier principal — Recettes et Ciqual
+
+Statut : vision reçue, cadrage d’architecture à réaliser dans la conversation principale.
+
+Objectifs :
+- catalogue, recherche et fiches recettes ;
+- recettes privées et publiques avec propriété et RLS ;
+- ingrédients structurés et import Ciqual reproductible ;
+- adaptation des quantités au nombre de portions ;
+- calcul nutritionnel explicite sur la fiche recette ;
+- favoris, duplication et signalement ;
+- ajout d’une portion au journal avec instantané immuable ;
+- réutilisation future de Ciqual pour fiabiliser l’analyse qualitative du tunnel repas.
+
+Le brief Recettes est un document de vision à découper en tranches verticales. Il ne doit pas être implémenté en un seul diff.
+
 ### V0.8 — Bilan quotidien
 
 Objectif :
@@ -380,7 +430,6 @@ Pistes :
 
 ## 9. Idées parking
 
-- Mouvement / activité physique à terme, hors V0.
 - Santé globale à terme, sans diluer le carnet comportemental.
 - Module de motivation sans badges ni gamification superficielle.
 - Meilleure lecture du contexte utilisateur : déplacement, hôtel, restaurant, voiture, stress.
@@ -388,14 +437,13 @@ Pistes :
 ## 10. Interdits actuels
 
 Ne pas ajouter pour l’instant :
-- sport ;
-- communauté ;
+- réseau social généraliste, fil communautaire, commentaires ou messagerie ;
 - paiement ;
 - IA complète ;
 - notifications push ;
 - Apple Health ;
 - gamification ;
-- calories ;
+- objectif calorique quotidien, compteur de calories brûlées ou compensation repas/sport ;
 - dashboard complexe.
 
 ## 11. Questions ouvertes
@@ -407,3 +455,7 @@ Ne pas ajouter pour l’instant :
 - Comment rendre les constats directs sans paraître froids ou scientifiques ?
 - Comment faire un onboarding qui explique l’IMC sans juger ?
 - Faut-il une semaine d’observation obligatoire avant recommandations ?
+- Quelle quantité de données nutritionnelles afficher hors des fiches recettes ?
+- Comment relier une recette au tunnel repas sans transformer la saisie en formulaire nutritionnel ?
+- Quelle stratégie d’import, de versionnement et de mise à jour retenir pour Ciqual ?
+- La navigation cible doit-elle devenir `Jour · Suivi · Recettes · Sport · Profil` en regroupant Carnet et Constats dans Suivi ?
