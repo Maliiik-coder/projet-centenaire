@@ -1,10 +1,13 @@
-# Projet Centenaire — V0.5
+# Projet Centenaire — V0.7.1
 
 Progressive Web App mobile-first conçue comme un carnet de terrain comportemental.
 
 L'application n'est pas une app de régime, pas une app fitness et pas un tableau de bord. Elle sert à observer les faits, noter les comportements existants et produire une priorité active simple à partir des données disponibles.
 
-La V0.5 ajoute l'infrastructure cloud : Supabase Auth, Supabase Postgres, Row Level Security, migration des données locales et préparation au déploiement. Elle n'ajoute pas de nouvelles fonctionnalités produit.
+La V0.7.1 stabilise le tunnel repas, le stockage local cloisonné par utilisateur,
+la migration explicite vers le cloud, la synchronisation hors ligne et la
+politique de cache PWA. La source de vérité produit détaillée se trouve dans
+[`docs/PRODUCT_BOARD.md`](docs/PRODUCT_BOARD.md).
 
 ## Stack
 
@@ -54,10 +57,24 @@ NEXT_PUBLIC_ENABLE_APPLE_OAUTH=false
 
 ## Supabase
 
-Les fichiers SQL sont dans `supabase/` :
+### Base neuve et base existante
 
-- `supabase/schema.sql`
-- `supabase/migrations/20260711095000_v05_initial_schema.sql`
+Les deux sources SQL n'ont pas le même rôle :
+
+- `supabase/schema.sql` sert uniquement à initialiser une base neuve avec le
+  schéma courant complet ;
+- `supabase/migrations/` est la source de vérité pour faire évoluer une base
+  existante sans perdre son historique ;
+- exécuter `schema.sql` sur une base ancienne ne remplace jamais l'application
+  des migrations manquantes.
+
+Les migrations V0.7.1 attendues, dans l'ordre, sont :
+
+1. `20260711095000_v05_initial_schema.sql`
+2. `20260711223000_v05_stabilization.sql`
+3. `20260714090000_v06_preferences.sql`
+4. `20260714100000_v061_dark_mode_preference.sql`
+5. `20260714110000_v07_meal_tunnel.sql`
 
 Tables créées :
 
@@ -68,14 +85,29 @@ Tables créées :
 - `tobacco_events`
 - `weekly_reports`
 
-Toutes les tables ont Row Level Security activé. Les policies limitent `select`, `insert`, `update` et `delete` à `user_id = auth.uid()`.
+Toutes les tables applicatives doivent avoir Row Level Security activé. Les
+politiques limitent `select`, `insert`, `update` et `delete` à
+`user_id = auth.uid()`.
 
-Pour appliquer le schéma :
+Le projet utilise Supabase CLI `2.109.1`. Pour contrôler une base existante liée :
 
-1. Créer un projet Supabase.
-2. Ouvrir SQL Editor.
-3. Exécuter `supabase/schema.sql`, ou appliquer la migration avec le CLI Supabase.
-4. Copier l'URL du projet et la clé `anon` dans les variables d'environnement.
+```bash
+npx supabase migration list --linked
+npx supabase db push --linked --dry-run
+npx supabase db push --linked
+```
+
+La dernière commande modifie la base distante. Elle ne doit être lancée qu'après
+lecture du dry-run et validation du projet ciblé.
+
+Contrôle effectué le 15 juillet 2026 : les trois premières migrations sont
+présentes à distance, mais les migrations V0.6.1 et V0.7 sont encore locales
+uniquement. Le dry-run annonce exactement ces deux fichiers. Aucun push réel n'a
+été exécuté pendant cette passe documentaire ; la base distante ne doit donc pas
+être considérée comme à jour V0.7.1.
+
+La procédure SQL détaillée pour vérifier colonnes, index et RLS se trouve dans
+[`docs/SUPABASE_CHECKLIST.md`](docs/SUPABASE_CHECKLIST.md).
 
 ## Authentification
 
@@ -100,25 +132,30 @@ Configuration Google OAuth :
    - `http://localhost:3000/auth/callback`
    - `https://votre-domaine.vercel.app/auth/callback`
 
-## Migration localStorage vers cloud
+## Migration locale vers le cloud
 
-Si des données existent déjà sur l'appareil après connexion, l'application affiche :
+Les données invitées, legacy et celles de chaque compte sont stockées dans des
+scopes séparés. Une donnée locale sans propriétaire n'est jamais synchronisée
+automatiquement.
 
-- `Associer à mon compte`
-- `Repartir de zéro`
-- `Exporter avant de continuer`
+Si une association explicite est nécessaire après connexion, l'application
+propose notamment :
 
-La fonction `migrateLocalDataToSupabase` conserve les dates et constats. Les upserts utilisent des contraintes uniques par utilisateur et `created_at` pour éviter les doublons si la migration est relancée.
+- `Associer ces données à mon compte` ;
+- `Garder uniquement les données du compte`.
 
-## Mode hors ligne simple
+La fusion conserve les données locales et cloud sans remplacement global. Les
+upserts utilisent des contraintes uniques par utilisateur pour rendre les
+reprises idempotentes.
 
-Il n'y a pas encore de synchronisation complexe.
+## Mode hors ligne
 
-Si une sauvegarde cloud échoue ou que le navigateur est hors ligne :
+Si le cloud est indisponible :
 
-- les données sont conservées localement ;
-- un message `Données en attente de synchronisation` est affiché ;
-- une tentative de synchronisation est lancée au prochain retour en ligne.
+- le miroir local du compte courant est utilisé ;
+- les mutations restent dans la file pending de ce compte ;
+- le cloud est relu avant toute reprise de synchronisation ;
+- aucune donnée d'un autre compte ou du scope invité n'est envoyée.
 
 ## Fonctionnalités conservées
 
@@ -151,10 +188,10 @@ Fonctionnalités explicitement non ajoutées :
 4. Configurer les redirects OAuth dans Supabase avec le domaine Vercel.
 5. Lancer un build Vercel.
 
-Commande de vérification locale :
+Commande de vérification locale complète :
 
 ```bash
-npm run build
+npm run verify
 ```
 
 ## Déploiement OVH VPS
@@ -181,11 +218,17 @@ Le VPS n'est pas configuré automatiquement par ce dépôt.
 ## Vérifications
 
 ```bash
-npm run typecheck
-npm run lint
-npm run test
-npm run build
+npm run verify
+npm audit
 ```
+
+`npm run verify` exécute séquentiellement le typecheck, le lint, les tests puis
+le build, sans doublon de build.
+
+Au 15 juillet 2026, `npm audit` signale deux vulnérabilités modérées provenant du
+PostCSS imbriqué dans Next.js 16.2.10, et aucune vulnérabilité high ou critical.
+Next.js 16.2.10 est encore la dernière version stable ; le correctif PostCSS est
+présent en canary 16.3 mais aucune canary n'est installée en production.
 
 ## Fichiers principaux
 

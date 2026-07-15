@@ -36,7 +36,9 @@ Projet Centenaire est actuellement en V0.7.1.
 - profil personnel par défaut supprimé ;
 - V0.6.1 appliquée, commitée et pushée sur `main` après la note initiale ;
 - V0.7 tunnel repas appliquée, commitée et pushée sur `main` ;
-- V0.7.1 corrections ciblées appliquées localement avant redéploiement.
+- V0.7.1 corrections ciblées appliquées localement avant redéploiement ;
+- contrôles de release Supabase renforcés : une base existante n'est plus
+  considérée à jour sans comparaison explicite des migrations locales et distantes.
 
 Commit de référence :
 - `a6641db` — `Prepare V0.6.1 production fixes`
@@ -254,6 +256,34 @@ Changements réalisés :
   - affichage en overlay fixe ;
   - respect safe area iPhone ;
   - ne poussent plus la page vers le bas.
+
+### État Supabase avant release
+
+Contrôle distant effectué le 15 juillet 2026 avec Supabase CLI 2.109.1 :
+
+- migrations V0.5, stabilisation V0.5 et préférences V0.6 présentes à distance ;
+- migration V0.6.1 `dark_mode` absente à distance ;
+- migration V0.7 tunnel repas absente à distance ;
+- dry-run limité à ces deux migrations manquantes ;
+- aucun push réel effectué pendant la passe de contrôle.
+
+La base distante ne doit pas être déclarée prête V0.7.1 avant exécution de
+`npx supabase db push --linked` puis nouvelle vérification de l'historique, des
+colonnes, des index et de la RLS.
+
+RLS distante vérifiée avant push : activée sur les six tables applicatives, avec
+quatre politiques `auth.uid()` par table. Les six index d'unicité attendus sont
+également présents.
+
+### Audit dépendances
+
+- aucune vulnérabilité high ou critical au 15 juillet 2026 ;
+- deux alertes modérées concernent PostCSS 8.4.31 imbriqué dans Next.js 16.2.10 ;
+- Next.js 16.2.10 reste la dernière version stable disponible ;
+- le correctif PostCSS existe dans la branche 16.3 canary, qui n'est pas retenue
+  pour une release de production ;
+- mise à jour Next.js à traiter dans un commit séparé dès publication d'une
+  version stable intégrant PostCSS 8.5.10 ou ultérieur.
 
 ## 8. Backlog
 

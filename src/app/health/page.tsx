@@ -8,7 +8,7 @@ function isConfigured(value: string | undefined): boolean {
 
 export default function HealthPage() {
   const status: HealthStatus = {
-    version: "V0.5",
+    version: "V0.7.1",
     environment: process.env.NODE_ENV ?? "development",
     supabaseUrlConfigured: isConfigured(process.env.NEXT_PUBLIC_SUPABASE_URL),
     supabaseAnonKeyConfigured: isConfigured(
