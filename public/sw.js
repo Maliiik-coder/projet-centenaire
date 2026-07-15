@@ -1,10 +1,10 @@
 const CACHE_PREFIX = "projet-centenaire-fieldbook-";
-const CACHE_NAME = `${CACHE_PREFIX}v3`;
+const CACHE_NAME = `${CACHE_PREFIX}v4`;
 const PUBLIC_NAVIGATION_PATHS = ["/", "/offline"];
 const PRECACHED_ASSET_PATHS = [
-  "/brand/app-icon.svg",
-  "/brand/logo-mark.svg",
-  "/icon.svg",
+  "/brand/Haru.png",
+  "/brand/Haru2.png",
+  "/brand/Haru3.png",
   "/icon-192.png",
   "/icon-512.png",
   "/icon-maskable-512.png",

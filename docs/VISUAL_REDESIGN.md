@@ -1,12 +1,14 @@
-# Projet Centenaire : contrat de refonte visuelle
+# Haru : contrat de refonte visuelle
 
-Statut : Phase 1 sur 4, audit et contrat uniquement. Ce document ne déclenche aucune modification de l'interface ni du comportement produit.
+Statut : palette recentrée sur un fond blanc et une gamme de bleus pastel après revue humaine. La Phase 3 est implémentée et validée localement. Le kit de marque Haru remplace désormais l’identité visuelle historique de Projet Centenaire.
 
 ## 1. Décision de direction artistique
 
 **Un compagnon du quotidien clair, calme, humain et immédiatement compréhensible.**
 
-Projet Centenaire doit devenir une application mobile de suivi personnel sobre et rassurante. L'interface doit aider à noter une information en quelques secondes, relire une journée sans effort et comprendre un constat sans vocabulaire technique.
+Haru doit devenir une application mobile de suivi personnel sobre et rassurante. L'interface doit aider à noter une information en quelques secondes, relire une journée sans effort et comprendre un constat sans vocabulaire technique.
+
+Décision de marque postérieure au contrat initial de Phase 3 : le dessin officiel n’est pas redessiné dans le code. Les PNG livrés ont uniquement été débarrassés de leur damier incrusté et recadrés, puis affectés à leurs contextes : mot-symbole dans les en-têtes, signature au démarrage et sur l’accueil de l’onboarding, monogramme pour l’icône installée.
 
 La notion de carnet reste utile dans le langage produit, la chronologie et la relation intime aux données. En revanche, la métaphore visuelle du vieux document, du papier jauni ou du dossier administratif n'est plus structurante. La cible est un carnet numérique contemporain : surfaces nettes, hiérarchie stable, gestes évidents et densité maîtrisée.
 
@@ -22,7 +24,25 @@ Principes directeurs :
 
 ## 2. Ce que les références nous apprennent
 
-Aucun fichier de référence visuelle externe n'était joint à cette phase. L'audit repose donc sur l'application locale actuelle, les captures produites à 390 px et la direction explicitement décrite dans le brief.
+Les cinq captures externes jointes au brief de Phase 3 constituent les références ergonomiques officielles du projet. Elles ne sont pas des modèles graphiques à reproduire, mais des repères communs pour évaluer l'efficacité de l'interface :
+
+1. première référence : hiérarchie immédiatement lisible et action principale dominante ;
+2. deuxième référence : grands espaces et densité maîtrisée ;
+3. troisième référence : grandes zones tactiles et choix compréhensibles sans apprentissage ;
+4. quatrième référence : progression claire dans un parcours séquentiel ;
+5. cinquième référence : navigation mobile familière et état actif évident.
+
+Leurs couleurs saturées, leurs photos publicitaires, leurs mécaniques de paywall et leur logique de gamification ne font pas partie de la direction de Projet Centenaire.
+
+La forme de fenêtre retenue reprend en revanche explicitement :
+
+- un écran mobile plein format, jamais une page web étirée ;
+- un fond blanc ou bleu brume très clair avec de grandes zones de respiration ;
+- un retour rond et une progression courte en haut des parcours séquentiels ;
+- une question principale forte, suivie de grandes surfaces blanches immédiatement compréhensibles ;
+- une action principale pleine largeur, stable en bas de l'écran ;
+- des panneaux contextuels qui se présentent comme des feuilles mobiles, pas comme des formulaires de site ;
+- une navigation inférieure familière, compacte et toujours accessible au pouce.
 
 Les éléments actuels à préserver comme acquis :
 
@@ -34,7 +54,7 @@ Les éléments actuels à préserver comme acquis :
 - des panneaux dédiés pour les saisies courtes ;
 - un tunnel repas question par question ;
 - une navigation principale courte et persistante ;
-- une couleur bleu pétrole déjà associée aux actions secondaires.
+- une gamme de bleus pastel, du bleu brume au bleu profond, réservée aux actions et sélections.
 
 Les enseignements de l'usage actuel sont clairs : l'application gagne en compréhension lorsque le contenu est découpé en surfaces courtes, que la valeur principale est plus visible que son libellé et que le nombre de boutons forts est limité.
 
@@ -98,7 +118,7 @@ L'audit du code relève environ 27 valeurs hexadécimales distinctes, avec plusi
 Les styles utilisent actuellement :
 
 - neuf rayons explicites entre 12 et 28 px, en plus de `rounded-full` ;
-- au moins dix-neuf recettes d'ombre proches mais différentes ;
+- au moins dix-neuf variantes d'ombre proches mais différentes ;
 - de nombreuses couleurs Tailwind arbitraires répétées ;
 - des surcharges globales du mode sombre basées sur des correspondances de classes et plusieurs `!important` ;
 - un mélange entre serif générique et Arial, donc un rendu dépendant du système.
@@ -241,26 +261,27 @@ Conformément à la documentation Next.js locale de cette version, les composant
 
 ## 9. Palette claire et sombre
 
-Les couleurs ci-dessous sont des tokens cibles. Toutes les paires texte/fond devront être mesurées avant implémentation et atteindre au minimum WCAG AA pour leur usage réel.
+Les couleurs ci-dessous sont les tokens retenus après la calibration Phase 2.5. Toutes les paires texte/fond sont mesurées pour leur usage réel et doivent atteindre au minimum WCAG AA.
 
 ### Palette claire
 
 | Rôle | Token proposé | Valeur |
 | --- | --- | --- |
-| Fond application | `canvas` | `#F6F7F9` |
-| Surface principale | `surface` | `#FFFFFF` |
-| Surface secondaire | `surface-subtle` | `#F2F4F7` |
-| Texte principal | `text` | `#1D2939` |
-| Texte secondaire | `text-secondary` | `#667085` |
-| Texte atténué | `text-muted` | `#98A2B3` |
-| Bordure | `border` | `#E4E7EC` |
-| Action principale | `primary` | `#315C62` |
-| Action survolée | `primary-hover` | `#294F54` |
-| Accent discret | `primary-subtle` | `#E8F1F0` |
-| Focus | `focus` | `#4C7D83` |
-| Succès texte / fond | `success` | `#2F6B45` / `#EAF6EE` |
-| Avertissement texte / fond | `warning` | `#8A5A00` / `#FFF4D6` |
-| Danger texte / fond | `danger` | `#A33D37` / `#FCECEA` |
+| Fond application | `--pc-color-background` | `#FFFFFF` |
+| Surface principale | `--pc-color-surface` | `#FFFFFF` |
+| Surface secondaire | `--pc-color-surface-subtle` | `#F5F9FC` |
+| Texte principal | `--pc-color-text` | `#111820` |
+| Texte secondaire | `--pc-color-text-muted` | `#5E6873` |
+| Texte atténué | `--pc-color-text-subtle` | `#82909C` |
+| Bordure | `--pc-color-border` | `#DCE6EE` |
+| Action principale | `--pc-color-primary` | `#416A8E` |
+| Action survolée | `--pc-color-primary-hover` | `#315574` |
+| Bleu intermédiaire | `--pc-color-primary-muted` | `#C9DEEE` |
+| Accent discret | `--pc-color-primary-soft` | `#EAF3FA` |
+| Focus | `--pc-color-focus` | `#416A8E` |
+| Succès texte / fond | `--pc-color-success` / `--pc-color-success-soft` | `#2F6B45` / `#EAF6EE` |
+| Avertissement texte / fond | `--pc-color-warning` / `--pc-color-warning-soft` | `#8A5A00` / `#FFF4D6` |
+| Danger texte / fond | `--pc-color-danger` / `--pc-color-danger-soft` | `#A33D37` / `#FCECEA` |
 
 `text-muted` est réservé aux informations non essentielles et aux états désactivés. Il ne doit pas porter seul une information métier importante.
 
@@ -268,27 +289,49 @@ Les couleurs ci-dessous sont des tokens cibles. Toutes les paires texte/fond dev
 
 | Rôle | Token proposé | Valeur |
 | --- | --- | --- |
-| Fond application | `canvas` | `#11171A` |
-| Surface principale | `surface` | `#182126` |
-| Surface élevée | `surface-elevated` | `#202B30` |
-| Texte principal | `text` | `#F2F4F7` |
-| Texte secondaire | `text-secondary` | `#B8C2C8` |
-| Bordure | `border` | `#344148` |
-| Action principale | `primary` | `#8AB8B9` |
-| Accent discret | `primary-subtle` | `#233A3D` |
-| Focus | `focus` | `#A7D2D2` |
-| Succès texte / fond | `success` | `#79C38E` / `#183525` |
-| Avertissement texte / fond | `warning` | `#E7B95D` / `#3A2E16` |
-| Danger texte / fond | `danger` | `#E08A83` / `#422523` |
+| Fond application | `--pc-color-background` | `#101820` |
+| Surface principale | `--pc-color-surface` | `#18232D` |
+| Surface élevée | `--pc-color-surface-elevated` | `#263542` |
+| Texte principal | `--pc-color-text` | `#F7FAFC` |
+| Texte secondaire | `--pc-color-text-muted` | `#BBC7D1` |
+| Bordure | `--pc-color-border` | `#334655` |
+| Action principale | `--pc-color-primary` | `#8DB5D5` |
+| Accent discret | `--pc-color-primary-soft` | `#21384C` |
+| Focus | `--pc-color-focus` | `#A9CCE5` |
+| Succès texte / fond | `--pc-color-success` / `--pc-color-success-soft` | `#79C38E` / `#183525` |
+| Avertissement texte / fond | `--pc-color-warning` / `--pc-color-warning-soft` | `#E7B95D` / `#3A2E16` |
+| Danger texte / fond | `--pc-color-danger` / `--pc-color-danger-soft` | `#E08A83` / `#422523` |
 
 Le mode sombre doit utiliser directement ces tokens sémantiques. Il ne doit plus recolorer a posteriori des classes arbitraires du mode clair.
 
+### Tokens complémentaires retenus en Phase 2
+
+- surfaces et contrastes : `--pc-color-surface-elevated`, `--pc-color-on-primary`, `--pc-color-danger-hover` ;
+- typographie : `--pc-font-sans`, `--pc-font-size-meta`, `--pc-font-size-secondary`, `--pc-font-size-body`, `--pc-font-size-card-title`, `--pc-font-size-section-title`, `--pc-font-size-page-title`, `--pc-line-height-tight`, `--pc-line-height-body`, `--pc-line-height-relaxed` ;
+- contrôles : `--pc-control-height`, `--pc-control-height-compact`, `--pc-content-max-width` ;
+- mouvement : `--pc-motion-fast`, `--pc-motion-panel`, `--pc-motion-state`, `--pc-ease-standard`, `--pc-ease-emphasized` ;
+- élévation : `--pc-shadow-level-1`, `--pc-shadow-level-2` ;
+- safe areas : `--pc-page-gutter`, `--pc-safe-top`, `--pc-safe-bottom`, `--pc-safe-left`, `--pc-safe-right` ;
+- empilement : `--pc-z-content`, `--pc-z-sticky`, `--pc-z-navigation`, `--pc-z-scrim`, `--pc-z-panel`, `--pc-z-menu`, `--pc-z-toast`.
+
+Les variables historiques `--background`, `--foreground`, `--app-*` et les sélecteurs sombres associés sont conservés en parallèle. Cette couche de compatibilité reste obligatoire tant que `ProjetCentenaireApp.tsx` n'est pas migré.
+
+### Calibration de la couleur principale
+
+La variante C terracotta, d'abord retenue pendant la Phase 2.5, a été rejetée lors de la revue humaine suivante. Les captures A, B et C restent conservées comme historique de décision, mais ne décrivent plus la direction active.
+
+La direction active repose sur un fond blanc, un texte presque noir et une gamme de bleus pastel : bleu brume `#EAF3FA`, bleu intermédiaire `#C9DEEE`, bleu ardoise `#416A8E` et bleu profond `#315574`. Le texte est noir sur le blanc et les bleus clairs, puis blanc sur les bleus moyen et profond. Le contraste du CTA principal avec le blanc atteint `5,71:1` et celui du survol atteint `7,83:1`.
+
+Le bleu sert aux CTA, au focus, à l'onglet actif, aux sélections et aux accents ponctuels. Les couleurs de succès, d'avertissement et de danger restent sémantiques et indépendantes.
+
 ## 10. Typographie
 
-Pile cible, sans téléchargement externe :
+Police d'interface retenue pour essai : **Nunito Sans variable**, auto-hébergée par `next/font`. Elle apporte des courbes plus rondes sans utiliser de typographie manuscrite ni modifier le logo.
+
+Pile de repli :
 
 ```css
-ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif
+var(--font-nunito-sans), ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
 ```
 
 La serif peut rester dans le logo final, qui n'est pas redessiné. Elle n'est plus utilisée pour les titres opérationnels, les cartes, les panneaux ou les formulaires. Une exception ponctuelle sur une phrase d'accueil ne pourra être retenue qu'après comparaison visuelle et test de lisibilité.
@@ -297,12 +340,12 @@ La serif peut rester dans le logo final, qui n'est pas redessiné. Elle n'est pl
 
 | Usage | Taille | Interligne | Graisse |
 | --- | --- | --- | --- |
-| Métadonnée, tag | 12 px | 16 px | 500 ou 600 |
+| Métadonnée, tag | 13 px | 16 px | 500 ou 600 |
 | Libellé, texte secondaire | 14 px | 20 px | 400 ou 500 |
 | Corps, champ, bouton | 16 px | 24 px | 400, 500 ou 600 |
-| Titre de section | 20 px | 28 px | 600 |
-| Titre de page | 24 px | 32 px | 600 ou 700 |
-| Question d'onboarding | 30 px | 38 px | 700 |
+| Titre de carte | 18 px | 24 px | 600 |
+| Titre de section | 22 px | 28 px | 600 |
+| Titre de page | 30 px | 38 px | 700 |
 
 Règles :
 
@@ -324,6 +367,8 @@ Règles :
 - marge latérale mobile recommandée : 16 px, 20 px lorsque l'espace le permet ;
 - aucun texte ne doit se superposer entre 320, 390 et 430 px de large.
 
+Tokens implémentés : `--pc-space-1`, `--pc-space-2`, `--pc-space-3`, `--pc-space-4`, `--pc-space-6`, `--pc-space-8`, `--pc-space-10` et `--pc-space-12`.
+
 ### Rayons
 
 - 4 px : éléments compacts et menus ;
@@ -331,6 +376,8 @@ Règles :
 - 8 px : cartes et boutons ;
 - 12 px : panneaux plein écran, feuilles modales et surfaces exceptionnellement mises en avant ;
 - `rounded-full` : tags, indicateurs, statuts et avatars uniquement.
+
+Tokens implémentés : `--pc-radius-compact`, `--pc-radius-control`, `--pc-radius-card`, `--pc-radius-panel` et `--pc-radius-full`.
 
 ### Bordures et ombres
 
@@ -390,6 +437,30 @@ Les variables de safe area actuelles et les unités `svh` ou `dvh` sont conserv�
 - `ContextMenu` : appui long, clic extérieur et clavier ;
 - `EmptyState`, `Metric`, `TodayActionTile` et `TimelineItem`.
 
+### Composants réellement créés en Phase 2
+
+- `Button` : primary, secondary, tertiary, danger, loading, disabled et pleine largeur ;
+- `IconButton` : libellé accessible obligatoire et cible tactile de 48 px ;
+- `Surface` : default, subtle, interactive et selected ;
+- `FormField` : label, aide, erreur et association automatique au contrôle ;
+- `TextInput` et `Select` ;
+- `ChoiceCard` et `Switch` ;
+- `ProgressIndicator` ;
+- `TopBar` avec logo complet et section courante ;
+- `EmptyState`, `ErrorState` et `LoadingState`.
+
+`Modal` et `BottomSheet` n'ont pas été créés : aucun des trois écrans migrés n'en avait besoin. `AppShell` est pour l'instant matérialisé par les classes globales `pc-screen` et `pc-screen-inner`, sans abstraction React supplémentaire.
+
+### Composants présentiels extraits en Phase 3
+
+- `AppHeader` : mot-symbole Haru dans le shell, signature complète dans les états d'entrée, ratio préservé dans les deux contextes ;
+- `BottomNav` : quatre destinations inchangées, libellés visibles, cibles de 56 px minimum, état actif et focus clavier ;
+- `TodayActionTile` : tuile quotidienne compacte ou principale, entièrement actionnable et sans logique de données ;
+- `OnboardingLayout` et `OnboardingQuestion` : safe areas, progression, hiérarchie de question et zone d'action ;
+- `StartupStateLayout` : cadre partagé pour chargement, réinitialisation et décision de migration.
+
+La Phase 3 réutilise également `Button`, `ChoiceCard`, `ErrorState`, `FormField`, `ProgressIndicator`, `Surface` et `TextInput` créés en Phase 2. Toutes les règles de validation, transitions d'étape, mutations et décisions restent dans `ProjetCentenaireApp.tsx`.
+
 ### Vues présentationales à extraire progressivement
 
 - `TodayView` ;
@@ -415,28 +486,46 @@ Ces extractions reçoivent des données et des callbacks. Elles ne déplacent ni
 
 ### Phase 2 : fondations visuelles
 
-- introduire les tokens clair et sombre ;
-- harmoniser le shell, la largeur, les safe areas et la typographie ;
-- créer les primitives partagées sans changer les parcours ;
-- remplacer progressivement les valeurs brutes dans un périmètre contrôlé ;
-- ajouter des tests visuels ou de rendu sur les primitives critiques.
+- statut : fondations validées ; palette terracotta historique remplacée par la gamme bleue actuelle ;
+- tokens clair et sombre introduits dans `globals.css` ;
+- shell, largeur, safe areas et typographie harmonisés pour les écrans périphériques ;
+- primitives partagées créées sans logique métier ;
+- Connexion, Compte et Hors connexion migrés sans changer leurs parcours ;
+- couche sombre historique conservée pour le cœur ;
+- test pur ajouté pour la résolution des variantes de bouton.
 
-### Phase 3 : parcours critiques
+Écart par rapport au plan initial : le brief détaillé de Phase 2 a demandé d'anticiper Connexion et Compte, auparavant placés dans les phases 3 et 4. Cette anticipation reste strictement visuelle.
 
-- migrer onboarding et login ;
-- migrer page du jour, navigation, poids et tabac ;
-- migrer le tunnel repas sans modifier sa logique V0.7.1 ;
-- migrer chronologie, menu contextuel, confirmations et toasts ;
-- vérifier clavier, focus, appui long, mode hors ligne et synchronisation.
+### Phase 2.5 : calibration colorimétrique
 
-### Phase 4 : surfaces secondaires et recette
+- statut : terminée puis invalidée lors de la revue humaine suivante ;
+- comparer Connexion claire, Compte clair et Connexion sombre à 390 px ;
+- ne modifier que les tokens sémantiques dans un environnement de prévisualisation isolé ;
+- conserver A et B uniquement comme références de décision.
 
-- migrer Carnet, Constats, Profil et Compte ;
-- migrer migration locale, réinitialisation, hors ligne et santé ;
-- finaliser le mode sombre ;
-- tester 320, 390 et 430 px, grand écran, zoom et texte agrandi ;
-- effectuer la recette fonctionnelle cloud, locale, PWA et accessibilité ;
-- supprimer les anciens styles seulement après validation de chaque vue.
+### Phase 3 : entrée et expérience quotidienne
+
+- statut : implémentée et validée localement ;
+- harmoniser les états de démarrage ;
+- migrer l'onboarding ;
+- migrer le shell principal ;
+- migrer la navigation inférieure ;
+- migrer la Page du jour.
+
+Le shell mobile occupe toute la largeur disponible jusqu'à 432 px. Au-delà, il reste centré dans un cadre applicatif de 480 px afin de ne pas se transformer en page web étirée. La navigation basse utilise quatre libellés courts, des cibles tactiles de 56 px minimum et un indicateur actif porté par l'icône. Les safe areas, le retour tactile, le débordement horizontal et les panneaux plein écran restent gérés par les fondations globales.
+
+La Phase 3 ne refond pas intégralement le tunnel repas, Carnet, Constats, Profil, ni les panneaux de saisie poids et tabac.
+
+### Phase 4 : surfaces secondaires et validation finale
+
+- migrer Carnet ;
+- migrer Constats ;
+- migrer Profil ;
+- migrer le tunnel repas complet ;
+- migrer les saisies poids et tabac ;
+- harmoniser les modales, menus et notifications ;
+- nettoyer les styles historiques après validation de chaque vue ;
+- effectuer la validation finale sur 320, 390 et 430 px, grand écran, zoom, texte agrandi, cloud, local, PWA et accessibilité.
 
 L'ordre est volontaire : les primitives précèdent les écrans, puis les parcours de saisie précèdent les écrans de lecture et d'administration.
 
@@ -458,7 +547,7 @@ L'ordre est volontaire : les primitives précèdent les écrans, puis les parcou
 - Modifier involontairement le service worker, le manifest, l'authentification ou les migrations SQL.
 - Dégrader les lecteurs d'écran en remplaçant un libellé par une icône sans nom accessible.
 
-Chaque phase d'implémentation devra être validée avec les commandes du projet et une recette manuelle ciblée. La comparaison visuelle ne remplace pas les tests métier existants.
+Chaque phase d'implémentation devra être validée avec les commandes du projet et une validation fonctionnelle manuelle ciblée. La comparaison visuelle ne remplace pas les tests métier existants.
 
 ## 15. Problèmes UX repérés mais non modifiés
 
@@ -470,12 +559,11 @@ Cette phase ne corrige aucun des points suivants :
 - la « Chronologie du jour » montre principalement les repas, pas l'ensemble des événements du jour ;
 - Profil et `/account` présentent des responsabilités qui se recoupent ;
 - l'indisponibilité cloud peut être perçue comme un état transitoire peu explicite ;
-- la navigation uniquement iconographique peut demander un apprentissage à un nouveau public ;
 - les confirmations natives ne sont pas cohérentes avec les panneaux de l'application ;
 - les quatre filtres du Carnet sont serrés à 390 px et fragiles avec un texte agrandi ;
-- la serif générique varie selon le système ;
-- certains écrans d'onboarding laissent un espace vertical important selon le clavier et la hauteur disponible ;
-- l'absence de références visuelles externes limite la comparaison à l'état local et au brief.
+- la serif générique varie encore dans les vues non migrées ;
+- le tunnel repas, les panneaux poids/tabac, les menus et les notifications conservent leurs styles historiques jusqu'à la Phase 4 ;
+- les références externes ne documentent pas les contraintes propres au clavier iOS, qui restent à valider sur appareil réel.
 
 Ces sujets sont consignés pour arbitrage. Ils ne constituent pas une autorisation de modifier la logique produit au cours des phases suivantes.
 
@@ -490,6 +578,40 @@ Captures réalisées localement le 15 juillet 2026 dans un viewport mobile de 37
 - [05 - Tunnel repas](visual-redesign/before/05-tunnel-repas.png)
 
 Ces images constituent la référence « avant ». Elles servent à vérifier qu'une future migration améliore la hiérarchie sans supprimer d'état, d'action ou d'information.
+
+### Captures Phase 2
+
+Captures réalisées à 390 px. La page Compte utilise une instance locale sans Supabase afin de ne publier aucune adresse personnelle. La capture sombre a été activée depuis le vrai switch de préférence dans cette même instance locale.
+
+- [Connexion claire](visual-redesign/phase-2/01-login-light-390.png)
+- [Compte clair](visual-redesign/phase-2/02-account-light-390.png)
+- [Hors connexion clair](visual-redesign/phase-2/03-offline-light-390.png)
+- [Connexion sombre](visual-redesign/phase-2/04-login-dark-390.png)
+
+### Captures de calibration colorimétrique
+
+- [A - Connexion claire](visual-redesign/color-calibration/A-login-light.png)
+- [A - Compte clair](visual-redesign/color-calibration/A-account-light.png)
+- [A - Connexion sombre](visual-redesign/color-calibration/A-login-dark.png)
+- [B - Connexion claire](visual-redesign/color-calibration/B-login-light.png)
+- [B - Compte clair](visual-redesign/color-calibration/B-account-light.png)
+- [B - Connexion sombre](visual-redesign/color-calibration/B-login-dark.png)
+- [C - Connexion claire](visual-redesign/color-calibration/C-login-light.png)
+- [C - Compte clair](visual-redesign/color-calibration/C-account-light.png)
+- [C - Connexion sombre](visual-redesign/color-calibration/C-login-dark.png)
+
+### Captures Phase 3
+
+Captures historiques réalisées avec la palette terracotta alors retenue, un profil synthétique et une instance locale sans Supabase. Elles documentent la structure de Phase 3, mais plus la palette active. Les parcours ont été contrôlés à 390 px en clair et en sombre, puis à 320 px pour le comportement responsive.
+
+- [Onboarding - accueil clair, 390 px](visual-redesign/phase-3/01-onboarding-start-light-390.png)
+- [Onboarding - choix sélectionné clair, 390 px](visual-redesign/phase-3/02-onboarding-choice-selected-light-390.png)
+- [Page du jour - chronologie vide claire, 390 px](visual-redesign/phase-3/03-today-empty-light-390.png)
+- [Page du jour - chronologie alimentée claire, 390 px](visual-redesign/phase-3/04-today-data-light-390.png)
+- [Navigation - Carnet actif clair, 390 px](visual-redesign/phase-3/05-navigation-carnet-light-390.png)
+- [Migration - décision bloquante claire, 390 px](visual-redesign/phase-3/06-migration-light-390.png)
+- [Page du jour - chronologie alimentée sombre, 390 px](visual-redesign/phase-3/07-today-data-dark-390.png)
+- [Page du jour - contrôle responsive clair, 320 px](visual-redesign/phase-3/08-today-light-320.png)
 
 ## 17. Critères d'acceptation
 
@@ -520,3 +642,30 @@ Ces images constituent la référence « avant ». Elles servent à vérifier qu
 - les états ne reposent jamais uniquement sur la couleur ;
 - le mode sombre utilise les mêmes tokens sémantiques que le mode clair ;
 - les tests existants, le typecheck, le lint et le build restent au vert à chaque phase.
+
+### Pour cette Phase 2
+
+- les tokens clairs et sombres sont centralisés et préfixés `--pc-*` ;
+- la compatibilité sombre historique du cœur est conservée ;
+- les composants créés ne contiennent aucune logique métier ;
+- Connexion conserve OAuth Google, Apple conditionnel et magic link ;
+- Compte conserve export, déconnexion, confirmation et suppression ;
+- Hors connexion conserve son lien vers la page du jour ;
+- les trois écrans n'ont aucun débordement horizontal à 320 px ;
+- la largeur de lecture reste limitée à 480 px sur tablette et grand écran ;
+- les contrôles principaux mesurent au moins 48 px de haut ;
+- les captures claire et sombre sont disponibles ;
+- `ProjetCentenaireApp.tsx`, les services, Supabase, le service worker et les dépendances ne sont pas modifiés.
+
+### Pour cette Phase 3
+
+- les états de démarrage, réinitialisation et migration partagent une hiérarchie stable sans modifier leurs décisions métier ;
+- l'onboarding conserve les mêmes questions, validations, embranchements tabac et écriture finale ;
+- le shell principal préserve le logo complet, les safe areas et la largeur de lecture mobile ;
+- la navigation inférieure conserve les quatre destinations et fournit des cibles tactiles d'au moins 48 px ;
+- la Page du jour conserve la mission conditionnelle, les trois actions directes et la chronologie ;
+- les panneaux poids et tabac ainsi que le tunnel repas restent fonctionnellement inchangés et attendent la Phase 4 pour leur refonte complète ;
+- l'appui long d'une observation ouvre toujours Modifier et Supprimer, et Modifier rouvre le tunnel existant ;
+- la préférence de mission masque réellement son bloc et le mode sombre réutilise les tokens sémantiques ;
+- les vues contrôlées à 320 et 390 px ne présentent aucune superposition incohérente ;
+- aucune logique de stockage, synchronisation, authentification, Supabase ou service worker n'est modifiée.

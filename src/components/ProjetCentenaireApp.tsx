@@ -8,9 +8,11 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  Cigarette,
   Download,
   LineChart,
   PenLine,
+  Plus,
   RefreshCw,
   Scale,
   Settings2,
@@ -71,7 +73,23 @@ import {
 } from "@/lib/storage";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { WeightTrendChart } from "@/components/WeightTrendChart";
-import { LogoFull, LogoHorizontal, LogoMark } from "@/components/Logo";
+import { AppHeader } from "@/components/centenaire/AppHeader";
+import { BottomNav } from "@/components/centenaire/BottomNav";
+import {
+  OnboardingLayout,
+  OnboardingQuestion,
+} from "@/components/centenaire/OnboardingLayout";
+import { StartupStateLayout } from "@/components/centenaire/StartupStateLayout";
+import { TodayActionTile } from "@/components/centenaire/TodayActionTile";
+import {
+  Button as UIButton,
+  ChoiceCard,
+  ErrorState,
+  FormField,
+  IconButton as UIIconButton,
+  Surface,
+  TextInput as UITextInput,
+} from "@/components/ui";
 import { loadCloudData } from "@/services/cloudDataService";
 import { resetConnectedLocalData } from "@/services/connectedResetService";
 import {
@@ -136,6 +154,7 @@ type TabId = "today" | "journal" | "insights" | "profile";
 type JournalFilter = "tout" | "repas" | "tabac" | "mesures";
 
 interface TabDefinition {
+  accessibleLabel?: string;
   id: TabId;
   label: string;
   icon: LucideIcon;
@@ -175,7 +194,7 @@ interface MealDraft {
 }
 
 const tabs: TabDefinition[] = [
-  { id: "today", label: "Page du jour", icon: PenLine },
+  { id: "today", label: "Jour", accessibleLabel: "Page du jour", icon: PenLine },
   { id: "journal", label: "Carnet", icon: BookOpen },
   { id: "insights", label: "Constats", icon: LineChart },
   { id: "profile", label: "Profil", icon: Settings2 },
@@ -313,10 +332,11 @@ const emptyMigrationSources: LocalMigrationSources = {
 };
 
 const inputClass =
-  "min-h-12 w-full rounded-[16px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 text-base text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.035)] outline-none placeholder:text-[#7A7166] focus:border-[#3E6670] focus:ring-2 focus:ring-[#3E6670]/15";
+  "min-h-12 w-full rounded-[16px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-base text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]";
 const sectionClass =
-  "rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 shadow-[0_12px_28px_rgba(23,21,18,0.045)]";
-const annotationClass = "text-xs font-semibold uppercase tracking-[0.16em] text-[#7A7166]";
+  "rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]";
+const annotationClass =
+  "text-xs font-semibold uppercase tracking-[0.16em] text-[var(--pc-color-text-muted)]";
 
 async function materializeUserPendingState(
   baseData: AppData,
@@ -661,14 +681,14 @@ function Button({
 }) {
   const classes =
     variant === "ink"
-      ? "bg-[#171512] text-[#F3EDE2] shadow-[0_10px_22px_rgba(23,21,18,0.16)]"
+      ? "bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)] shadow-[var(--pc-shadow-level-1)] hover:bg-[var(--pc-color-primary-hover)]"
       : variant === "signal"
         ? "border border-[#D7B8B2] bg-[#FFF7F3] text-[#8A3B32]"
-        : "border border-[#D7CEC0] bg-[#FAF8F1] text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.04)]";
+        : "border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] hover:bg-[var(--pc-color-primary-muted)]";
 
   return (
     <button
-      className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/35 active:translate-y-px active:scale-[0.99] disabled:cursor-wait disabled:opacity-55 disabled:hover:translate-y-0 ${classes}`}
+      className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_55%,transparent)] active:translate-y-px active:scale-[0.99] disabled:cursor-wait disabled:opacity-55 disabled:hover:translate-y-0 ${classes}`}
       disabled={disabled}
       type={type}
       onClick={() => onClick?.()}
@@ -694,10 +714,10 @@ function ChoiceLine<T extends string>({
 
         return (
           <button
-            className={`min-h-12 cursor-pointer rounded-[16px] border px-4 text-left text-sm transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/25 active:translate-y-px ${
+            className={`min-h-12 cursor-pointer rounded-[16px] border px-4 text-left text-sm transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_35%,transparent)] active:translate-y-px ${
               selected
-                ? "border-[#3E6670] bg-[#E6EFED] text-[#171512] shadow-[0_8px_18px_rgba(62,102,112,0.12)]"
-                : "border-[#DDD5C7] bg-[#FAF8F1] text-[#3A3732] shadow-[0_6px_14px_rgba(23,21,18,0.03)]"
+                ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
+                : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
             }`}
             key={key}
             type="button"
@@ -723,18 +743,20 @@ function SwitchRow({
   return (
     <button
       aria-checked={checked}
-      className="flex min-h-14 w-full items-center justify-between gap-4 rounded-[18px] border border-[#DDD5C7] bg-[#F6F4EC] px-4 py-3 text-left transition active:scale-[0.99]"
+      className="flex min-h-14 w-full items-center justify-between gap-4 rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-left transition active:scale-[0.99]"
       role="switch"
       type="button"
       onClick={() => onChange(!checked)}
     >
-      <span className="text-sm font-semibold text-[#171512]">{label}</span>
+      <span className="text-sm font-semibold text-[var(--pc-color-text)]">{label}</span>
       <span
         className={`flex h-8 w-14 items-center rounded-full p-1 transition ${
-          checked ? "justify-end bg-[#3E6670]" : "justify-start bg-[#D7CEC0]"
+          checked
+            ? "justify-end bg-[var(--pc-color-primary)]"
+            : "justify-start bg-[var(--pc-color-primary-muted)]"
         }`}
       >
-        <span className="size-6 rounded-full bg-[#FAF8F1] shadow-[0_2px_8px_rgba(23,21,18,0.18)]" />
+        <span className="size-6 rounded-full bg-white shadow-[0_2px_8px_rgba(16,24,32,0.18)]" />
       </span>
     </button>
   );
@@ -752,52 +774,52 @@ function PageTitle({
   return (
     <header className="space-y-3 pb-5">
       <p className={annotationClass}>{kicker}</p>
-      <h1 className="font-serif text-3xl leading-tight text-[#171512]">{title}</h1>
-      {children ? <div className="text-base leading-7 text-[#3A3732]">{children}</div> : null}
+      <h1 className="font-serif text-3xl leading-tight text-[var(--pc-color-text)]">{title}</h1>
+      {children ? (
+        <div className="text-base leading-7 text-[var(--pc-color-text)]">{children}</div>
+      ) : null}
     </header>
   );
 }
 
 function LoadingScreen() {
   return (
-    <main className="app-screen">
-      <div className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center gap-4">
-        <LogoFull
-          className="items-start"
-          markClassName="h-20 w-auto text-[#171512]"
-          textClassName="font-serif text-3xl leading-tight text-[#171512]"
-        />
-        <h1 className="mt-4 font-serif text-4xl">Ouverture du carnet.</h1>
+    <StartupStateLayout title="Ouverture du carnet.">
+      <div
+        aria-label="Ouverture du carnet"
+        className="h-1.5 w-24 overflow-hidden rounded-[var(--pc-radius-full)] bg-[var(--pc-color-border)]"
+        role="status"
+      >
+        <span className="block h-full w-1/2 animate-pulse rounded-[var(--pc-radius-full)] bg-[var(--pc-color-primary)]" />
       </div>
-    </main>
+    </StartupStateLayout>
   );
 }
 
 function ConnectedResetScreen({ failed }: { failed: boolean }) {
   return (
-    <main className="app-screen">
-      <div className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center gap-4">
-        <LogoFull
-          className="items-start"
-          markClassName="h-20 w-auto text-[#171512]"
-          textClassName="font-serif text-3xl leading-tight text-[#171512]"
-        />
-        <h1 className="mt-4 font-serif text-4xl">
-          {failed ? "Reconnexion nécessaire." : "Réinitialisation locale."}
-        </h1>
-        {failed ? (
-          <>
-            <p className="text-base leading-7 text-[#3A3732]">
-              Le cloud n’a pas pu être rechargé. Les anciennes données locales ne
-              sont plus affichées.
-            </p>
-            <Button onClick={() => window.location.reload()} variant="line">
-              Recharger le carnet
-            </Button>
-          </>
-        ) : null}
-      </div>
-    </main>
+    <StartupStateLayout
+      description={
+        failed
+          ? "Le cloud n’a pas pu être rechargé. Les anciennes données locales ne sont plus affichées."
+          : undefined
+      }
+      title={failed ? "Reconnexion nécessaire." : "Réinitialisation locale."}
+    >
+      {failed ? (
+        <UIButton onClick={() => window.location.reload()} variant="secondary">
+          Recharger le carnet
+        </UIButton>
+      ) : (
+        <div
+          aria-label="Réinitialisation locale"
+          className="h-1.5 w-24 overflow-hidden rounded-[var(--pc-radius-full)] bg-[var(--pc-color-border)]"
+          role="status"
+        >
+          <span className="block h-full w-1/2 animate-pulse rounded-[var(--pc-radius-full)] bg-[var(--pc-color-primary)]" />
+        </div>
+      )}
+    </StartupStateLayout>
   );
 }
 
@@ -823,54 +845,54 @@ function MigrationDecisionScreen({
   operationStarted: boolean;
 }) {
   return (
-    <main className="app-screen">
-      <div className="mx-auto flex min-h-[82dvh] max-w-md flex-col justify-center">
-        <LogoFull
-          className="items-start"
-          markClassName="h-20 w-auto text-[#171512]"
-          textClassName="font-serif text-3xl leading-tight text-[#171512]"
-        />
-        <section className="mt-10 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] p-5 shadow-[0_12px_28px_rgba(23,21,18,0.045)]">
-          <p className={annotationClass}>Association des données</p>
-          <h1 className="mt-3 font-serif text-3xl leading-tight">
-            Des données existent sur cet appareil.
-          </h1>
-          <p className="mt-4 text-sm leading-6 text-[#3A3732]">
+    <StartupStateLayout
+      eyebrow="Association des données"
+      title="Des données existent sur cet appareil."
+    >
+      <Surface as="section" className="space-y-4 p-4 min-[390px]:p-5">
+          <p className="text-[length:var(--pc-font-size-secondary)] leading-6 text-[var(--pc-color-text-muted)]">
             {operationStarted
               ? "L’association a déjà commencé. Termine-la avec la même opération pour conserver un état cohérent."
               : `Connecté avec ${cloudEmail ?? "ce compte"}. Choisis leur destination avant d’ouvrir le carnet.`}
           </p>
           {cloudHasProfile && localHasProfile ? (
-            <p className="mt-3 rounded-[16px] bg-[#E6EFED] px-4 py-3 text-sm leading-6 text-[#2F5E68]">
+            <p className="rounded-[var(--pc-radius-card)] bg-[var(--pc-color-primary-soft)] px-4 py-3 text-[length:var(--pc-font-size-secondary)] leading-6 text-[var(--pc-color-primary)]">
               Le profil et les préférences du compte seront conservés. Les notes,
               mesures et événements locaux seront ajoutés sans effacer ceux du
               compte.
             </p>
           ) : null}
-          {error ? (
-            <p className="mt-3 text-sm leading-6 text-[#8A3B32]">{error}</p>
-          ) : null}
-          <div className="mt-5 grid gap-2">
-            <Button disabled={busy} onClick={onAttach}>
+          {error ? <ErrorState message={error} /> : null}
+          <div className="grid gap-2">
+            <UIButton disabled={busy} fullWidth onClick={onAttach}>
               {busy
                 ? "Association en cours…"
                 : operationStarted
                   ? "Terminer l’association"
                   : "Associer ces données à mon compte"}
-            </Button>
+            </UIButton>
             {!operationStarted ? (
-              <Button disabled={busy} onClick={onKeepCloud} variant="line">
+              <UIButton
+                disabled={busy}
+                fullWidth
+                onClick={onKeepCloud}
+                variant="secondary"
+              >
                 Garder uniquement les données du compte
-              </Button>
+              </UIButton>
             ) : null}
-            <Button disabled={busy} onClick={onExport} variant="line">
+            <UIButton
+              disabled={busy}
+              fullWidth
+              onClick={onExport}
+              variant="tertiary"
+            >
               <Download aria-hidden="true" size={17} />
               Exporter les données de cet appareil
-            </Button>
+            </UIButton>
           </div>
-        </section>
-      </div>
-    </main>
+      </Surface>
+    </StartupStateLayout>
   );
 }
 
@@ -2266,56 +2288,61 @@ export function ProjetCentenaireApp() {
   };
 
   const renderToday = () => (
-    <div className="space-y-4">
-      <header className="space-y-1">
-        <div className="flex items-baseline justify-between gap-4">
-          <h1 className="font-serif text-3xl leading-tight text-[#171512]">
+    <div className="space-y-5">
+      <header>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
             Jour {String(dayNumber).padStart(3, "0")}
           </h1>
-          <p className="text-sm text-[#7A7166]">{formatLongDate(currentDate)}</p>
+          <p className="text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
+            {formatLongDate(currentDate)}
+          </p>
         </div>
       </header>
 
       {showMissionBlock ? (
-        <section className="rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-2.5 shadow-[0_10px_26px_rgba(23,21,18,0.045)]">
-          <p className={annotationClass}>Mission en cours</p>
-          <p className="mt-1.5 text-base leading-6 text-[#171512]">
+        <Surface as="section" className="px-4 py-3" variant="subtle">
+          <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
+            Mission en cours
+          </p>
+          <p className="mt-1.5 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text)]">
             {activePriorityText}
           </p>
-        </section>
+        </Surface>
       ) : null}
 
-      <section className="space-y-2.5">
-        <h2 className="font-serif text-2xl leading-tight text-[#171512]">
+      <section className="space-y-3">
+        <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold text-[var(--pc-color-text)]">
           Aujourd’hui
         </h2>
         <div className="grid gap-3">
-          <TodayTile
-            actionAriaLabel={
-              latestTodayWeight ? "Modifier le poids" : "Noter le poids"
-            }
-            actionIcon={PenLine}
+          <TodayActionTile
+            actionLabel={latestTodayWeight ? "Modifier le poids" : "Noter le poids"}
+            compact
+            icon={Scale}
             label="Poids du matin"
-            size="slim"
+            showActionLabel={false}
             value={
               latestTodayWeight ? formatKg(latestTodayWeight.weightKg) : "Non renseigné"
             }
             onClick={openWeightPanel}
           />
-          <div className={`grid gap-3 ${smokingEnabled ? "min-[390px]:grid-cols-2" : ""}`}>
-            <TodayTile
-              actionLabel="+ Observation repas"
+          <div className={smokingEnabled ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
+            <TodayActionTile
+              actionLabel="Observation repas"
+              icon={Plus}
               label="Repas"
-              size="compact"
-              tone="primary"
+              primary
+              showActionLabel={false}
               value={mealCountText}
               onClick={openMealPanel}
             />
             {smokingEnabled ? (
-              <TodayTile
-                actionLabel="+"
+              <TodayActionTile
+                actionLabel="Noter tabac"
+                icon={Cigarette}
                 label="Tabac"
-                size="compact"
+                showActionLabel={false}
                 value={smokingSummary}
                 onClick={() => setSmokingOpen(true)}
               />
@@ -2324,10 +2351,14 @@ export function ProjetCentenaireApp() {
         </div>
       </section>
 
-      <section className="pt-1">
+      <section>
         <div className="flex items-baseline justify-between gap-3">
-          <p className={annotationClass}>Chronologie du jour</p>
-          <p className="text-xs text-[#7A7166]">{mealCountText}</p>
+          <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold text-[var(--pc-color-text)]">
+            Chronologie du jour
+          </h2>
+          <p className="shrink-0 text-[length:var(--pc-font-size-meta)] leading-4 text-[var(--pc-color-text-muted)]">
+            {mealCountText}
+          </p>
         </div>
         {openMealActionId ? (
           <button
@@ -2339,9 +2370,17 @@ export function ProjetCentenaireApp() {
         ) : null}
         <div className="mt-4 space-y-3">
           {todayMeals.length === 0 ? (
-            <p className="rounded-[18px] bg-[#FAF8F1]/75 px-4 py-3 text-sm leading-6 text-[#7A7166] shadow-[0_6px_18px_rgba(23,21,18,0.035)]">
-              Aucune note repas pour aujourd’hui.
-            </p>
+            <Surface
+              className="flex items-center gap-3 px-4 py-3 text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]"
+              variant="subtle"
+            >
+              <BookOpen
+                aria-hidden="true"
+                className="shrink-0 text-[var(--pc-color-primary)]"
+                size={18}
+              />
+              <p>Aucune note repas pour aujourd’hui.</p>
+            </Surface>
           ) : (
             todayMeals.map((meal) => (
               <TodayChronologyMeal
@@ -2366,14 +2405,14 @@ export function ProjetCentenaireApp() {
       <PageTitle kicker="Carnet" title="Chronologie">
         <p>Les observations sont listées par ordre chronologique.</p>
       </PageTitle>
-      <div className="grid grid-cols-4 gap-1 rounded-full border border-[#DDD5C7] bg-[#FAF8F1] p-1 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
+      <div className="grid grid-cols-4 gap-1 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-primary-soft)] p-1 shadow-[var(--pc-shadow-level-1)]">
         {(["tout", "repas", "tabac", "mesures"] as JournalFilter[]).map(
           (filter) => (
             <button
               className={`min-h-10 rounded-full text-xs font-semibold transition active:scale-[0.98] ${
                 journalFilter === filter
-                  ? "bg-[#171512] text-[#F3EDE2]"
-                  : "text-[#3A3732]"
+                  ? "bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)]"
+                  : "text-[var(--pc-color-text)]"
               }`}
               key={filter}
               type="button"
@@ -2411,29 +2450,29 @@ export function ProjetCentenaireApp() {
           ) : null}
         </dl>
         {!hasEnoughMealData ? (
-          <p className="mt-5 leading-7 text-[#3A3732]">
+          <p className="mt-5 leading-7 text-[var(--pc-color-text)]">
             Données insuffisantes pour établir un point de friction fiable.
           </p>
         ) : (
           <div className="mt-6 space-y-5">
             <div>
               <p className={annotationClass}>Point de friction</p>
-              <h2 className="mt-2 font-serif text-2xl text-[#171512]">
+              <h2 className="mt-2 font-serif text-2xl text-[var(--pc-color-text)]">
                 {analysis.frictionPoint}
               </h2>
-              <p className="mt-3 leading-7 text-[#3A3732]">
+              <p className="mt-3 leading-7 text-[var(--pc-color-text)]">
                 {analysis.priority.rationale}
               </p>
             </div>
             <div>
               <p className={annotationClass}>Priorité active</p>
-              <h2 className="mt-2 font-serif text-2xl text-[#171512]">
+              <h2 className="mt-2 font-serif text-2xl text-[var(--pc-color-text)]">
                 {analysis.priority.label}
               </h2>
-              <p className="mt-2 text-sm uppercase tracking-[0.14em] text-[#7A7166]">
+              <p className="mt-2 text-sm uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
                 Niveau de preuve : {analysis.priority.evidenceLevel}
               </p>
-              <p className="mt-4 rounded-[18px] bg-[#E6EFED] px-4 py-3 leading-7 text-[#2F4E55]">
+              <p className="mt-4 rounded-[18px] bg-[var(--pc-color-primary-soft)] px-4 py-3 leading-7 text-[var(--pc-color-primary)]">
                 {analysis.priority.action}
               </p>
             </div>
@@ -2445,7 +2484,7 @@ export function ProjetCentenaireApp() {
         <section className={sectionClass}>
           <p className={annotationClass}>Tabac</p>
           {analysis.smokingEntries === 0 ? (
-            <p className="mt-3 leading-7 text-[#3A3732]">
+            <p className="mt-3 leading-7 text-[var(--pc-color-text)]">
               Aucune donnée tabac renseignée cette semaine.
             </p>
           ) : (
@@ -2457,7 +2496,7 @@ export function ProjetCentenaireApp() {
                   value={analysis.smokeFreeDays}
                 />
               </dl>
-              <p className="mt-5 leading-7 text-[#3A3732]">
+              <p className="mt-5 leading-7 text-[var(--pc-color-text)]">
                 Les jours non renseignés restent neutres : absence de donnée ne
                 signifie pas échec.
               </p>
@@ -2468,7 +2507,7 @@ export function ProjetCentenaireApp() {
 
       <section className={sectionClass}>
         <p className={annotationClass}>Poids</p>
-        <p className="mt-2 text-sm text-[#7A7166]">
+        <p className="mt-2 text-sm text-[var(--pc-color-text-muted)]">
           Moyenne hebdomadaire :{" "}
           {analysis.weightAverageKg === null
             ? "Données insuffisantes"
@@ -2497,7 +2536,7 @@ export function ProjetCentenaireApp() {
             <div className="flex items-center justify-between gap-3">
               <p className={annotationClass}>Profil</p>
               <button
-                className="rounded-full border border-[#C7D4D2] bg-[#E6EFED] px-3 py-1 text-xs font-semibold text-[#2F5E68] transition active:scale-[0.98]"
+                className="rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--pc-color-primary)] transition active:scale-[0.98]"
                 type="button"
                 onClick={() => setProfileEditorOpen((open) => !open)}
               >
@@ -2505,19 +2544,19 @@ export function ProjetCentenaireApp() {
               </button>
             </div>
             <button
-              className="mt-4 grid w-full gap-3 rounded-[20px] border border-[#DDD5C7] bg-[#F6F4EC] p-4 text-left shadow-[0_6px_14px_rgba(23,21,18,0.03)] transition active:scale-[0.99]"
+              className="mt-4 grid w-full gap-3 rounded-[20px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-4 text-left shadow-[var(--pc-shadow-level-1)] transition active:scale-[0.99]"
               type="button"
               onClick={() => setProfileEditorOpen(true)}
             >
               <div>
-                <p className="font-serif text-2xl leading-tight text-[#171512]">
+                <p className="font-serif text-2xl leading-tight text-[var(--pc-color-text)]">
                   {profile.firstName || "Profil"}
                 </p>
-                <p className="mt-1 text-sm leading-6 text-[#7A7166]">
+                <p className="mt-1 text-sm leading-6 text-[var(--pc-color-text-muted)]">
                   {profile.age} ans · {profile.heightCm} cm
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm text-[#3A3732]">
+              <div className="grid grid-cols-2 gap-2 text-sm text-[var(--pc-color-text)]">
                 <span>Départ · {formatKg(profile.startWeightKg)}</span>
                 <span>Objectif · {formatKg(profile.goalWeightKg)}</span>
                 <span className="col-span-2">Tabac · {smokingSummaryText}</span>
@@ -2651,11 +2690,11 @@ export function ProjetCentenaireApp() {
         <section className={sectionClass}>
           <p className={annotationClass}>Compte</p>
           <div className="mt-4 space-y-3">
-            <div className="rounded-[18px] border border-[#DDD5C7] bg-[#F6F4EC] p-4">
-              <p className="text-sm font-semibold text-[#171512]">
+            <div className="rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-4">
+              <p className="text-sm font-semibold text-[var(--pc-color-text)]">
                 {cloudUserId ? "Connecté" : "Non connecté"}
               </p>
-              <p className="mt-1 break-words text-sm text-[#7A7166]">
+              <p className="mt-1 break-words text-sm text-[var(--pc-color-text-muted)]">
                 {cloudUserId
                   ? cloudEmail ?? "Compte cloud actif"
                   : "Le carnet fonctionne en local sur cet appareil."}
@@ -2675,7 +2714,7 @@ export function ProjetCentenaireApp() {
               </div>
             ) : (
               <Link
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#C7D4D2] bg-[#E6EFED] px-5 text-sm font-semibold text-[#2F5E68] shadow-[0_6px_14px_rgba(62,102,112,0.08)] transition active:scale-[0.99]"
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-5 text-sm font-semibold text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)] transition active:scale-[0.99]"
                 href="/login"
               >
                 Se connecter
@@ -2686,8 +2725,8 @@ export function ProjetCentenaireApp() {
 
         <section className={sectionClass}>
           <p className={annotationClass}>Options avancées</p>
-          <details className="mt-4 rounded-[18px] border border-[#DDD5C7] bg-[#F6F4EC] p-4">
-            <summary className="cursor-pointer text-sm font-semibold text-[#171512]">
+          <details className="mt-4 rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-[var(--pc-color-text)]">
               Export, import et réinitialisation
             </summary>
             <div className="mt-4 grid gap-2">
@@ -2822,34 +2861,32 @@ export function ProjetCentenaireApp() {
   }[activeTab]();
 
   return (
-    <main className="app-screen app-screen-with-nav">
+    <main className="pc-screen pc-app-screen-with-nav pc-motion-safe">
       {notice || error || pendingSync ? (
         <div aria-live="polite" className="app-toast-stack">
           {notice ? (
-            <p className="app-toast app-toast-auto border-[#CAD8C8] bg-[#F3FAF0] text-[#3A3732]">
+            <p className="app-toast app-toast-auto border-[var(--pc-color-success)] bg-[var(--pc-color-success-soft)] text-[var(--pc-color-text)]">
               {notice}
             </p>
           ) : null}
           {error ? (
-            <p className="app-toast app-toast-auto border-[#D7B8B2] bg-[#FFF7F3] text-[#3A3732]">
+            <p className="app-toast app-toast-auto border-[var(--pc-color-danger)] bg-[var(--pc-color-danger-soft)] text-[var(--pc-color-text)]">
               {error}
             </p>
           ) : null}
           {pendingSync ? (
-            <p className="app-toast border-[#C7D4D2] bg-[#E6EFED] text-[#2F5E68]">
+            <p className="app-toast border-[var(--pc-color-warning)] bg-[var(--pc-color-warning-soft)] text-[var(--pc-color-text)]">
               Données en attente de synchronisation.
             </p>
           ) : null}
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-md">
-        <header className="mb-3 flex items-center justify-center">
-          <LogoMark className="h-12 w-auto text-[#171512]" />
-        </header>
+      <div className="mx-auto max-w-[var(--pc-content-max-width)]">
+        <AppHeader className="mb-4" />
 
         {!supabaseConfigured ? (
-          <p className="mb-4 rounded-[18px] border border-[#DDD5C7] bg-[#FAF8F1] p-3 text-xs leading-5 text-[#7A7166] shadow-[0_8px_18px_rgba(23,21,18,0.035)]">
+          <p className="mb-4 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-3 text-[length:var(--pc-font-size-meta)] leading-5 text-[var(--pc-color-text-muted)]">
             Mode local actif. Configure Supabase pour activer la sauvegarde cloud.
           </p>
         ) : null}
@@ -2890,29 +2927,7 @@ export function ProjetCentenaireApp() {
         />
       ) : null}
 
-      <nav className="app-bottom-nav fixed inset-x-0 bottom-0 bg-transparent pt-2">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-[26px] border border-[#DDD5C7] bg-[#FAF8F1]/95 p-1 shadow-[0_16px_34px_rgba(23,21,18,0.12)] backdrop-blur">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const selected = tab.id === activeTab;
-
-            return (
-              <button
-                aria-label={tab.label}
-                className={`flex min-h-12 items-center justify-center rounded-[20px] px-1 transition active:scale-[0.98] ${
-                  selected ? "bg-[#171512] text-[#F3EDE2]" : "text-[#3A3732]"
-                }`}
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                aria-current={selected ? "page" : undefined}
-              >
-                <Icon aria-hidden="true" size={22} strokeWidth={2.1} />
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      <BottomNav activeId={activeTab} items={tabs} onChange={setActiveTab} />
     </main>
   );
 }
@@ -2946,150 +2961,169 @@ function Onboarding({
         ? "Ouvrir la page du jour"
         : "Continuer";
   const progressStep = Math.min(visibleStep, onboardingFinalStep - 1);
-  const progressPercent =
-    visibleStep === onboardingFinalStep
-      ? 100
-      : Math.max(0, Math.round((progressStep / (onboardingFinalStep - 1)) * 100));
-  const questionClass =
-    "mt-8 space-y-6 rounded-[28px] border border-[#DDD5C7] bg-[#FAF8F1] p-5 shadow-[0_16px_34px_rgba(23,21,18,0.07)]";
+  const actions = showPrimaryAction ? (
+    <UIButton fullWidth onClick={onNext}>
+      {primaryLabel}
+    </UIButton>
+  ) : null;
+  const backAction =
+    visibleStep > 0 ? (
+      <UIIconButton
+        className="rounded-full border-transparent"
+        label="Retour"
+        onClick={onBack}
+      >
+        <ChevronLeft aria-hidden="true" size={24} />
+      </UIIconButton>
+    ) : undefined;
 
   return (
-    <main className="app-screen">
-      <div className="app-inner-screen mx-auto flex max-w-md flex-col">
-        <div className="min-w-0">
-          <LogoHorizontal
-            markClassName="h-12 w-auto shrink-0 text-[#171512]"
-            textClassName="hidden whitespace-nowrap font-serif text-xl leading-none text-[#171512] min-[430px]:inline"
-          />
-          {visibleStep > 0 && visibleStep < onboardingFinalStep ? (
-            <div className="mt-8 space-y-3">
-              <div className="flex items-center justify-between gap-4">
-                <p className={annotationClass}>Profil initial</p>
-                <p className="text-xs font-semibold tabular-nums text-[#7A7166]">
-                  {progressStep}/{onboardingFinalStep - 1}
-                </p>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[#E6DFD3]">
-                <div
-                  className="h-full rounded-full bg-[#3E6670] transition-[width] duration-200"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-          ) : null}
-          {visibleStep === 0 ? (
-            <div className="mt-[clamp(3rem,14svh,7rem)] space-y-6 rounded-[28px] border border-[#DDD5C7] bg-[#FAF8F1] p-5 shadow-[0_16px_34px_rgba(23,21,18,0.07)]">
-              <h1 className="font-serif text-4xl leading-tight">
-                Un carnet pour observer les faits.
-              </h1>
-              <p className="text-xl text-[#3A3732]">Pas les calories.</p>
-            </div>
-          ) : null}
-          {visibleStep === 1 ? (
-            <div className={questionClass}>
-              <h1 className="font-serif text-3xl leading-tight">
-                Comment tu veux qu’on t’appelle ?
-              </h1>
-              <p className="leading-7 text-[#3A3732]">
-                Le carnet utilise ce prénom uniquement dans l’application.
-              </p>
-              <TextInput
-                label="Prénom"
-                value={draft.firstName}
-                onChange={(value) => onChange({ ...draft, firstName: value })}
-              />
-            </div>
-          ) : null}
-          {visibleStep === 2 ? (
-            <div className={questionClass}>
-              <h1 className="font-serif text-3xl leading-tight">
-                Quel âge as-tu ?
-              </h1>
-              <TextInput
-                label="Âge"
-                type="number"
-                value={draft.age}
-                onChange={(value) => onChange({ ...draft, age: value })}
-              />
-            </div>
-          ) : null}
-          {visibleStep === 3 ? (
-            <div className={questionClass}>
-              <h1 className="font-serif text-3xl leading-tight">
-                Quelle est ta taille ?
-              </h1>
-              <TextInput
-                label="Taille en cm"
-                type="number"
-                value={draft.heightCm}
-                onChange={(value) => onChange({ ...draft, heightCm: value })}
-              />
-            </div>
-          ) : null}
-          {visibleStep === 4 ? (
-            <div className={questionClass}>
-              <h1 className="font-serif text-3xl leading-tight">
-                Quel est ton poids actuel ?
-              </h1>
-              <TextInput
-                label="Poids en kg"
-                type="number"
-                value={draft.startWeightKg}
-                onChange={(value) =>
-                  onChange({ ...draft, startWeightKg: value })
-                }
-              />
-            </div>
-          ) : null}
-          {visibleStep === 5 ? (
-            <div className={questionClass}>
-              <h1 className="font-serif text-3xl leading-tight">
-                Quel objectif veux-tu viser ?
-              </h1>
-              <p className="leading-7 text-[#3A3732]">
-                Un repère suffit. Il pourra changer plus tard.
-              </p>
-              <TextInput
-                label="Objectif en kg"
-                type="number"
-                value={draft.goalWeightKg}
-                onChange={(value) => onChange({ ...draft, goalWeightKg: value })}
-              />
-            </div>
-          ) : null}
-          {visibleStep === 6 ? (
-            <div className={questionClass}>
-              <h1 className="font-serif text-3xl leading-tight">
-                Quel point semble le plus te freiner aujourd’hui ?
-              </h1>
-              <ChoiceLine
-                options={frictionLabels}
-                value={draft.initialFriction}
-                onChange={(value) => {
-                  const nextDraft = { ...draft, initialFriction: value };
+    <OnboardingLayout
+      actions={actions}
+      backAction={backAction}
+      currentStep={progressStep}
+      error={error ? <ErrorState message={error} /> : undefined}
+      showProgress={visibleStep > 0 && visibleStep < onboardingFinalStep}
+      totalSteps={onboardingFinalStep - 1}
+    >
+      {visibleStep === 0 ? (
+        <section className="space-y-5" aria-labelledby="onboarding-welcome">
+          <h1
+            className="max-w-[15ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)] min-[390px]:text-[2.25rem]"
+            id="onboarding-welcome"
+          >
+            Un carnet pour observer les faits.
+          </h1>
+          <p className="text-xl leading-7 text-[var(--pc-color-text-muted)]">
+            Pas les calories.
+          </p>
+        </section>
+      ) : null}
+
+      {visibleStep === 1 ? (
+        <OnboardingQuestion
+          description="Le carnet utilise ce prénom uniquement dans l’application."
+          title="Comment tu veux qu’on t’appelle ?"
+        >
+          <FormField id="onboarding-first-name" label="Prénom">
+            <UITextInput
+              autoComplete="given-name"
+              value={draft.firstName}
+              onChange={(event) =>
+                onChange({ ...draft, firstName: event.target.value })
+              }
+            />
+          </FormField>
+        </OnboardingQuestion>
+      ) : null}
+
+      {visibleStep === 2 ? (
+        <OnboardingQuestion title="Quel âge as-tu ?">
+          <FormField id="onboarding-age" label="Âge">
+            <UITextInput
+              inputMode="numeric"
+              type="number"
+              value={draft.age}
+              onChange={(event) => onChange({ ...draft, age: event.target.value })}
+            />
+          </FormField>
+        </OnboardingQuestion>
+      ) : null}
+
+      {visibleStep === 3 ? (
+        <OnboardingQuestion title="Quelle est ta taille ?">
+          <FormField id="onboarding-height" label="Taille en cm">
+            <UITextInput
+              inputMode="numeric"
+              type="number"
+              value={draft.heightCm}
+              onChange={(event) =>
+                onChange({ ...draft, heightCm: event.target.value })
+              }
+            />
+          </FormField>
+        </OnboardingQuestion>
+      ) : null}
+
+      {visibleStep === 4 ? (
+        <OnboardingQuestion title="Quel est ton poids actuel ?">
+          <FormField id="onboarding-weight" label="Poids en kg">
+            <UITextInput
+              inputMode="decimal"
+              type="number"
+              value={draft.startWeightKg}
+              onChange={(event) =>
+                onChange({ ...draft, startWeightKg: event.target.value })
+              }
+            />
+          </FormField>
+        </OnboardingQuestion>
+      ) : null}
+
+      {visibleStep === 5 ? (
+        <OnboardingQuestion
+          description="Un repère suffit. Il pourra changer plus tard."
+          title="Quel objectif veux-tu viser ?"
+        >
+          <FormField id="onboarding-goal" label="Objectif en kg">
+            <UITextInput
+              inputMode="decimal"
+              type="number"
+              value={draft.goalWeightKg}
+              onChange={(event) =>
+                onChange({ ...draft, goalWeightKg: event.target.value })
+              }
+            />
+          </FormField>
+        </OnboardingQuestion>
+      ) : null}
+
+      {visibleStep === 6 ? (
+        <OnboardingQuestion
+          description="Ce choix n’est pas définitif. Les données pourront te contredire."
+          title="Quel point semble le plus te freiner aujourd’hui ?"
+        >
+          <div className="grid gap-2">
+            {Object.entries(frictionLabels).map(([key, label]) => (
+              <ChoiceCard
+                checked={draft.initialFriction === key}
+                key={key}
+                label={label}
+                name="initial-friction"
+                value={key}
+                onChange={() => {
+                  const nextDraft = {
+                    ...draft,
+                    initialFriction: key as FrictionChoice,
+                  };
                   onAnswer(
                     nextDraft,
                     getNextOnboardingStep(visibleStep, nextDraft),
                   );
                 }}
               />
-              <p className="leading-7 text-[#7A7166]">
-                Ce choix n’est pas définitif. Les données pourront te contredire.
-              </p>
-            </div>
-          ) : null}
-          {visibleStep === 7 ? (
-            <div className={questionClass}>
-              <h1 className="font-serif text-3xl leading-tight">
-                Tu fumes actuellement ?
-              </h1>
-              <ChoiceLine
-                options={onboardingSmokingLabels}
-                value={draft.smokingStatus}
-                onChange={(value) => {
+            ))}
+          </div>
+        </OnboardingQuestion>
+      ) : null}
+
+      {visibleStep === 7 ? (
+        <OnboardingQuestion
+          description="Le tabac sera suivi séparément de l’alimentation."
+          title="Tu fumes actuellement ?"
+        >
+          <div className="grid gap-2">
+            {Object.entries(onboardingSmokingLabels).map(([key, label]) => (
+              <ChoiceCard
+                checked={draft.smokingStatus === key}
+                key={key}
+                label={label}
+                name="smoking-status"
+                value={key}
+                onChange={() => {
                   const nextDraft = {
                     ...draft,
-                    smokingStatus: value,
+                    smokingStatus: key as SmokingStatus,
                     smokingGoal: "pas-maintenant" as SmokingGoal,
                   };
                   onAnswer(
@@ -3098,136 +3132,54 @@ function Onboarding({
                   );
                 }}
               />
-              <p className="leading-7 text-[#7A7166]">
-                Le tabac sera suivi séparément de l’alimentation.
-              </p>
-            </div>
-          ) : null}
-          {visibleStep === 8 ? (
-            <div className={questionClass}>
-              <h1 className="font-serif text-3xl leading-tight">
-                Souhaites-tu arrêter ?
-              </h1>
-              <ChoiceLine
-                options={onboardingSmokingGoalLabels}
-                value={draft.smokingGoal}
-                onChange={(value) => {
-                  const nextDraft = { ...draft, smokingGoal: value };
+            ))}
+          </div>
+        </OnboardingQuestion>
+      ) : null}
+
+      {visibleStep === 8 ? (
+        <OnboardingQuestion
+          description="Cette réponse sert seulement à adapter le suivi tabac."
+          title="Souhaites-tu arrêter ?"
+        >
+          <div className="grid gap-2">
+            {Object.entries(onboardingSmokingGoalLabels).map(([key, label]) => (
+              <ChoiceCard
+                checked={draft.smokingGoal === key}
+                key={key}
+                label={label}
+                name="smoking-goal"
+                value={key}
+                onChange={() => {
+                  const nextDraft = {
+                    ...draft,
+                    smokingGoal: key as SmokingGoal,
+                  };
                   onAnswer(nextDraft, onboardingFinalStep);
                 }}
               />
-              <p className="leading-7 text-[#7A7166]">
-                Cette réponse sert seulement à adapter le suivi tabac.
-              </p>
-            </div>
-          ) : null}
-          {visibleStep === onboardingFinalStep ? (
-            <div className="mt-24 space-y-6">
-              <p className={annotationClass}>Priorité initiale</p>
-              <h1 className="font-serif text-3xl leading-tight">
-                Pendant 7 jours : observer sans corriger brutalement.
-              </h1>
-              <p className="text-xl leading-8 text-[#3A3732]">
-                Ajoute tes repas au carnet. Le diagnostic viendra des faits.
-              </p>
-            </div>
-          ) : null}
-          {error ? (
-            <p className="mt-6 rounded-[18px] border border-[#D7B8B2] bg-[#FFF7F3] p-3 text-sm text-[#3A3732]">
-              {error}
-            </p>
-          ) : null}
-        </div>
-        <div className="mt-6 flex items-center justify-between gap-3">
-          {visibleStep > 0 ? (
-            <Button onClick={onBack} variant="line">
-              <ChevronLeft aria-hidden="true" size={17} />
-              Retour
-            </Button>
-          ) : (
-            <span />
-          )}
-          {showPrimaryAction ? (
-            <Button onClick={onNext}>
-              {primaryLabel}
-              <ChevronRight aria-hidden="true" size={17} />
-            </Button>
-          ) : (
-            <span />
-          )}
-        </div>
-      </div>
-    </main>
-  );
-}
+            ))}
+          </div>
+        </OnboardingQuestion>
+      ) : null}
 
-function TodayTile({
-  label,
-  value,
-  actionLabel,
-  actionIcon: ActionIcon,
-  actionAriaLabel,
-  onClick,
-  size = "compact",
-  tone = "quiet",
-}: {
-  label: string;
-  value: string;
-  actionLabel?: string;
-  actionIcon?: LucideIcon;
-  actionAriaLabel?: string;
-  onClick: () => void;
-  size?: "wide" | "compact" | "slim";
-  tone?: "quiet" | "primary";
-}) {
-  const primary = tone === "primary";
-  const slim = size === "slim";
-  const iconOnly = Boolean(ActionIcon && !actionLabel);
-  const sizeClass = slim ? "min-h-[4.75rem]" : size === "wide" ? "min-h-28" : "min-h-32";
-  const layoutClass = slim
-    ? "flex-row items-center justify-between gap-4 px-4 py-3"
-    : "flex-col justify-between p-4";
-  const tileClass = primary
-    ? "border-[#171512] bg-[#171512] text-[#F3EDE2] shadow-[0_16px_34px_rgba(23,21,18,0.18)]"
-    : "border-[#DDD5C7] bg-[#FAF8F1] text-[#171512] shadow-[0_12px_28px_rgba(23,21,18,0.06)]";
-  const actionClass = primary
-    ? "bg-[#F3EDE2] text-[#171512]"
-    : "border border-[#C7D4D2] bg-[#E6EFED] text-[#2F5E68]";
-
-  return (
-    <button
-      className={`group flex w-full cursor-pointer rounded-[22px] border text-left transition duration-150 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/45 active:translate-y-px active:scale-[0.99] ${layoutClass} ${sizeClass} ${tileClass}`}
-      type="button"
-      onClick={onClick}
-    >
-      <div className="min-w-0 space-y-1">
-        <p
-          className={`text-sm font-semibold ${
-            primary ? "text-[#F3EDE2]" : "text-[#171512]"
-          }`}
-        >
-          {label}
-        </p>
-        <p
-          className={`text-base leading-5 ${
-            primary ? "text-[#E7DECF]" : "text-[#6E665C]"
-          }`}
-        >
-          {value}
-        </p>
-      </div>
-      <span
-        aria-label={actionAriaLabel}
-        className={`inline-flex min-h-8 max-w-full shrink-0 items-center rounded-full text-xs font-semibold leading-4 shadow-[0_2px_8px_rgba(23,21,18,0.06)] ${iconOnly ? "size-8 justify-center px-0" : "w-fit px-3"} ${slim ? "" : "mt-4"} ${actionClass}`}
-      >
-        {ActionIcon ? (
-          <ActionIcon aria-hidden="true" size={15} strokeWidth={2.2} />
-        ) : null}
-        {actionLabel ? (
-          <span className={ActionIcon ? "ml-1.5" : ""}>{actionLabel}</span>
-        ) : null}
-      </span>
-    </button>
+      {visibleStep === onboardingFinalStep ? (
+        <section className="space-y-4" aria-labelledby="onboarding-priority">
+          <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
+            Priorité initiale
+          </p>
+          <h1
+            className="max-w-[19ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]"
+            id="onboarding-priority"
+          >
+            Pendant 7 jours : observer sans corriger brutalement.
+          </h1>
+          <p className="max-w-[38ch] text-lg leading-7 text-[var(--pc-color-text-muted)]">
+            Ajoute tes repas au carnet. Le diagnostic viendra des faits.
+          </p>
+        </section>
+      ) : null}
+    </OnboardingLayout>
   );
 }
 
@@ -3277,14 +3229,14 @@ function WeightPanel({
           Mesure en kg
           <div className="flex items-end gap-3">
             <input
-              className="min-h-14 flex-1 rounded-[18px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 text-3xl font-semibold tabular-nums text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.035)] outline-none placeholder:text-[#7A7166] focus:border-[#3E6670] focus:ring-2 focus:ring-[#3E6670]/15"
+              className="min-h-14 flex-1 rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-3xl font-semibold tabular-nums text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
               inputMode="decimal"
               type="number"
               value={draft}
               onChange={(event) => onChange(event.target.value)}
               placeholder="149"
             />
-            <span className="pb-3 text-sm text-[#7A7166]">kg</span>
+            <span className="pb-3 text-sm text-[var(--pc-color-text-muted)]">kg</span>
           </div>
         </label>
         <Button type="submit">
@@ -3329,7 +3281,7 @@ function SmokingPanel({
         />
         {showTrigger ? (
           <div className="space-y-3">
-            <p className="text-sm text-[#3A3732]">Déclencheur facultatif</p>
+            <p className="text-sm text-[var(--pc-color-text)]">Déclencheur facultatif</p>
             <div className="flex flex-wrap gap-2">
               {smokingTriggerOptions.map((trigger) => {
                 const selected = note === trigger;
@@ -3338,8 +3290,8 @@ function SmokingPanel({
                   <button
                     className={`min-h-9 cursor-pointer rounded-full border px-3 text-xs font-semibold transition active:scale-[0.98] ${
                       selected
-                        ? "border-[#3E6670] bg-[#E6EFED] text-[#2F5E68] shadow-[0_6px_14px_rgba(62,102,112,0.12)]"
-                        : "border-[#DDD5C7] bg-[#FAF8F1] text-[#7A7166] shadow-[0_6px_14px_rgba(23,21,18,0.03)]"
+                        ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
+                        : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text-muted)] shadow-[var(--pc-shadow-level-1)]"
                     }`}
                     key={trigger}
                     type="button"
@@ -3417,11 +3369,11 @@ function MealObservation({
   return (
     <div className="app-fixed-panel z-30">
       <div className="app-inner-screen mx-auto flex max-w-md flex-col">
-        <div className="mb-8 flex items-center justify-between rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
+        <div className="mb-8 flex items-center justify-between rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 shadow-[var(--pc-shadow-level-1)]">
           <p className={annotationClass}>
             Observation {step + 1}/{stepIds.length}
           </p>
-          <button className="text-sm font-semibold text-[#3A3732]" type="button" onClick={onClose}>
+          <button className="text-sm font-semibold text-[var(--pc-color-text)]" type="button" onClick={onClose}>
             Fermer
           </button>
         </div>
@@ -3446,7 +3398,7 @@ function MealObservation({
                   : "Note ce que tu as mangé, simplement."}
               </h1>
               <textarea
-                className="min-h-40 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 text-lg leading-8 text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.035)] outline-none placeholder:text-[#7A7166] focus:border-[#3E6670] focus:ring-2 focus:ring-[#3E6670]/15"
+                className="min-h-40 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-lg leading-8 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
                 value={draft.freeText}
                 onChange={(event) =>
                   onChange({ ...draft, freeText: event.target.value })
@@ -3584,8 +3536,8 @@ function MealObservation({
                     <button
                       className={`min-h-9 cursor-pointer rounded-full border px-3 text-xs font-semibold transition active:scale-[0.98] ${
                         selected
-                          ? "border-[#3E6670] bg-[#E6EFED] text-[#2F5E68] shadow-[0_6px_14px_rgba(62,102,112,0.12)]"
-                          : "border-[#DDD5C7] bg-[#FAF8F1] text-[#7A7166] shadow-[0_6px_14px_rgba(23,21,18,0.03)]"
+                          ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
+                          : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text-muted)] shadow-[var(--pc-shadow-level-1)]"
                       }`}
                       key={key}
                       type="button"
@@ -3604,13 +3556,13 @@ function MealObservation({
                   );
                 })}
                 {!editingTags && detectedTags.length === 0 ? (
-                  <p className="text-sm text-[#7A7166]">
+                  <p className="text-sm text-[var(--pc-color-text-muted)]">
                     Aucune étiquette détectée automatiquement.
                   </p>
                 ) : null}
               </div>
               <button
-                className="inline-flex min-h-9 w-fit items-center rounded-full border border-[#C7D4D2] bg-[#E6EFED] px-3 text-sm font-semibold text-[#2F5E68] shadow-[0_6px_14px_rgba(62,102,112,0.08)] transition active:scale-[0.98]"
+                className="inline-flex min-h-9 w-fit items-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)] transition active:scale-[0.98]"
                 type="button"
                 onClick={() => setEditingTags((current) => !current)}
               >
@@ -3642,11 +3594,11 @@ function MealObservation({
           {stepId === "finding" ? (
             <section className="space-y-6">
               <ConstatPart title="Ce que je vois" text={finding.fact} emphasized />
-              <div className="space-y-5 rounded-[22px] bg-[#FAF8F1] p-4 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
+              <div className="space-y-5 rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
                 <ConstatPart title="Point à surveiller" text={finding.reading} />
                 <ConstatPart title="Prochaine fois" text={finding.nextAction} />
               </div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7A7166]">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
                 {finding.evidenceLevel}
               </p>
             </section>
@@ -3689,7 +3641,7 @@ function TunnelQuestion({
 }) {
   return (
     <section className="space-y-5">
-      <h1 className="font-serif text-3xl leading-tight text-[#171512]">
+      <h1 className="font-serif text-3xl leading-tight text-[var(--pc-color-text)]">
         {title}
       </h1>
       {children}
@@ -3713,10 +3665,10 @@ function TunnelChoiceLine<T extends string>({
 
         return (
           <button
-            className={`min-h-12 cursor-pointer rounded-[18px] border px-4 text-left text-base transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/25 active:translate-y-px active:scale-[0.99] ${
+            className={`min-h-12 cursor-pointer rounded-[18px] border px-4 text-left text-base transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_35%,transparent)] active:translate-y-px active:scale-[0.99] ${
               selected
-                ? "border-[#3E6670] bg-[#E6EFED] text-[#171512] shadow-[0_8px_18px_rgba(62,102,112,0.12)]"
-                : "border-[#DDD5C7] bg-[#FAF8F1] text-[#3A3732] shadow-[0_6px_14px_rgba(23,21,18,0.03)]"
+                ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
+                : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
             }`}
             key={key}
             type="button"
@@ -3738,8 +3690,8 @@ function ClarificationQuestion({
   onChange: (clarification: MealClarification) => void;
 }) {
   return (
-    <div className="rounded-[18px] border border-[#DDD5C7] bg-[#FAF8F1] p-3 shadow-[0_6px_14px_rgba(23,21,18,0.03)]">
-      <p className="mb-3 text-sm font-semibold text-[#171512]">
+    <div className="rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-3 shadow-[var(--pc-shadow-level-1)]">
+      <p className="mb-3 text-sm font-semibold text-[var(--pc-color-text)]">
         {clarification.question}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -3750,8 +3702,8 @@ function ClarificationQuestion({
             <button
               className={`min-h-9 rounded-full border px-3 text-xs font-semibold transition active:scale-[0.98] ${
                 selected
-                  ? "border-[#3E6670] bg-[#E6EFED] text-[#2F5E68]"
-                  : "border-[#DDD5C7] bg-[#FFFDF7] text-[#3A3732]"
+                  ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]"
+                  : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)]"
               }`}
               key={choice}
               type="button"
@@ -3801,8 +3753,8 @@ function ConstatPart({
       <p
         className={
           emphasized
-            ? "mt-2 font-serif text-3xl leading-tight text-[#171512]"
-            : "mt-2 leading-7 text-[#3A3732]"
+            ? "mt-2 font-serif text-3xl leading-tight text-[var(--pc-color-text)]"
+            : "mt-2 leading-7 text-[var(--pc-color-text)]"
         }
       >
         {text}
@@ -3813,9 +3765,9 @@ function ConstatPart({
 
 function EmptyState({ title, text }: { title: string; text: string }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-[#D3CABD] bg-[#FAF8F1] p-4 shadow-[0_8px_20px_rgba(23,21,18,0.035)]">
-      <p className="font-serif text-xl text-[#171512]">{title}</p>
-      <p className="mt-2 leading-7 text-[#3A3732]">{text}</p>
+    <div className="rounded-[22px] border border-dashed border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
+      <p className="font-serif text-xl text-[var(--pc-color-text)]">{title}</p>
+      <p className="mt-2 leading-7 text-[var(--pc-color-text)]">{text}</p>
     </div>
   );
 }
@@ -3840,7 +3792,7 @@ function TodayChronologyMeal({
   return (
     <article
       aria-label="Observation repas. Appui long pour modifier ou supprimer."
-      className={`relative grid cursor-pointer select-none grid-cols-[3rem_1fr] gap-3 rounded-[18px] bg-[#FAF8F1]/80 p-3 shadow-[0_8px_20px_rgba(23,21,18,0.04)] transition [-webkit-touch-callout:none] [-webkit-user-select:none] active:scale-[0.99] ${
+      className={`pc-focus-ring pc-motion-safe relative grid cursor-pointer select-none grid-cols-[2.75rem_minmax(0,1fr)] gap-3 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-3 shadow-[var(--pc-shadow-level-1)] transition-[border-color,box-shadow,transform] duration-[var(--pc-motion-fast)] [-webkit-touch-callout:none] [-webkit-user-select:none] hover:border-[var(--pc-color-primary)] active:translate-y-px ${
         menuOpen ? "z-20" : ""
       }`}
       role="button"
@@ -3864,13 +3816,13 @@ function TodayChronologyMeal({
       onPointerLeave={onLongPressCancel}
       onPointerUp={onLongPressCancel}
     >
-      <p className="pt-1 text-xs font-semibold tabular-nums text-[#7A7166]">
+      <p className="pt-1 text-[length:var(--pc-font-size-meta)] leading-4 font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
         {meal.time}
       </p>
       {menuOpen ? (
-        <div className="absolute right-2 top-11 z-30 grid min-w-32 gap-1 rounded-[16px] border border-[#DDD5C7] bg-[#FAF8F1] p-1 text-sm shadow-[0_16px_34px_rgba(23,21,18,0.14)]">
+        <div className="absolute right-2 top-11 z-30 grid min-w-32 gap-1 rounded-[16px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-1 text-sm shadow-[var(--pc-shadow-level-2)]">
           <button
-            className="rounded-[12px] px-3 py-2 text-left font-semibold text-[#171512] transition hover:bg-[#E6DFD3]"
+            className="rounded-[12px] px-3 py-2 text-left font-semibold text-[var(--pc-color-text)] transition hover:bg-[var(--pc-color-primary-soft)]"
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onEdit}
@@ -3888,21 +3840,23 @@ function TodayChronologyMeal({
         </div>
       ) : null}
       <div className="flex min-w-0 gap-2">
-        <span className="mt-2 size-2 shrink-0 rounded-full bg-[#3E6670]" />
+        <span className="mt-2 size-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]" />
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-[#171512]">
+          <p className="text-[length:var(--pc-font-size-secondary)] leading-5 font-semibold text-[var(--pc-color-text)]">
             {mealKindLabels[meal.kind]}
           </p>
-          <p className="mt-0.5 truncate text-sm text-[#171512]">{meal.freeText}</p>
-          <p className="mt-1 truncate text-xs text-[#7A7166]">
+          <p className="mt-0.5 truncate text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text)]">
+            {meal.freeText}
+          </p>
+          <p className="mt-1 truncate text-[length:var(--pc-font-size-meta)] leading-4 text-[var(--pc-color-text-muted)]">
             {mealDetailLine(meal)}
           </p>
           {mealTagLabels(meal.components).length > 0 ? (
-            <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8B8277]">
+            <p className="mt-1 truncate text-[11px] leading-4 font-semibold text-[var(--pc-color-text-subtle)]">
               {mealTagLabels(meal.components).slice(0, 3).join(" · ")}
             </p>
           ) : null}
-          <p className="mt-2 inline-flex w-fit rounded-full border border-[#C7D4D2] bg-[#E6EFED]/65 px-2.5 py-1 text-xs font-semibold text-[#2F5E68]">
+          <p className="mt-2 inline-flex w-fit rounded-[var(--pc-radius-full)] bg-[var(--pc-color-primary-soft)] px-2.5 py-1 text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
             Signal · {meal.finding.frictionPoint}
           </p>
         </div>
@@ -3913,15 +3867,15 @@ function TodayChronologyMeal({
 
 function ChronologyMeal({ meal }: { meal: MealEntry }) {
   return (
-    <article className="rounded-[20px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
+    <article className="rounded-[20px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-semibold text-[#171512]">{mealKindLabels[meal.kind]}</p>
-        <p className="text-xs font-semibold tabular-nums text-[#7A7166]">
+        <p className="font-semibold text-[var(--pc-color-text)]">{mealKindLabels[meal.kind]}</p>
+        <p className="text-xs font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
           {meal.time}
         </p>
       </div>
-      <p className="mt-2 leading-7 text-[#171512]">{meal.freeText}</p>
-      <p className="mt-2 text-sm text-[#6E665C]">
+      <p className="mt-2 leading-7 text-[var(--pc-color-text)]">{meal.freeText}</p>
+      <p className="mt-2 text-sm text-[var(--pc-color-text-muted)]">
         {mealDetailLine(meal)}
       </p>
       {mealTagLabels(meal.components).length > 0 ? (
@@ -3929,7 +3883,7 @@ function ChronologyMeal({ meal }: { meal: MealEntry }) {
           {mealTagLabels(meal.components).slice(0, 4).join(" · ")}
         </p>
       ) : null}
-      <p className="mt-3 inline-flex rounded-full bg-[#E6EFED] px-3 py-1 text-xs font-semibold text-[#2F5E68]">
+      <p className="mt-3 inline-flex rounded-full bg-[var(--pc-color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--pc-color-primary)]">
         Signal : {meal.finding.frictionPoint}
       </p>
     </article>
@@ -3951,14 +3905,14 @@ function Chronology({ data, filter }: { data: AppData; filter: JournalFilter }) 
       date: entry.date,
       createdAt: entry.createdAt,
       node: (
-        <article className="rounded-[20px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
+        <article className="rounded-[20px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]">
           <div className="flex items-center justify-between gap-3">
-            <p className="font-semibold text-[#171512]">Tabac</p>
-            <p className="text-xs font-semibold tabular-nums text-[#7A7166]">
+            <p className="font-semibold text-[var(--pc-color-text)]">Tabac</p>
+            <p className="text-xs font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
               {entry.time}
             </p>
           </div>
-          <p className="mt-2 text-[#3A3732]">
+          <p className="mt-2 text-[var(--pc-color-text)]">
             {smokingDayLabels[entry.state]}
             {entry.note ? ` · ${entry.note}` : ""}
           </p>
@@ -3971,14 +3925,14 @@ function Chronology({ data, filter }: { data: AppData; filter: JournalFilter }) 
       date: entry.date,
       createdAt: entry.createdAt,
       node: (
-        <article className="rounded-[20px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 shadow-[0_10px_22px_rgba(23,21,18,0.045)]">
+        <article className="rounded-[20px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]">
           <div className="flex items-center justify-between gap-3">
-            <p className="font-semibold text-[#171512]">Mesure</p>
-            <p className="text-xs font-semibold tabular-nums text-[#7A7166]">
+            <p className="font-semibold text-[var(--pc-color-text)]">Mesure</p>
+            <p className="text-xs font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
               {entry.time}
             </p>
           </div>
-          <p className="mt-2 text-[#3A3732]">{formatKg(entry.weightKg)}</p>
+          <p className="mt-2 text-[var(--pc-color-text)]">{formatKg(entry.weightKg)}</p>
         </article>
       ),
     })),

@@ -1,6 +1,6 @@
-# Projet Centenaire — Product Board
+# Haru — Product Board
 
-Ce document est la source de vérité produit pour Projet Centenaire : idées, décisions, retours terrain, backlog, arbitrages et prochains sprints.
+Ce document est la source de vérité produit pour Haru, nom public du projet jusque-là appelé Projet Centenaire : idées, décisions, retours terrain, backlog, arbitrages et prochains sprints.
 
 Chaque nouvelle idée doit être placée dans une des catégories suivantes :
 - bug immédiat ;
@@ -11,7 +11,7 @@ Chaque nouvelle idée doit être placée dans une des catégories suivantes :
 
 ## 1. Vision
 
-Projet Centenaire n’est pas une application de calories.
+Haru n’est pas une application de calories.
 C’est un carnet comportemental qui aide l’utilisateur à observer ses faits, comprendre ses habitudes, et identifier ses vrais points de friction.
 
 Principes :
@@ -24,7 +24,7 @@ Principes :
 
 ## 2. Statut actuel — V0.7.1
 
-Projet Centenaire est actuellement en V0.7.1.
+Haru est actuellement en V0.7.1.
 
 État :
 - application en production sur Vercel ;
@@ -47,9 +47,16 @@ Commit de référence :
 
 ## 3. Décisions validées
 
-- Nom définitif : Projet Centenaire.
-- Logo : cercle incomplet + axe vertical + point central + progression en points.
+- Nom public définitif : Haru. « Projet Centenaire » reste le nom historique du projet et du dépôt.
+- Kit de marque officiel :
+  - `public/brand/Haru.png` : mot-symbole horizontal pour les en-têtes ;
+  - `public/brand/Haru2.png` : monogramme pour l’icône PWA et mobile ;
+  - `public/brand/Haru3.png` : signature « Un jour à la fois. » pour le démarrage et l’accueil de l’onboarding ;
+  - les trois masters sont transparents et recadrés au contenu utile.
 - Direction artistique : interface mobile claire, calme et humaine, pensée comme un compagnon du quotidien.
+- Structure visuelle : succession de fenêtres mobiles plein format, avec grands espaces, surfaces blanches, progression courte et action principale basse.
+- Palette active : fond blanc ou bleu brume très clair, texte noir et actions allant du bleu pastel au bleu profond.
+- Typographie d'interface : Nunito Sans variable, choisie pour une présence plus ronde, mobile et chaleureuse ; le futur mot-symbole reste indépendant.
 - Pas de sport dans la V0.
 - Pas de communauté dans la V0.
 - Pas d’IA tant que le tunnel repas n’est pas stabilisé.
@@ -69,7 +76,7 @@ Retours remontés après 3/4 jours de test réel.
 ### Bugs / irritants immédiats
 
 - L’application ne change pas automatiquement de jour après minuit si elle reste ouverte.
-- Le logo est parfois rogné ou coupé.
+- Le logo historique était parfois rogné ou coupé ; le kit Haru recadré le remplace.
 - La mission en cours doit pouvoir être masquée/affichée.
 - La question “grignotage après repas” est incohérente et doit disparaître.
 - Les étiquettes repas sont trop pauvres.
@@ -179,7 +186,7 @@ Action requise :
 ### Checklist avant redéploiement V0.6.1
 
 - [ ] Tester localement la page du jour.
-- [ ] Vérifier que le logo n’est plus rogné sur mobile.
+- [x] Vérifier que le logo n’est plus rogné sur mobile.
 - [ ] Vérifier que Mission en cours peut être affichée/masquée.
 - [ ] Vérifier que le tunnel repas n’affiche plus “grignotage après repas”.
 - [ ] Vérifier les types de repas.

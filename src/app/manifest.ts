@@ -2,22 +2,16 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Projet Centenaire",
-    short_name: "Centenaire",
-    description: "Carnet de terrain comportemental local.",
+    name: "Haru",
+    short_name: "Haru",
+    description: "Un carnet pour avancer un jour à la fois.",
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#F3EDE2",
-    theme_color: "#F3EDE2",
+    background_color: "#FFFFFF",
+    theme_color: "#FFFFFF",
     orientation: "portrait",
     icons: [
-      {
-        src: "/brand/app-icon.svg",
-        sizes: "512x512",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
       {
         src: "/icon-192.png",
         sizes: "192x192",

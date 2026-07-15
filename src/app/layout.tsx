@@ -1,19 +1,26 @@
 import type { Metadata, Viewport } from "next";
+import { Nunito_Sans } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
+const nunitoSans = Nunito_Sans({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-nunito-sans",
+  weight: "variable",
+});
+
 export const metadata: Metadata = {
-  title: "Projet Centenaire",
-  description: "Carnet de terrain comportemental local et mobile-first.",
-  applicationName: "Projet Centenaire",
+  title: "Haru",
+  description: "Un carnet pour avancer un jour à la fois.",
+  applicationName: "Haru",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Centenaire",
+    title: "Haru",
   },
   icons: {
     icon: [
-      { url: "/brand/app-icon.svg", type: "image/svg+xml" },
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -22,7 +29,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#F3EDE2",
+  themeColor: "#FFFFFF",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -34,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="h-full antialiased">
+    <html lang="fr" className={`${nunitoSans.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-foreground">
         <ServiceWorkerRegistration />
         {children}

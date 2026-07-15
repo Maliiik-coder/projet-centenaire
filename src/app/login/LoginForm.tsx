@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ChevronLeft } from "lucide-react";
-import { LogoHorizontal } from "@/components/Logo";
+import { CheckCircle2, ChevronLeft } from "lucide-react";
+import {
+  Button,
+  ErrorState,
+  FormField,
+  Surface,
+  TextInput,
+  TopBar,
+} from "@/components/ui";
 import { buildAuthCallbackUrl, safeAuthNext } from "@/lib/authRedirect";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
-
-const inputClass =
-  "min-h-12 w-full rounded-[16px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 text-base text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.035)] outline-none placeholder:text-[#7A7166] focus:border-[#3E6670] focus:ring-2 focus:ring-[#3E6670]/15";
-
-const buttonClass =
-  "inline-flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full px-5 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/35 active:translate-y-px active:scale-[0.99]";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -108,95 +109,93 @@ export function LoginForm() {
   };
 
   return (
-    <main className="app-screen">
-      <div className="app-inner-screen mx-auto flex max-w-md flex-col">
-        <header className="mb-8 flex flex-col items-start gap-2 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_22px_rgba(23,21,18,0.045)] min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
-          <LogoHorizontal
-            className="min-w-0"
-            markClassName="h-10 w-auto shrink-0 text-[#171512]"
-            textClassName="whitespace-nowrap font-serif text-xl leading-none text-[#171512]"
-          />
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7A7166] min-[390px]:shrink-0">
-            Connexion
-          </p>
-        </header>
+    <main className="pc-screen">
+      <div className="pc-screen-inner flex flex-col">
+        <TopBar label="Connexion" />
 
-        <section className="flex flex-1 flex-col justify-center gap-7">
-          <div className="space-y-3">
+        <section className="flex flex-1 flex-col justify-center gap-6 py-8 sm:py-12">
+          <div className="space-y-4">
             <Link
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[#3A3732]"
+              className="pc-focus-ring inline-flex min-h-12 items-center gap-2 rounded-[var(--pc-radius-compact)] text-[length:var(--pc-font-size-secondary)] leading-5 font-semibold text-[var(--pc-color-primary)]"
               href="/"
             >
               <ChevronLeft aria-hidden="true" size={17} />
               Retour au carnet
             </Link>
-            <h1 className="font-serif text-4xl leading-tight">
+            <h1 className="max-w-sm text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
               Retrouver son carnet.
             </h1>
-            <p className="leading-7 text-[#3A3732]">
+            <p className="max-w-md text-[length:var(--pc-font-size-body)] leading-[var(--pc-line-height-relaxed)] text-[var(--pc-color-text-muted)]">
               La sauvegarde cloud sert uniquement à garder tes observations entre
               appareils.
             </p>
           </div>
 
           {!configured ? (
-            <p className="rounded-[18px] border border-[#D7B8B2] bg-[#FFF7F3] p-3 text-sm leading-6 text-[#3A3732]">
-              Supabase n&apos;est pas encore configuré. Ajoute les variables
-              d&apos;environnement pour activer la connexion.
-            </p>
+            <ErrorState message="Supabase n'est pas encore configuré. Ajoute les variables d'environnement pour activer la connexion." />
           ) : null}
 
           <div className="grid gap-3">
-            <button
-              className={`${buttonClass} bg-[#171512] text-[#F3EDE2] shadow-[0_10px_22px_rgba(23,21,18,0.16)] disabled:cursor-not-allowed disabled:opacity-50`}
-              type="button"
+            <Button
               disabled={!configured}
+              fullWidth
               onClick={signInWithGoogle}
             >
               Continuer avec Google
-            </button>
-            <button
-              className={`${buttonClass} border border-[#D7CEC0] bg-[#FAF8F1] text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.04)] disabled:cursor-not-allowed disabled:opacity-60`}
-              type="button"
+            </Button>
+            <Button
               disabled={!configured || !appleEnabled}
+              fullWidth
               onClick={signInWithApple}
+              variant="secondary"
             >
-              {appleEnabled
-                ? "Continuer avec Apple"
-                : "Connexion Apple bientôt disponible"}
-            </button>
+              <span className="text-[length:var(--pc-font-size-meta)]">
+                {appleEnabled
+                  ? "Continuer avec Apple"
+                  : "Connexion Apple bientôt disponible"}
+              </span>
+            </Button>
           </div>
 
-          <form className="space-y-3" onSubmit={sendMagicLink}>
-            <label className="grid gap-2 text-sm text-[#3A3732]">
-              Email
-              <input
-                className={inputClass}
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="prenom@example.com"
-              />
-            </label>
-            <button
-              className={`${buttonClass} border border-[#C7D4D2] bg-[#E6EFED] text-[#2F5E68] shadow-[0_6px_14px_rgba(62,102,112,0.08)] disabled:cursor-not-allowed disabled:opacity-50`}
-              type="submit"
-              disabled={!configured || isSending}
-            >
-              {isSending ? "Envoi..." : "Recevoir un lien de connexion"}
-            </button>
-          </form>
+          <Surface as="section" className="p-4 sm:p-5" variant="default">
+            <form className="space-y-3" onSubmit={sendMagicLink}>
+              <FormField id="login-email" label="Email">
+                <TextInput
+                  autoComplete="email"
+                  id="login-email"
+                  placeholder="prenom@example.com"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </FormField>
+              <Button
+                disabled={!configured || isSending}
+                fullWidth
+                loading={isSending}
+                loadingLabel="Envoi..."
+                type="submit"
+                variant="secondary"
+              >
+                Recevoir un lien de connexion
+              </Button>
+            </form>
+          </Surface>
 
           {message ? (
-            <p className="rounded-[18px] border border-[#CAD8C8] bg-[#F3FAF0] p-3 text-sm leading-6 text-[#3A3732]">
-              {message}
-            </p>
+            <div
+              className="flex gap-3 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-success)] bg-[var(--pc-color-success-soft)] p-3 text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text)]"
+              role="status"
+            >
+              <CheckCircle2
+                aria-hidden="true"
+                className="mt-0.5 shrink-0 text-[var(--pc-color-success)]"
+                size={19}
+              />
+              <p>{message}</p>
+            </div>
           ) : null}
-          {error ? (
-            <p className="rounded-[18px] border border-[#D7B8B2] bg-[#FFF7F3] p-3 text-sm leading-6 text-[#3A3732]">
-              {error}
-            </p>
-          ) : null}
+          {error ? <ErrorState message={error} /> : null}
         </section>
       </div>
     </main>
