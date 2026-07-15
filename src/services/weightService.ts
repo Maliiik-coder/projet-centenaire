@@ -60,6 +60,26 @@ export async function upsertWeightEntries(
   throwIfSupabaseError(error);
 }
 
+export async function upsertWeightEntry(
+  supabase: AppSupabaseClient,
+  userId: string,
+  entry: WeightEntry,
+  signal?: AbortSignal,
+): Promise<void> {
+  const query = supabase.from("weight_entries").upsert(
+    {
+      user_id: userId,
+      entry_date: entry.date,
+      weight_kg: entry.weightKg,
+      created_at: entry.createdAt,
+    },
+    { onConflict: "user_id,entry_date" },
+  );
+  const { error } = signal ? await query.abortSignal(signal) : await query;
+
+  throwIfSupabaseError(error);
+}
+
 export async function deleteWeightEntries(
   supabase: AppSupabaseClient,
   userId: string,

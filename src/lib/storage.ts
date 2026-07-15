@@ -23,13 +23,34 @@ import type {
   WeightEntry,
 } from "@/lib/types";
 import { EMPTY_COMPONENTS, buildImmediateFinding } from "@/lib/analytics";
+import { validateImportedPayload } from "@/lib/dataValidation";
 import {
   dedupeDailyWeights,
   stabilizeSmokingEntries,
 } from "@/lib/dataStabilization";
 import { normalizeMealKind } from "@/lib/mealKinds";
+import { tryCanonicalizeTimestamp } from "@/lib/timestamps";
 
-const STORAGE_KEY = "projet-centenaire-fieldbook-v0";
+const LEGACY_STORAGE_KEY = "projet-centenaire-fieldbook-v0";
+const STORAGE_KEY_PREFIX = "projet-centenaire-fieldbook-v1";
+const LEGACY_QUARANTINE_KEY = `${STORAGE_KEY_PREFIX}:legacy-quarantine`;
+
+export type StorageScope =
+  | { kind: "guest" }
+  | { kind: "user"; userId: string };
+
+export type LocalDataEnvelope = {
+  version: 1;
+  ownerUserId: string | null;
+  updatedAt: string;
+  data: AppData;
+};
+
+export const guestStorageScope: StorageScope = { kind: "guest" };
+
+export function userStorageScope(userId: string): StorageScope {
+  return { kind: "user", userId };
+}
 
 export function createEmptyData(): AppData {
   return {
@@ -55,6 +76,54 @@ function asString(value: unknown, fallback = ""): string {
 
 function asNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function storageKey(scope: StorageScope): string {
+  return scope.kind === "guest"
+    ? `${STORAGE_KEY_PREFIX}:guest`
+    : `${STORAGE_KEY_PREFIX}:user:${encodeURIComponent(scope.userId)}`;
+}
+
+function ownerForScope(scope: StorageScope): string | null {
+  return scope.kind === "guest" ? null : scope.userId;
+}
+
+function createEnvelope(scope: StorageScope, data: AppData): LocalDataEnvelope {
+  return {
+    version: 1,
+    ownerUserId: ownerForScope(scope),
+    updatedAt: new Date().toISOString(),
+    data: normalizeData(data),
+  };
+}
+
+function normalizeEnvelope(value: unknown): LocalDataEnvelope | null {
+  if (!isRecord(value) || value.version !== 1) {
+    return null;
+  }
+
+  const ownerUserId =
+    value.ownerUserId === null || typeof value.ownerUserId === "string"
+      ? value.ownerUserId
+      : null;
+
+  return {
+    version: 1,
+    ownerUserId,
+    updatedAt: asString(value.updatedAt, new Date().toISOString()),
+    data: normalizeData(value.data),
+  };
+}
+
+function envelopeMatchesScope(
+  envelope: LocalDataEnvelope,
+  scope: StorageScope,
+): boolean {
+  return envelope.ownerUserId === ownerForScope(scope);
+}
+
+function parseJson(raw: string): unknown {
+  return JSON.parse(raw);
 }
 
 function normalizeFriction(value: unknown): FrictionChoice {
@@ -373,8 +442,9 @@ function normalizeMeal(value: unknown): MealEntry | null {
 
   const date = asString(value.date, "");
   const freeText = asString(value.freeText, "");
+  const createdAt = tryCanonicalizeTimestamp(asString(value.createdAt, ""));
 
-  if (!date || !freeText) {
+  if (!date || !freeText || !createdAt) {
     return null;
   }
 
@@ -424,7 +494,7 @@ function normalizeMeal(value: unknown): MealEntry | null {
     questionnaireVersion: normalizeQuestionnaireVersion(value.questionnaireVersion),
     components,
     finding,
-    createdAt: asString(value.createdAt, new Date().toISOString()),
+    createdAt,
   };
 }
 
@@ -490,8 +560,98 @@ export function normalizeData(value: unknown): AppData {
   };
 }
 
+export function unwrapImportedPayload(value: unknown): unknown {
+  if (isRecord(value) && value.version === 1 && "data" in value) {
+    return value.data;
+  }
+
+  return value;
+}
+
+export function normalizeImportedData(value: unknown): AppData {
+  const candidate = unwrapImportedPayload(value);
+  validateImportedPayload(candidate);
+
+  return normalizeData(candidate);
+}
+
 export const localDataStore = {
-  load(): AppData {
+  quarantineLegacyData(): AppData | null {
+    if (!isBrowser()) {
+      return null;
+    }
+
+    let raw: string | null = null;
+
+    try {
+      raw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+
+    if (!raw) {
+      return this.getLegacyQuarantine();
+    }
+
+    let data = createEmptyData();
+
+    try {
+      data = normalizeData(parseJson(raw));
+      const envelope: LocalDataEnvelope = {
+        version: 1,
+        ownerUserId: null,
+        updatedAt: new Date().toISOString(),
+        data,
+      };
+      window.localStorage.setItem(LEGACY_QUARANTINE_KEY, JSON.stringify(envelope));
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+
+    return data;
+  },
+
+  getLegacyQuarantine(): AppData | null {
+    if (!isBrowser()) {
+      return null;
+    }
+
+    let raw: string | null = null;
+
+    try {
+      raw = window.localStorage.getItem(LEGACY_QUARANTINE_KEY);
+    } catch {
+      return null;
+    }
+
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const envelope = normalizeEnvelope(parseJson(raw));
+      return envelope?.ownerUserId === null ? envelope.data : null;
+    } catch {
+      return null;
+    }
+  },
+
+  clearLegacyQuarantine(): void {
+    if (!isBrowser()) {
+      return;
+    }
+
+    try {
+      window.localStorage.removeItem(LEGACY_QUARANTINE_KEY);
+    } catch {
+      // Storage can be unavailable in restricted browser contexts.
+    }
+  },
+
+  load(scope: StorageScope): AppData {
+    this.quarantineLegacyData();
+
     if (!isBrowser()) {
       return createEmptyData();
     }
@@ -499,7 +659,7 @@ export const localDataStore = {
     let raw: string | null = null;
 
     try {
-      raw = window.localStorage.getItem(STORAGE_KEY);
+      raw = window.localStorage.getItem(storageKey(scope));
     } catch {
       return createEmptyData();
     }
@@ -509,36 +669,47 @@ export const localDataStore = {
     }
 
     try {
-      return normalizeData(JSON.parse(raw));
+      const envelope = normalizeEnvelope(parseJson(raw));
+
+      if (!envelope || !envelopeMatchesScope(envelope, scope)) {
+        return createEmptyData();
+      }
+
+      return envelope.data;
     } catch {
       return createEmptyData();
     }
   },
 
-  save(data: AppData): void {
+  save(scope: StorageScope, data: AppData): void {
     if (!isBrowser()) {
       return;
     }
 
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeData(data)));
+      window.localStorage.setItem(
+        storageKey(scope),
+        JSON.stringify(createEnvelope(scope, data)),
+      );
     } catch {
       // Storage can be unavailable in restricted browser contexts.
     }
   },
 
-  import(raw: string): AppData {
-    const data = normalizeData(JSON.parse(raw) as unknown);
-    this.save(data);
-    return data;
+  import(scope: StorageScope, raw: string): AppData {
+    const parsed = parseJson(raw);
+    const imported = normalizeImportedData(parsed);
+
+    this.save(scope, imported);
+    return imported;
   },
 
-  reset(): AppData {
+  reset(scope: StorageScope): AppData {
     const data = createEmptyData();
 
     if (isBrowser()) {
       try {
-        window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(storageKey(scope));
       } catch {
         // Storage can be unavailable in restricted browser contexts.
       }

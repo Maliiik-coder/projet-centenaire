@@ -1,13 +1,30 @@
-import { calculateWeeklyAnalysis } from "@/lib/analytics";
-import { todayISO } from "@/lib/dates";
 import { createEmptyData, normalizeData } from "@/lib/storage";
-import type { AppData } from "@/lib/types";
+import type {
+  AppData,
+  NonMealMutationDraft,
+} from "@/lib/types";
 import type { AppSupabaseClient } from "@/services/serviceTypes";
-import { deleteMealObservations, listMealObservations, upsertMealObservations } from "@/services/mealService";
-import { deleteProfile, getProfile, upsertProfile } from "@/services/profileService";
-import { deleteWeeklyReports, upsertWeeklyReport } from "@/services/reportService";
-import { deleteTobaccoEvents, listTobaccoEvents, upsertTobaccoEvents } from "@/services/tobaccoService";
-import { deleteWeightEntries, listWeightEntries, upsertWeightEntries } from "@/services/weightService";
+import {
+  deleteMealObservations,
+  listMealObservations,
+} from "@/services/mealService";
+import {
+  createProfileIfMissing,
+  deleteProfile,
+  getProfile,
+  patchProfile,
+} from "@/services/profileService";
+import { deleteWeeklyReports } from "@/services/reportService";
+import {
+  deleteTobaccoEvents,
+  listTobaccoEvents,
+  upsertTobaccoEvent,
+} from "@/services/tobaccoService";
+import {
+  deleteWeightEntries,
+  listWeightEntries,
+  upsertWeightEntry,
+} from "@/services/weightService";
 
 export async function loadCloudData(
   supabase: AppSupabaseClient,
@@ -29,33 +46,43 @@ export async function loadCloudData(
   });
 }
 
-export async function saveCloudData(
+export async function applyNonMealMutation(
   supabase: AppSupabaseClient,
   userId: string,
-  data: AppData,
+  mutation: NonMealMutationDraft,
+  signal?: AbortSignal,
 ): Promise<void> {
-  const normalized = normalizeData(data);
+  if (mutation.entity === "profile") {
+    if (mutation.action === "create") {
+      await createProfileIfMissing(
+        supabase,
+        userId,
+        mutation.patch,
+        signal,
+      );
+      return;
+    }
 
-  if (normalized.profile) {
-    await upsertProfile(supabase, userId, normalized.profile);
+    await patchProfile(supabase, userId, mutation.patch, signal);
+    return;
   }
 
-  await Promise.all([
-    upsertWeightEntries(supabase, userId, normalized.weights),
-    (async () => {
-      await deleteMealObservations(supabase, userId);
-      await upsertMealObservations(supabase, userId, normalized.meals);
-    })(),
-    upsertTobaccoEvents(supabase, userId, normalized.smokingEntries),
-  ]);
-
-  if (normalized.profile) {
-    await upsertWeeklyReport(
+  if (mutation.entity === "weight") {
+    await upsertWeightEntry(
       supabase,
       userId,
-      calculateWeeklyAnalysis(normalized, todayISO()),
+      mutation.payload,
+      signal,
     );
+    return;
   }
+
+  await upsertTobaccoEvent(
+    supabase,
+    userId,
+    mutation.payload,
+    signal,
+  );
 }
 
 export async function exportCloudData(

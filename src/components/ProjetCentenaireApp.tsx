@@ -35,8 +35,13 @@ import {
   upsertDailyWeightEntry,
   upsertSmokingEntry,
 } from "@/lib/dataStabilization";
+import { isCurrentCloudAttempt } from "@/lib/cloudAttempt";
+import { withCloudReadTimeout } from "@/lib/cloudRead";
 import { activeMealKindLabels, mealKindLabels } from "@/lib/mealKinds";
-import { deleteMealEntry, updateMealEntry } from "@/lib/mealMutations";
+import {
+  deleteMealEntry,
+  updateMealEntry,
+} from "@/lib/mealMutations";
 import {
   getMealTunnelStepIds,
   type MealTunnelStepId,
@@ -47,20 +52,57 @@ import {
   mergeDetectedClarifications,
 } from "@/lib/foodDetection";
 import { shouldShowActiveMission } from "@/lib/mission";
-import { localDataStore, normalizeData } from "@/lib/storage";
+import {
+  buildProfilePatch,
+  createProfileMutationDraft,
+  createProfilePatchMutationDraft,
+  createSmokingMutationDraft,
+  createWeightMutationDraft,
+} from "@/lib/nonMealData";
+import { mergeImportedData } from "@/lib/importData";
+import { ImportValidationError } from "@/lib/dataValidation";
+import { materializePendingCloudState } from "@/lib/pendingCloudState";
+import {
+  createEmptyData,
+  guestStorageScope,
+  localDataStore,
+  normalizeData,
+  userStorageScope,
+} from "@/lib/storage";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { WeightTrendChart } from "@/components/WeightTrendChart";
 import { LogoFull, LogoHorizontal, LogoMark } from "@/components/Logo";
-import { loadCloudData, saveCloudData } from "@/services/cloudDataService";
+import { loadCloudData } from "@/services/cloudDataService";
+import { resetConnectedLocalData } from "@/services/connectedResetService";
 import {
-  hasLocalData,
-  migrateLocalDataToSupabase,
+  canAttemptAutomaticCloudWrite,
+  completeMigrationOperation,
+  createLocalMigrationSources,
+  discardPreparedMigrationOperation,
+  executeMigrationOperation,
+  getLocalMigrationCandidate,
+  getMigrationOperation,
+  isMigrationDecisionRequired,
+  isMigrationOperationStarted,
+  keepOnlyCloudData,
+  mergeLocalAndCloudData,
+  prepareMigrationOperation,
+  reconcilePendingAfterCloudLoad,
+  type CloudStatus,
+  type LocalMigrationSources,
+  type MigrationOperation,
 } from "@/services/localMigrationService";
 import {
-  clearPendingSyncData,
-  hasPendingSyncData,
-  storePendingSyncData,
-  syncPendingLocalData,
+  clearLegacyPendingSyncQuarantine,
+  clearRecoverableLegacySnapshots,
+  createMealDeleteMutation,
+  createMealUpsertMutation,
+  getPendingCloudSnapshot,
+  getRecoverableLegacySnapshot,
+  hasPendingCloudWork,
+  processPendingCloudWork,
+  quarantineLegacyPendingSyncData,
+  queueCloudMutations,
 } from "@/services/offlineSyncService";
 import type {
   AppData,
@@ -73,7 +115,9 @@ import type {
   MealClarification,
   MealComponents,
   MealEntry,
+  MealMutation,
   MealKind,
+  NonMealMutationDraft,
   Profile,
   QuestionnaireVersion,
   ServedQuantity,
@@ -263,39 +307,45 @@ const emptyMealDraft: MealDraft = {
 };
 
 const today = todayISO();
+const emptyMigrationSources: LocalMigrationSources = {
+  guest: null,
+  legacy: null,
+};
 
 const inputClass =
   "min-h-12 w-full rounded-[16px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 text-base text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.035)] outline-none placeholder:text-[#7A7166] focus:border-[#3E6670] focus:ring-2 focus:ring-[#3E6670]/15";
 const sectionClass =
   "rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 shadow-[0_12px_28px_rgba(23,21,18,0.045)]";
 const annotationClass = "text-xs font-semibold uppercase tracking-[0.16em] text-[#7A7166]";
-const bootTimeoutMs = 4500;
 
-function withBootTimeout<T>(promise: Promise<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      reject(new Error("Cloud initialization timeout"));
-    }, bootTimeoutMs);
-
-    promise.then(
-      (value) => {
-        window.clearTimeout(timeout);
-        resolve(value);
-      },
-      (error: unknown) => {
-        window.clearTimeout(timeout);
-        reject(error);
-      },
-    );
-  });
+async function materializeUserPendingState(
+  baseData: AppData,
+  userId: string,
+): Promise<AppData> {
+  const snapshot = await getPendingCloudSnapshot(userId);
+  return materializePendingCloudState(
+    baseData,
+    snapshot.mutations,
+  );
 }
-
 function createId(prefix: string): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return `${prefix}-${crypto.randomUUID()}`;
   }
 
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function exportJson(payload: AppData, filename: string): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatKg(value: number | null | undefined): string {
@@ -598,11 +648,13 @@ function getOnboardingStepError(
 
 function Button({
   children,
+  disabled = false,
   onClick,
   type = "button",
   variant = "ink",
 }: {
   children: React.ReactNode;
+  disabled?: boolean;
   onClick?: () => void;
   type?: "button" | "submit";
   variant?: "ink" | "line" | "signal";
@@ -616,7 +668,8 @@ function Button({
 
   return (
     <button
-      className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/35 active:translate-y-px active:scale-[0.99] ${classes}`}
+      className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/35 active:translate-y-px active:scale-[0.99] disabled:cursor-wait disabled:opacity-55 disabled:hover:translate-y-0 ${classes}`}
+      disabled={disabled}
       type={type}
       onClick={() => onClick?.()}
     >
@@ -720,6 +773,107 @@ function LoadingScreen() {
   );
 }
 
+function ConnectedResetScreen({ failed }: { failed: boolean }) {
+  return (
+    <main className="app-screen">
+      <div className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center gap-4">
+        <LogoFull
+          className="items-start"
+          markClassName="h-20 w-auto text-[#171512]"
+          textClassName="font-serif text-3xl leading-tight text-[#171512]"
+        />
+        <h1 className="mt-4 font-serif text-4xl">
+          {failed ? "Reconnexion nécessaire." : "Réinitialisation locale."}
+        </h1>
+        {failed ? (
+          <>
+            <p className="text-base leading-7 text-[#3A3732]">
+              Le cloud n’a pas pu être rechargé. Les anciennes données locales ne
+              sont plus affichées.
+            </p>
+            <Button onClick={() => window.location.reload()} variant="line">
+              Recharger le carnet
+            </Button>
+          </>
+        ) : null}
+      </div>
+    </main>
+  );
+}
+
+function MigrationDecisionScreen({
+  busy,
+  cloudEmail,
+  cloudHasProfile,
+  error,
+  localHasProfile,
+  onAttach,
+  onExport,
+  onKeepCloud,
+  operationStarted,
+}: {
+  busy: boolean;
+  cloudEmail: string | null;
+  cloudHasProfile: boolean;
+  error: string | null;
+  localHasProfile: boolean;
+  onAttach: () => void;
+  onExport: () => void;
+  onKeepCloud: () => void;
+  operationStarted: boolean;
+}) {
+  return (
+    <main className="app-screen">
+      <div className="mx-auto flex min-h-[82dvh] max-w-md flex-col justify-center">
+        <LogoFull
+          className="items-start"
+          markClassName="h-20 w-auto text-[#171512]"
+          textClassName="font-serif text-3xl leading-tight text-[#171512]"
+        />
+        <section className="mt-10 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] p-5 shadow-[0_12px_28px_rgba(23,21,18,0.045)]">
+          <p className={annotationClass}>Association des données</p>
+          <h1 className="mt-3 font-serif text-3xl leading-tight">
+            Des données existent sur cet appareil.
+          </h1>
+          <p className="mt-4 text-sm leading-6 text-[#3A3732]">
+            {operationStarted
+              ? "L’association a déjà commencé. Termine-la avec la même opération pour conserver un état cohérent."
+              : `Connecté avec ${cloudEmail ?? "ce compte"}. Choisis leur destination avant d’ouvrir le carnet.`}
+          </p>
+          {cloudHasProfile && localHasProfile ? (
+            <p className="mt-3 rounded-[16px] bg-[#E6EFED] px-4 py-3 text-sm leading-6 text-[#2F5E68]">
+              Le profil et les préférences du compte seront conservés. Les notes,
+              mesures et événements locaux seront ajoutés sans effacer ceux du
+              compte.
+            </p>
+          ) : null}
+          {error ? (
+            <p className="mt-3 text-sm leading-6 text-[#8A3B32]">{error}</p>
+          ) : null}
+          <div className="mt-5 grid gap-2">
+            <Button disabled={busy} onClick={onAttach}>
+              {busy
+                ? "Association en cours…"
+                : operationStarted
+                  ? "Terminer l’association"
+                  : "Associer ces données à mon compte"}
+            </Button>
+            {!operationStarted ? (
+              <Button disabled={busy} onClick={onKeepCloud} variant="line">
+                Garder uniquement les données du compte
+              </Button>
+            ) : null}
+            <Button disabled={busy} onClick={onExport} variant="line">
+              <Download aria-hidden="true" size={17} />
+              Exporter les données de cet appareil
+            </Button>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 export function ProjetCentenaireApp() {
   const [data, setData] = useState<AppData | null>(null);
   const [currentDate, setCurrentDate] = useState<ISODate>(() => todayISO());
@@ -728,8 +882,19 @@ export function ProjetCentenaireApp() {
   const [error, setError] = useState<string | null>(null);
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const [cloudEmail, setCloudEmail] = useState<string | null>(null);
-  const [migrationData, setMigrationData] = useState<AppData | null>(null);
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus>(() =>
+    isSupabaseConfigured() ? "loading" : "not-configured",
+  );
+  const [cloudSnapshot, setCloudSnapshot] = useState<AppData | null>(null);
+  const [migrationSources, setMigrationSources] =
+    useState<LocalMigrationSources>(emptyMigrationSources);
+  const [migrationOperation, setMigrationOperation] =
+    useState<MigrationOperation | null>(null);
+  const [migrationBusy, setMigrationBusy] = useState(false);
   const [pendingSync, setPendingSync] = useState(false);
+  const [connectedResetStatus, setConnectedResetStatus] = useState<
+    "idle" | "running" | "reload-required"
+  >("idle");
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraft>({
     firstName: "",
@@ -757,72 +922,249 @@ export function ProjetCentenaireApp() {
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const cloudGenerationRef = useRef(0);
+  const localEditGenerationRef = useRef(0);
+  const activeCloudUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const generation = cloudGenerationRef.current + 1;
+    cloudGenerationRef.current = generation;
+    activeCloudUserIdRef.current = null;
+
+    const generationIsCurrent = () =>
+      !cancelled && cloudGenerationRef.current === generation;
+
+    const synchronizeAfterCloudRead = async (
+      supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
+      userId: string,
+    ) => {
+      try {
+        while (true) {
+          const reconciled = await reconcilePendingAfterCloudLoad(
+            supabase,
+            userId,
+            () => localEditGenerationRef.current,
+          );
+
+          if (
+            !isCurrentCloudAttempt(
+              cloudGenerationRef.current,
+              generation,
+              activeCloudUserIdRef.current,
+              userId,
+            )
+          ) {
+            return;
+          }
+
+          if (
+            reconciled.localEditGeneration !== localEditGenerationRef.current ||
+            (await hasPendingCloudWork(userId))
+          ) {
+            continue;
+          }
+
+          localDataStore.save(userStorageScope(userId), reconciled.data);
+          setCloudStatus("ready");
+          setCloudSnapshot(reconciled.data);
+          setData(reconciled.data);
+          setProfileDraft(reconciled.data.profile);
+          setPendingSync(false);
+          setNotice("Données en attente synchronisées.");
+          return;
+        }
+      } catch {
+        if (
+          isCurrentCloudAttempt(
+            cloudGenerationRef.current,
+            generation,
+            activeCloudUserIdRef.current,
+            userId,
+          )
+        ) {
+          const visibleData = await materializeUserPendingState(
+            localDataStore.load(userStorageScope(userId)),
+            userId,
+          );
+          setCloudStatus("unavailable");
+          setCloudSnapshot(null);
+          setData(visibleData);
+          setProfileDraft(visibleData.profile);
+          setPendingSync(true);
+          setNotice("Données en attente de synchronisation.");
+        }
+      }
+    };
 
     const loadData = async () => {
-      const localData = localDataStore.load();
+      localDataStore.quarantineLegacyData();
+      const legacyPendingData = quarantineLegacyPendingSyncData();
+      const guestData = localDataStore.load(guestStorageScope);
+      const legacyStoredData = localDataStore.getLegacyQuarantine();
+      const legacyData =
+        legacyStoredData && legacyPendingData
+          ? mergeLocalAndCloudData(legacyStoredData, legacyPendingData)
+          : legacyStoredData ?? legacyPendingData;
+      let localMigrationSources = createLocalMigrationSources(
+        guestData,
+        legacyData,
+      );
+      let sessionUserId: string | null = null;
+      let sessionEmail: string | null = null;
+      let userCache: AppData | null = null;
 
       try {
         const supabase = getSupabaseBrowserClient();
 
-        setPendingSync(hasPendingSyncData());
-
         if (!supabase) {
-          setData(localData);
-          setProfileDraft(localData.profile);
+          activeCloudUserIdRef.current = null;
+          setCloudStatus("not-configured");
+          setCloudSnapshot(null);
+          setMigrationSources(emptyMigrationSources);
+          setMigrationOperation(null);
+          setData(guestData);
+          setProfileDraft(guestData.profile);
           setWeightDraft("");
           return;
         }
 
-        const hadPendingSync = hasPendingSyncData();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!generationIsCurrent()) {
+          return;
+        }
+
+        sessionUserId = session?.user.id ?? null;
+        sessionEmail = session?.user.email ?? null;
+        setPendingSync(
+          sessionUserId ? await hasPendingCloudWork(sessionUserId) : false,
+        );
+        if (sessionUserId) {
+          const ownedLegacyData = await getRecoverableLegacySnapshot(
+            sessionUserId,
+          );
+          if (ownedLegacyData) {
+            localMigrationSources = createLocalMigrationSources(
+              guestData,
+              legacyData
+                ? mergeLocalAndCloudData(legacyData, ownedLegacyData)
+                : ownedLegacyData,
+            );
+          }
+        }
+
         const {
           data: { user },
-        } = await withBootTimeout(supabase.auth.getUser());
+        } = await withCloudReadTimeout(supabase.auth.getUser());
 
-        if (cancelled) {
+        if (!generationIsCurrent()) {
           return;
         }
 
         if (!user) {
-          setData(localData);
-          setProfileDraft(localData.profile);
+          activeCloudUserIdRef.current = null;
+          setCloudUserId(null);
+          setCloudEmail(null);
+          setCloudStatus("ready");
+          setCloudSnapshot(null);
+          setMigrationSources(emptyMigrationSources);
+          setMigrationOperation(null);
+          setPendingSync(false);
+          setData(guestData);
+          setProfileDraft(guestData.profile);
           setWeightDraft("");
           return;
         }
 
+        const userScope = userStorageScope(user.id);
+        sessionUserId = user.id;
+        sessionEmail = user.email ?? null;
+        userCache = localDataStore.load(userScope);
+        const storedMigrationOperation = getMigrationOperation(user.id);
+        const localMigrationCandidate = getLocalMigrationCandidate(
+          localMigrationSources,
+          storedMigrationOperation?.source,
+        );
+        const hadPendingSync = await hasPendingCloudWork(user.id);
+        activeCloudUserIdRef.current = user.id;
         setCloudUserId(user.id);
         setCloudEmail(user.email ?? null);
+        setMigrationSources(localMigrationSources);
+        setMigrationOperation(storedMigrationOperation);
 
-        let cloudData = await withBootTimeout(loadCloudData(supabase, user.id));
+        const cloudData = await withCloudReadTimeout(
+          loadCloudData(supabase, user.id),
+        );
 
-        if (navigator.onLine && hadPendingSync) {
-          await withBootTimeout(syncPendingLocalData(supabase, user.id));
-          cloudData = await withBootTimeout(loadCloudData(supabase, user.id));
-          localDataStore.reset();
-          setPendingSync(false);
-          setNotice("Données en attente synchronisées.");
-        }
-
-        const localHasData = hasLocalData(localData) && !hadPendingSync;
-        const cloudHasData = hasLocalData(cloudData);
-
-        if (localHasData) {
-          setMigrationData(localData);
-        }
-
-        const initialData = cloudHasData ? cloudData : localData;
-        setData(initialData);
-        setProfileDraft(initialData.profile);
-        setWeightDraft("");
-      } catch {
-        if (cancelled) {
+        if (
+          !isCurrentCloudAttempt(
+            cloudGenerationRef.current,
+            generation,
+            activeCloudUserIdRef.current,
+            user.id,
+          )
+        ) {
           return;
         }
 
-        setData(localData);
-        setProfileDraft(localData.profile);
+        const hasPendingNow = await hasPendingCloudWork(user.id);
+        setCloudStatus("ready");
+        setCloudSnapshot(cloudData);
+        setPendingSync(hasPendingNow);
+        setWeightDraft("");
+
+        if (hasPendingNow) {
+          const visibleData = await materializeUserPendingState(cloudData, user.id);
+          localDataStore.save(userScope, visibleData);
+          setData(visibleData);
+          setProfileDraft(visibleData.profile);
+        } else {
+          localDataStore.save(userScope, cloudData);
+          setData(cloudData);
+          setProfileDraft(cloudData.profile);
+        }
+
+        if (
+          navigator.onLine &&
+          (hadPendingSync || hasPendingNow) &&
+          localMigrationCandidate === null &&
+          storedMigrationOperation === null
+        ) {
+          void synchronizeAfterCloudRead(supabase, user.id);
+        }
+      } catch {
+        if (!generationIsCurrent()) {
+          return;
+        }
+
+        const fallbackBaseData =
+          userCache ??
+          (sessionUserId
+            ? localDataStore.load(userStorageScope(sessionUserId))
+            : guestData);
+        const fallbackData = sessionUserId
+          ? await materializeUserPendingState(fallbackBaseData, sessionUserId)
+          : fallbackBaseData;
+
+        activeCloudUserIdRef.current = sessionUserId;
+        setCloudUserId(sessionUserId);
+        setCloudEmail(sessionEmail);
+        setCloudStatus("unavailable");
+        setCloudSnapshot(null);
+        setMigrationSources(
+          sessionUserId ? localMigrationSources : emptyMigrationSources,
+        );
+        setMigrationOperation(
+          sessionUserId ? getMigrationOperation(sessionUserId) : null,
+        );
+        setPendingSync(
+          sessionUserId ? await hasPendingCloudWork(sessionUserId) : false,
+        );
+        setData(fallbackData);
+        setProfileDraft(fallbackData.profile);
         setWeightDraft("");
         setError("Connexion cloud indisponible. Le carnet reste local pour le moment.");
       }
@@ -834,6 +1176,9 @@ export function ProjetCentenaireApp() {
 
     return () => {
       cancelled = true;
+      if (cloudGenerationRef.current === generation) {
+        cloudGenerationRef.current += 1;
+      }
       window.clearTimeout(timeout);
     };
   }, []);
@@ -870,28 +1215,145 @@ export function ProjetCentenaireApp() {
 
     const syncOnOnline = async () => {
       const supabase = getSupabaseBrowserClient();
+      const localMigrationCandidate = getLocalMigrationCandidate(
+        migrationSources,
+        migrationOperation?.source,
+      );
 
-      if (!supabase || !hasPendingSyncData()) {
+      if (
+        !supabase ||
+        isMigrationDecisionRequired(
+          cloudStatus,
+          localMigrationCandidate,
+          migrationOperation,
+        ) ||
+        (cloudStatus === "ready" && !(await hasPendingCloudWork(cloudUserId)))
+      ) {
         return;
       }
 
+      const generation = cloudGenerationRef.current + 1;
+      cloudGenerationRef.current = generation;
+      activeCloudUserIdRef.current = cloudUserId;
+
       try {
-        await syncPendingLocalData(supabase, cloudUserId);
-        const cloudData = await loadCloudData(supabase, cloudUserId);
-        localDataStore.reset();
+        const {
+          data: { user },
+        } = await withCloudReadTimeout(supabase.auth.getUser());
+
+        if (!user || user.id !== cloudUserId) {
+          return;
+        }
+
+        const cloudData = await withCloudReadTimeout(
+          loadCloudData(supabase, cloudUserId),
+        );
+
+        if (
+          !isCurrentCloudAttempt(
+            cloudGenerationRef.current,
+            generation,
+            activeCloudUserIdRef.current,
+            cloudUserId,
+          )
+        ) {
+          return;
+        }
+
+        const currentOperation = getMigrationOperation(cloudUserId);
+        const currentCandidate = getLocalMigrationCandidate(
+          migrationSources,
+          currentOperation?.source,
+        );
+        setCloudStatus("ready");
+        setCloudSnapshot(cloudData);
+        setMigrationOperation(currentOperation);
+        setPendingSync(await hasPendingCloudWork(cloudUserId));
+
+        const visibleCloudData = await materializeUserPendingState(
+          cloudData,
+          cloudUserId,
+        );
+        localDataStore.save(
+          userStorageScope(cloudUserId),
+          visibleCloudData,
+        );
+        setData(visibleCloudData);
+        setProfileDraft(visibleCloudData.profile);
+
+        if (currentCandidate || currentOperation) {
+          return;
+        }
+
+        if (await hasPendingCloudWork(cloudUserId)) {
+          while (true) {
+            const reconciled = await reconcilePendingAfterCloudLoad(
+              supabase,
+              cloudUserId,
+              () => localEditGenerationRef.current,
+            );
+
+            if (
+              !isCurrentCloudAttempt(
+                cloudGenerationRef.current,
+                generation,
+                activeCloudUserIdRef.current,
+                cloudUserId,
+              )
+            ) {
+              return;
+            }
+
+            if (
+              reconciled.localEditGeneration !==
+                localEditGenerationRef.current ||
+              (await hasPendingCloudWork(cloudUserId))
+            ) {
+              continue;
+            }
+
+            localDataStore.save(
+              userStorageScope(cloudUserId),
+              reconciled.data,
+            );
+            setCloudSnapshot(reconciled.data);
+            setData(reconciled.data);
+            setProfileDraft(reconciled.data.profile);
+            setPendingSync(false);
+            setNotice("Données en attente synchronisées.");
+            return;
+          }
+        }
+
+        localDataStore.save(userStorageScope(cloudUserId), cloudData);
         setData(cloudData);
         setProfileDraft(cloudData.profile);
-        setPendingSync(false);
-        setNotice("Données en attente synchronisées.");
       } catch {
-        setPendingSync(true);
+        if (
+          isCurrentCloudAttempt(
+            cloudGenerationRef.current,
+            generation,
+            activeCloudUserIdRef.current,
+            cloudUserId,
+          )
+        ) {
+          const visibleData = await materializeUserPendingState(
+            localDataStore.load(userStorageScope(cloudUserId)),
+            cloudUserId,
+          );
+          setCloudStatus("unavailable");
+          setCloudSnapshot(null);
+          setData(visibleData);
+          setProfileDraft(visibleData.profile);
+          setPendingSync(await hasPendingCloudWork(cloudUserId));
+        }
       }
     };
 
     window.addEventListener("online", syncOnOnline);
 
     return () => window.removeEventListener("online", syncOnOnline);
-  }, [cloudUserId]);
+  }, [cloudStatus, cloudUserId, migrationOperation, migrationSources]);
 
   useEffect(() => {
     if (!notice && !error) {
@@ -937,54 +1399,497 @@ export function ProjetCentenaireApp() {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [openMealActionId]);
 
+  const migrationCandidate = getLocalMigrationCandidate(
+    migrationSources,
+    migrationOperation?.source,
+  );
+  const migrationDecisionRequired = isMigrationDecisionRequired(
+    cloudStatus,
+    migrationCandidate,
+    migrationOperation,
+  );
+
   const analysis = useMemo(
     () => (data ? calculateWeeklyAnalysis(data, currentDate) : null),
     [data, currentDate],
   );
 
+  if (connectedResetStatus !== "idle") {
+    return (
+      <ConnectedResetScreen
+        failed={connectedResetStatus === "reload-required"}
+      />
+    );
+  }
+
   if (!data || !analysis) {
     return <LoadingScreen />;
   }
 
-  const persistData = async (normalized: AppData) => {
+  const persistData = async (
+    normalized: AppData,
+    nonMealMutations: NonMealMutationDraft[],
+    mealMutations: MealMutation[] = [],
+  ): Promise<boolean> => {
+    if (migrationDecisionRequired) {
+      return false;
+    }
+
     const supabase = getSupabaseBrowserClient();
+    const scope = cloudUserId ? userStorageScope(cloudUserId) : guestStorageScope;
+
+    localDataStore.save(scope, normalized);
+    localEditGenerationRef.current += 1;
+
+    if (
+      cloudUserId &&
+      (mealMutations.length > 0 || nonMealMutations.length > 0)
+    ) {
+      try {
+        await queueCloudMutations(
+          cloudUserId,
+          nonMealMutations,
+          mealMutations,
+        );
+        setPendingSync(true);
+      } catch {
+        setError(
+          "La modification reste affichée, mais elle n’a pas pu être sécurisée sur cet appareil. Réessaie avant de fermer l’application.",
+        );
+        return false;
+      }
+    }
 
     if (!cloudUserId || !supabase) {
-      localDataStore.save(normalized);
-      return;
+      return true;
     }
 
-    if (!navigator.onLine) {
-      localDataStore.save(normalized);
-      storePendingSyncData(normalized);
-      setPendingSync(true);
-      return;
+    if (!(await hasPendingCloudWork(cloudUserId))) {
+      return true;
     }
+
+    if (
+      !navigator.onLine ||
+      !canAttemptAutomaticCloudWrite(cloudStatus, migrationDecisionRequired)
+    ) {
+      return true;
+    }
+
+    const generation = cloudGenerationRef.current;
+    const userId = cloudUserId;
 
     try {
-      await saveCloudData(supabase, cloudUserId, normalized);
-      clearPendingSyncData();
-      localDataStore.reset();
-      setPendingSync(false);
+      await processPendingCloudWork(supabase, userId);
+
+      if (
+        isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        setPendingSync(await hasPendingCloudWork(userId));
+      }
+      return true;
     } catch {
-      localDataStore.save(normalized);
-      storePendingSyncData(normalized);
-      setPendingSync(true);
-      setNotice("Données en attente de synchronisation.");
+      if (
+        isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        setPendingSync(true);
+        setNotice("Données en attente de synchronisation.");
+      }
+      return true;
     }
   };
 
-  const saveData = (next: AppData, message?: string) => {
+  const saveData = (
+    next: AppData,
+    message: string | undefined,
+    nonMealMutations: NonMealMutationDraft[] = [],
+    mealMutations: MealMutation[] = [],
+  ) => {
+    if (migrationDecisionRequired) {
+      return;
+    }
+
     const normalized = normalizeData(next);
     setData(normalized);
     setProfileDraft(normalized.profile);
     setError(null);
-    void persistData(normalized);
+    void persistData(normalized, nonMealMutations, mealMutations).then(
+      (secured) => {
+        if (message && secured) setNotice(message);
+      },
+    );
+  };
 
-    if (message) {
+  const completeMigrationDecision = async (
+    resolvedCloudData: AppData,
+    source: keyof LocalMigrationSources,
+    message: string,
+    reconcileNormalPending = true,
+    completedOperationId?: string,
+  ) => {
+    if (!cloudUserId) {
+      return;
+    }
+
+    const generation = cloudGenerationRef.current;
+
+    if (
+      !isCurrentCloudAttempt(
+        cloudGenerationRef.current,
+        generation,
+        activeCloudUserIdRef.current,
+        cloudUserId,
+      )
+    ) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      setError("Connexion cloud indisponible. Les données restent sur cet appareil.");
+      return;
+    }
+
+    if (
+      completedOperationId &&
+      !(await completeMigrationOperation(cloudUserId, completedOperationId))
+    ) {
+      throw new Error("L’opération de migration n’a pas pu être finalisée.");
+    }
+
+    if (source === "guest") {
+      localDataStore.reset(guestStorageScope);
+    } else {
+      localDataStore.clearLegacyQuarantine();
+      clearLegacyPendingSyncQuarantine();
+      await clearRecoverableLegacySnapshots(cloudUserId);
+    }
+    const remainingSources: LocalMigrationSources = {
+      ...migrationSources,
+      [source]: null,
+    };
+    const nextCandidate = getLocalMigrationCandidate(remainingSources);
+
+    setMigrationSources(remainingSources);
+    setMigrationOperation(null);
+    setCloudStatus("ready");
+    setCloudSnapshot(resolvedCloudData);
+
+    const hasNormalPending = await hasPendingCloudWork(cloudUserId);
+    if (hasNormalPending) {
+      const visibleData = await materializeUserPendingState(
+        resolvedCloudData,
+        cloudUserId,
+      );
+      localDataStore.save(userStorageScope(cloudUserId), visibleData);
+      setData(visibleData);
+      setProfileDraft(visibleData.profile);
+      setPendingSync(true);
+    } else {
+      localDataStore.save(userStorageScope(cloudUserId), resolvedCloudData);
+      setData(resolvedCloudData);
+      setProfileDraft(resolvedCloudData.profile);
+      setPendingSync(false);
+    }
+
+    if (nextCandidate) {
       setNotice(message);
+      return;
+    }
+
+    if (!reconcileNormalPending) {
+      setNotice(message);
+      return;
+    }
+
+    if (!hasNormalPending) {
+      setNotice(message);
+      return;
+    }
+
+    try {
+      while (true) {
+        const reconciled = await reconcilePendingAfterCloudLoad(
+          supabase,
+          cloudUserId,
+          () => localEditGenerationRef.current,
+        );
+
+        if (
+          !isCurrentCloudAttempt(
+            cloudGenerationRef.current,
+            generation,
+            activeCloudUserIdRef.current,
+            cloudUserId,
+          )
+        ) {
+          return;
+        }
+
+        if (
+          reconciled.localEditGeneration !== localEditGenerationRef.current ||
+          (await hasPendingCloudWork(cloudUserId))
+        ) {
+          continue;
+        }
+
+        localDataStore.save(userStorageScope(cloudUserId), reconciled.data);
+        setCloudSnapshot(reconciled.data);
+        setData(reconciled.data);
+        setProfileDraft(reconciled.data.profile);
+        setPendingSync(false);
+        setNotice(message);
+        return;
+      }
+    } catch {
+      if (
+        !isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          cloudUserId,
+        )
+      ) {
+        return;
+      }
+
+      setCloudStatus("unavailable");
+      setCloudSnapshot(null);
+      const visibleData = await materializeUserPendingState(
+        localDataStore.load(userStorageScope(cloudUserId)),
+        cloudUserId,
+      );
+      setData(visibleData);
+      setProfileDraft(visibleData.profile);
+      setPendingSync(true);
+      setError(
+        `${message} La synchronisation des autres données reprendra après le prochain chargement cloud.`,
+      );
     }
   };
+
+  const attachLocalDataToAccount = async () => {
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase || !cloudUserId || (!migrationCandidate && !migrationOperation)) {
+      return;
+    }
+
+    const generation = cloudGenerationRef.current;
+    const userId = cloudUserId;
+    setMigrationBusy(true);
+    setError(null);
+
+    try {
+      let operation = migrationOperation;
+
+      if (!operation) {
+        if (!migrationCandidate) {
+          return;
+        }
+
+        operation = await prepareMigrationOperation(
+          supabase,
+          userId,
+          migrationCandidate.source,
+          migrationCandidate.data,
+        );
+      }
+
+      if (
+        !isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        return;
+      }
+
+      setMigrationOperation(operation);
+      const merged = await executeMigrationOperation(supabase, operation);
+
+      if (
+        !isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        return;
+      }
+
+      await completeMigrationDecision(
+        merged,
+        operation.source,
+        "Données associées au compte.",
+        true,
+        operation.operationId,
+      );
+    } catch {
+      if (
+        isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        setMigrationOperation(getMigrationOperation(userId));
+        setError(
+          "Association interrompue. Les données sont conservées et la même opération peut être terminée.",
+        );
+      }
+    } finally {
+      if (
+        isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        setMigrationBusy(false);
+      }
+    }
+  };
+
+  const startFromCloudData = async () => {
+    const supabase = getSupabaseBrowserClient();
+    const source = migrationCandidate?.source ?? migrationOperation?.source;
+
+    if (!supabase || !cloudUserId || !source) {
+      return;
+    }
+
+    if (isMigrationOperationStarted(migrationOperation)) {
+      return;
+    }
+
+    const generation = cloudGenerationRef.current;
+    const userId = cloudUserId;
+    setMigrationBusy(true);
+    setError(null);
+
+    try {
+      let decisionOperation = migrationOperation;
+      if (!decisionOperation && migrationCandidate) {
+        decisionOperation = await prepareMigrationOperation(
+          supabase,
+          userId,
+          migrationCandidate.source,
+          migrationCandidate.data,
+        );
+        setMigrationOperation(decisionOperation);
+      }
+
+      const cloudData = await keepOnlyCloudData(supabase, userId);
+
+      if (
+        !isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        return;
+      }
+
+      if (decisionOperation) {
+        const discarded = await discardPreparedMigrationOperation(
+          userId,
+          decisionOperation.operationId,
+          decisionOperation.revision,
+        );
+        if (!discarded) {
+          throw new Error("La décision de migration a déjà été prise ailleurs.");
+        }
+      }
+
+      await completeMigrationDecision(
+        cloudData,
+        source,
+        "Données de l’appareil ignorées. Le compte reste intact.",
+        false,
+      );
+    } catch {
+      if (
+        isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        setError(
+          "Le compte ne peut pas être chargé. Les données de cet appareil sont conservées.",
+        );
+      }
+    } finally {
+      if (
+        isCurrentCloudAttempt(
+          cloudGenerationRef.current,
+          generation,
+          activeCloudUserIdRef.current,
+          userId,
+        )
+      ) {
+        setMigrationBusy(false);
+      }
+    }
+  };
+
+  const exportMigrationData = () => {
+    const exportData = migrationCandidate?.data ??
+      (migrationOperation
+        ? migrationOperation.sourceData
+        : null);
+
+    if (!exportData) {
+      return;
+    }
+
+    exportJson(
+      exportData,
+      `projet-centenaire-local-${currentDate}.json`,
+    );
+  };
+
+  if (migrationDecisionRequired) {
+    if ((!migrationCandidate && !migrationOperation) || !cloudUserId) {
+      return <LoadingScreen />;
+    }
+
+    return (
+      <MigrationDecisionScreen
+        busy={migrationBusy}
+        cloudEmail={cloudEmail}
+        cloudHasProfile={Boolean(cloudSnapshot?.profile)}
+        error={error}
+        localHasProfile={Boolean(
+          migrationCandidate?.data.profile ??
+            migrationOperation?.sourceData.profile,
+        )}
+        onAttach={() => void attachLocalDataToAccount()}
+        onExport={exportMigrationData}
+        onKeepCloud={() => void startFromCloudData()}
+        operationStarted={isMigrationOperationStarted(migrationOperation)}
+      />
+    );
+  }
 
   const profile = data.profile;
 
@@ -1043,6 +1948,10 @@ export function ProjetCentenaireApp() {
               weights: [initialWeight],
             },
             "Carnet ouvert.",
+            [
+              createProfileMutationDraft(nextProfile),
+              createWeightMutationDraft(initialWeight),
+            ],
           );
         }}
       />
@@ -1071,70 +1980,6 @@ export function ProjetCentenaireApp() {
   const smokingSummary = buildSmokingDaySummary(todaySmokingEntries);
   const supabaseConfigured = isSupabaseConfigured();
 
-  const exportJson = (payload: AppData, filename: string) => {
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const attachLocalDataToAccount = async () => {
-    const supabase = getSupabaseBrowserClient();
-
-    if (!supabase || !cloudUserId || !migrationData) {
-      return;
-    }
-
-    try {
-      const merged = await migrateLocalDataToSupabase(
-        supabase,
-        cloudUserId,
-        migrationData,
-        { clearLocalAfter: true },
-      );
-      setData(merged);
-      setProfileDraft(merged.profile);
-      setMigrationData(null);
-      setPendingSync(false);
-      setNotice("Données associées au compte.");
-    } catch {
-      setError("Migration impossible pour le moment.");
-    }
-  };
-
-  const startFromCloudData = async () => {
-    const supabase = getSupabaseBrowserClient();
-
-    localDataStore.reset();
-    clearPendingSyncData();
-    setMigrationData(null);
-    setPendingSync(false);
-
-    if (supabase && cloudUserId) {
-      const cloudData = await loadCloudData(supabase, cloudUserId);
-      setData(cloudData);
-      setProfileDraft(cloudData.profile);
-    }
-
-    setNotice("Données locales ignorées.");
-  };
-
-  const exportMigrationData = () => {
-    if (!migrationData) {
-      return;
-    }
-
-    exportJson(
-      migrationData,
-      `projet-centenaire-local-${currentDate}.json`,
-    );
-  };
-
   const updateProfilePreferences = (
     nextPreferences: Partial<Pick<Profile, "darkMode" | "showActiveMission">>,
   ) => {
@@ -1143,7 +1988,13 @@ export function ProjetCentenaireApp() {
       ...nextPreferences,
     };
 
-    saveData({ ...data, profile: nextProfile }, "Préférence mise à jour.");
+    const mutation = createProfilePatchMutationDraft(nextPreferences);
+
+    saveData(
+      { ...data, profile: nextProfile },
+      "Préférence mise à jour.",
+      mutation ? [mutation] : [],
+    );
   };
 
   const clearMealLongPress = () => {
@@ -1223,6 +2074,8 @@ export function ProjetCentenaireApp() {
         meals: deleteMealEntry(data.meals, meal.id),
       },
       "Observation supprimée.",
+      [],
+      cloudUserId ? [createMealDeleteMutation(cloudUserId, meal.createdAt)] : [],
     );
   };
 
@@ -1249,6 +2102,7 @@ export function ProjetCentenaireApp() {
         weights: upsertDailyWeightEntry(data.weights, entry),
       },
       latestTodayWeight ? "Mesure mise à jour." : "Mesure ajoutée au carnet.",
+      [createWeightMutationDraft(entry)],
     );
     setWeightDraft("");
     setWeightOpen(false);
@@ -1316,6 +2170,8 @@ export function ProjetCentenaireApp() {
           : [...data.meals, entry],
       },
       editedMeal ? "Observation mise à jour." : "Observation ajoutée au carnet.",
+      [],
+      cloudUserId ? [createMealUpsertMutation(cloudUserId, entry)] : [],
     );
     closeMealPanel();
   };
@@ -1380,6 +2236,7 @@ export function ProjetCentenaireApp() {
         smokingEntries: upsertSmokingEntry(data.smokingEntries, entry),
       },
       "Observation tabac ajoutée au carnet.",
+      [createSmokingMutationDraft(entry)],
     );
     setSmokingState("aucun");
     setSmokingNote("");
@@ -1388,11 +2245,23 @@ export function ProjetCentenaireApp() {
 
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient();
-    localDataStore.save(data);
+    cloudGenerationRef.current += 1;
+    activeCloudUserIdRef.current = null;
+    if (cloudUserId) {
+      localDataStore.save(userStorageScope(cloudUserId), data);
+    }
     await supabase?.auth.signOut();
+    const guestData = localDataStore.load(guestStorageScope);
     setCloudUserId(null);
     setCloudEmail(null);
+    setCloudStatus("ready");
+    setCloudSnapshot(null);
+    setMigrationSources(emptyMigrationSources);
+    setMigrationOperation(null);
     setPendingSync(false);
+    setData(guestData);
+    setProfileDraft(guestData.profile);
+    setOnboardingStep(0);
     setNotice("Déconnecté du compte cloud.");
   };
 
@@ -1672,7 +2541,14 @@ export function ProjetCentenaireApp() {
                     return;
                   }
 
-                  saveData({ ...data, profile: profileDraft }, "Profil mis à jour.");
+                  const patch = buildProfilePatch(profile, profileDraft);
+                  const mutation = createProfilePatchMutationDraft(patch);
+
+                  saveData(
+                    { ...data, profile: profileDraft },
+                    "Profil mis à jour.",
+                    mutation ? [mutation] : [],
+                  );
                   setProfileEditorOpen(false);
                 }}
               >
@@ -1838,10 +2714,31 @@ export function ProjetCentenaireApp() {
                   if (!file) return;
 
                   try {
-                    const imported = normalizeData(JSON.parse(await file.text()));
-                    saveData(imported, "Import terminé.");
-                  } catch {
-                    setError("Le fichier JSON n'a pas pu être importé.");
+                    const parsedImport: unknown = JSON.parse(await file.text());
+                    const imported = mergeImportedData(data, parsedImport);
+
+                    if (imported.recognizedContributionCount === 0) {
+                      setError("Aucune donnée nouvelle valide n’a été reconnue.");
+                      return;
+                    }
+
+                    const importedMealMutations = cloudUserId
+                      ? imported.mealUpserts.map((meal) =>
+                          createMealUpsertMutation(cloudUserId, meal),
+                        )
+                      : [];
+                    saveData(
+                      imported.data,
+                      "Import terminé.",
+                      imported.nonMealMutations,
+                      importedMealMutations,
+                    );
+                  } catch (importError) {
+                    setError(
+                      importError instanceof ImportValidationError
+                        ? "Une date ou heure du fichier est invalide. Aucune donnée n’a été importée."
+                        : "Le fichier JSON n'a pas pu être importé.",
+                    );
                   } finally {
                     event.target.value = "";
                   }
@@ -1857,20 +2754,53 @@ export function ProjetCentenaireApp() {
                     return;
                   }
 
-                  const reset = localDataStore.reset();
-                  clearPendingSyncData();
-                  if (!cloudUserId) {
-                    setData(reset);
-                    setProfileDraft(null);
-                    setOnboardingStep(0);
+                  if (cloudUserId) {
+                    const supabase = getSupabaseBrowserClient();
+
+                    if (!supabase) {
+                      setError("Connexion cloud indisponible.");
+                      return;
+                    }
+
+                    cloudGenerationRef.current += 1;
+                    activeCloudUserIdRef.current = cloudUserId;
+                    setConnectedResetStatus("running");
+
+                    try {
+                      const cloudData = await resetConnectedLocalData(
+                        supabase,
+                        cloudUserId,
+                      );
+                      localEditGenerationRef.current += 1;
+                      setCloudStatus("ready");
+                      setCloudSnapshot(cloudData);
+                      setMigrationOperation(null);
+                      setData(cloudData);
+                      setProfileDraft(cloudData.profile);
+                      setPendingSync(false);
+                      setNotice("Données locales réinitialisées.");
+                      setConnectedResetStatus("idle");
+                    } catch {
+                      setData(createEmptyData());
+                      setProfileDraft(null);
+                      setCloudStatus("unavailable");
+                      setCloudSnapshot(null);
+                      setPendingSync(false);
+                      setConnectedResetStatus("reload-required");
+                    }
+                    return;
                   }
-                  setMigrationData(null);
+
+                  const reset = localDataStore.reset(guestStorageScope);
+                  setData(reset);
+                  setProfileDraft(null);
+                  setOnboardingStep(0);
+                  setMigrationSources((current) => ({
+                    ...current,
+                    guest: null,
+                  }));
                   setPendingSync(false);
-                  setNotice(
-                    cloudUserId
-                      ? "Données locales réinitialisées."
-                      : "Carnet local réinitialisé.",
-                  );
+                  setNotice("Carnet local réinitialisé.");
                 }}
                 variant="signal"
               >
@@ -1918,29 +2848,6 @@ export function ProjetCentenaireApp() {
           <LogoMark className="h-12 w-auto text-[#171512]" />
         </header>
 
-        {migrationData && cloudUserId ? (
-          <section className="mb-5 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] p-4 shadow-[0_12px_28px_rgba(23,21,18,0.045)]">
-            <p className={annotationClass}>Sauvegarde cloud</p>
-            <h2 className="mt-2 font-serif text-2xl leading-tight">
-              Des données existent sur cet appareil.
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-[#3A3732]">
-              Connecté avec {cloudEmail ?? "ce compte"}. Choisis comment traiter
-              les données locales avant de continuer.
-            </p>
-            <div className="mt-4 grid gap-2">
-              <Button onClick={attachLocalDataToAccount}>
-                Associer à mon compte
-              </Button>
-              <Button onClick={startFromCloudData} variant="line">
-                Repartir de zéro
-              </Button>
-              <Button onClick={exportMigrationData} variant="line">
-                Exporter avant de continuer
-              </Button>
-            </div>
-          </section>
-        ) : null}
         {!supabaseConfigured ? (
           <p className="mb-4 rounded-[18px] border border-[#DDD5C7] bg-[#FAF8F1] p-3 text-xs leading-5 text-[#7A7166] shadow-[0_8px_18px_rgba(23,21,18,0.035)]">
             Mode local actif. Configure Supabase pour activer la sauvegarde cloud.

@@ -75,6 +75,7 @@ Les migrations V0.7.1 attendues, dans l'ordre, sont :
 3. `20260714090000_v06_preferences.sql`
 4. `20260714100000_v061_dark_mode_preference.sql`
 5. `20260714110000_v07_meal_tunnel.sql`
+6. `20260715133410_v071_meal_boolean_defaults.sql`
 
 Tables créées :
 
@@ -100,11 +101,20 @@ npx supabase db push --linked
 La dernière commande modifie la base distante. Elle ne doit être lancée qu'après
 lecture du dry-run et validation du projet ciblé.
 
-Contrôle effectué le 15 juillet 2026 : les trois premières migrations sont
-présentes à distance, mais les migrations V0.6.1 et V0.7 sont encore locales
-uniquement. Le dry-run annonce exactement ces deux fichiers. Aucun push réel n'a
-été exécuté pendant cette passe documentaire ; la base distante ne doit donc pas
-être considérée comme à jour V0.7.1.
+Le contrôle historique effectué le 15 juillet 2026, avant la correction des
+défauts booléens repas, avait trouvé les trois premières migrations à distance
+et les migrations V0.6.1 et V0.7 localement uniquement.
+
+La migration corrective V0.7.1 a ensuite été ajoutée localement. Le nouveau
+contrôle en lecture seule annonce réellement trois migrations au prochain push :
+
+- `20260714100000_v061_dark_mode_preference.sql` ;
+- `20260714110000_v07_meal_tunnel.sql` ;
+- `20260715133410_v071_meal_boolean_defaults.sql`.
+
+Aucun push réel n'a été exécuté. La base distante ne doit donc pas être
+considérée comme à jour V0.7.1. Le dry-run doit être relancé immédiatement avant
+le futur push, puis les migrations doivent être appliquées explicitement.
 
 La procédure SQL détaillée pour vérifier colonnes, index et RLS se trouve dans
 [`docs/SUPABASE_CHECKLIST.md`](docs/SUPABASE_CHECKLIST.md).

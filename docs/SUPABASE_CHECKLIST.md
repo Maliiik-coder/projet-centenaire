@@ -18,6 +18,7 @@ Ordre attendu :
 3. `20260714090000_v06_preferences.sql`
 4. `20260714100000_v061_dark_mode_preference.sql`
 5. `20260714110000_v07_meal_tunnel.sql`
+6. `20260715133410_v071_meal_boolean_defaults.sql`
 
 ## Contrôle avec Supabase CLI
 
@@ -34,15 +35,28 @@ timestamp apparaît dans les colonnes locale et distante. Le dry-run doit répon
 que la base distante est à jour. La dernière commande applique réellement les
 migrations et exige une validation explicite du projet ciblé.
 
-Dernier contrôle en lecture seule, le 15 juillet 2026 :
+Contrôle historique en lecture seule du 15 juillet 2026, avant l'ajout de la
+migration corrective :
 
 - `20260711095000`, `20260711223000` et `20260714090000` sont présents à distance ;
 - `20260714100000` et `20260714110000` sont absents à distance ;
-- le dry-run propose uniquement les migrations V0.6.1 et V0.7 ;
-- aucun `db push` réel n'a été exécuté pendant ce contrôle.
+- le dry-run proposait uniquement les migrations V0.6.1 et V0.7.
 
-Point restant avant release : exécuter `npx supabase db push --linked`, puis
-relancer la liste, le dry-run et les requêtes SQL ci-dessous.
+La migration `20260715133410_v071_meal_boolean_defaults.sql` a été ajoutée
+localement après ce contrôle pour aligner les défauts de `starter_taken` et
+`dessert_taken` avec `schema.sql`.
+
+Nouveau contrôle en lecture seule après l'ajout :
+
+- les trois premières migrations restent présentes localement et à distance ;
+- `20260714100000`, `20260714110000` et `20260715133410` sont locaux uniquement ;
+- le dry-run annonce exactement V0.6.1, V0.7 et la correction V0.7.1 ;
+- aucun `db push` réel n'a été exécuté pendant cette passe.
+
+Point restant avant release : relancer `npx supabase db push --linked --dry-run`,
+valider le projet et les trois fichiers annoncés, puis seulement exécuter
+`npx supabase db push --linked`. Relancer ensuite la liste, le dry-run et les
+requêtes SQL ci-dessous.
 
 ## Tables et colonnes
 
@@ -65,9 +79,9 @@ Colonnes stabilisées ou ajoutées dans `meal_observations` :
 - `observed_date date`
 - `observed_time text`
 - `serving_pattern text`
-- `starter_taken boolean`
+- `starter_taken boolean default false`
 - `starter_text text`
-- `dessert_taken boolean`
+- `dessert_taken boolean default false`
 - `dessert_text text`
 - `snack_trigger text`
 - `snack_context text`

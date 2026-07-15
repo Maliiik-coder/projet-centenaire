@@ -140,6 +140,37 @@ export interface MealEntry {
   createdAt: string;
 }
 
+export type MealMutation =
+  | {
+      id: string;
+      ownerUserId: string;
+      entity: "meal";
+      action: "upsert";
+      entityKey: string;
+      createdAt: string;
+      payload: MealEntry;
+      queuedAt: string;
+    }
+  | {
+      id: string;
+      ownerUserId: string;
+      entity: "meal";
+      action: "delete";
+      entityKey: string;
+      createdAt: string;
+      queuedAt: string;
+    };
+
+export type MealMutationPayload =
+  | Pick<
+      Extract<MealMutation, { action: "upsert" }>,
+      "entity" | "action" | "entityKey" | "createdAt" | "payload"
+    >
+  | Pick<
+      Extract<MealMutation, { action: "delete" }>,
+      "entity" | "action" | "entityKey" | "createdAt"
+    >;
+
 export interface WeightEntry {
   id: string;
   date: ISODate;
@@ -191,6 +222,101 @@ export interface SmokingEntry {
   createdAt: string;
 }
 
+export type ProfilePatch = Partial<
+  Omit<Profile, "smokingGoal"> & { smokingGoal: SmokingGoal | null }
+>;
+
+export type NonMealMutation =
+  | {
+      id: string;
+      ownerUserId: string;
+      epoch: number;
+      entity: "profile";
+      action: "create" | "patch";
+      entityKey: "profile";
+      patch: ProfilePatch;
+      queuedAt: string;
+    }
+  | {
+      id: string;
+      ownerUserId: string;
+      epoch: number;
+      entity: "weight";
+      action: "upsert";
+      entityKey: string;
+      payload: WeightEntry;
+      queuedAt: string;
+    }
+  | {
+      id: string;
+      ownerUserId: string;
+      epoch: number;
+      entity: "smoking";
+      action: "upsert";
+      entityKey: string;
+      payload: SmokingEntry;
+      queuedAt: string;
+    };
+
+export type NonMealMutationDraft =
+  | Pick<
+      Extract<NonMealMutation, { entity: "profile" }>,
+      "entity" | "action" | "entityKey" | "patch"
+    >
+  | Pick<
+      Extract<NonMealMutation, { entity: "weight" }>,
+      "entity" | "action" | "entityKey" | "payload"
+    >
+  | Pick<
+      Extract<NonMealMutation, { entity: "smoking" }>,
+      "entity" | "action" | "entityKey" | "payload"
+    >;
+
+export type StoredCloudMutation =
+  | {
+      id: string;
+      ownerUserId: string;
+      generationId: string;
+      kind: "non-meal";
+      queuedAt: string;
+      payload: NonMealMutationDraft;
+    }
+  | {
+      id: string;
+      ownerUserId: string;
+      generationId: string;
+      kind: "meal";
+      queuedAt: string;
+      payload: MealMutationPayload;
+    };
+
+export type CloudOperation =
+  | {
+      kind: "non-meal";
+      ownerUserId: string;
+      payload: NonMealMutationDraft;
+    }
+  | {
+      kind: "meal";
+      ownerUserId: string;
+      payload: MealMutationPayload;
+    };
+
+export type PreparedCloudOperation = {
+  operation: CloudOperation;
+  sourceMutationIds: string[];
+};
+
+export type QuarantinedCloudRecord = {
+  id: string;
+  ownerUserId: string;
+  generationId: string | null;
+  category: "invalid-mutation" | "legacy-snapshot";
+  reason: string;
+  payload: unknown;
+  quarantinedAt: string;
+};
+
 export type PriorityId =
   | "quantity"
   | "real-hunger"
@@ -240,3 +366,7 @@ export interface AppData {
   activities: ActivityEntry[];
   smokingEntries: SmokingEntry[];
 }
+
+export type AppDataWithoutMeals = Omit<AppData, "meals"> & {
+  meals?: never;
+};

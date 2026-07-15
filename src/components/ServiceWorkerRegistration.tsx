@@ -39,9 +39,11 @@ export function ServiceWorkerRegistration() {
       return;
     }
 
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // L'application reste utilisable sans service worker.
-    });
+    navigator.serviceWorker
+      .register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .catch(() => {
+        // L'application reste utilisable sans service worker.
+      });
   }, []);
 
   return null;

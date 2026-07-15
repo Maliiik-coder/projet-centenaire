@@ -4,8 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronLeft, Download, LogOut, Trash2 } from "lucide-react";
 import { LogoHorizontal } from "@/components/Logo";
+import { localDataStore, userStorageScope } from "@/lib/storage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { exportCloudData } from "@/services/cloudDataService";
+import { clearMigrationOperationForDeletedUser } from "@/services/localMigrationService";
+import {
+  removePendingSyncStateForDeletedUser,
+} from "@/services/offlineSyncService";
 
 const buttonClass =
   "inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E6670]/35 active:translate-y-px active:scale-[0.99]";
@@ -71,6 +76,14 @@ export function AccountClient({
     setError(null);
     setMessage(null);
 
+    const supabase = getSupabaseBrowserClient();
+    const {
+      data: { session },
+    } = supabase
+      ? await supabase.auth.getSession()
+      : { data: { session: null } };
+    const localUserId = session?.user.id ?? null;
+
     const response = await fetch("/account/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -90,7 +103,12 @@ export function AccountClient({
       return;
     }
 
-    const supabase = getSupabaseBrowserClient();
+    if (localUserId) {
+      localDataStore.reset(userStorageScope(localUserId));
+      await removePendingSyncStateForDeletedUser(localUserId);
+      await clearMigrationOperationForDeletedUser(localUserId);
+    }
+
     await supabase?.auth.signOut();
     window.location.href = result.authDeleted ? "/login?deleted=1" : "/";
   };

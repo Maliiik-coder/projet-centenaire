@@ -8,6 +8,7 @@ const EXPECTED_MIGRATIONS = [
   "20260714090000_v06_preferences.sql",
   "20260714100000_v061_dark_mode_preference.sql",
   "20260714110000_v07_meal_tunnel.sql",
+  "20260715133410_v071_meal_boolean_defaults.sql",
 ] as const;
 
 const TABLES = [
@@ -54,6 +55,42 @@ function addedColumns(sql: string, table: string): string[] {
       ),
     ),
   ].map((match) => match[1]);
+}
+
+function createdColumnDefault(
+  sql: string,
+  table: string,
+  column: string,
+): string | null {
+  const tableMatch = sql.match(
+    new RegExp(
+      `create table if not exists public\\.${table}\\s*\\(([\\s\\S]*?)\\n\\);`,
+      "i",
+    ),
+  );
+  if (!tableMatch) return null;
+
+  const columnMatch = tableMatch[1].match(
+    new RegExp(`^\\s*${column}\\s+[^\\n,]*\\bdefault\\s+([^\\s,]+)`, "im"),
+  );
+  return columnMatch?.[1] ?? null;
+}
+
+function alteredColumnDefaults(sql: string, table: string): Map<string, string> {
+  const defaults = new Map<string, string>();
+  const tableStatements = sql.matchAll(
+    new RegExp(`alter table public\\.${table}([\\s\\S]*?);`, "gi"),
+  );
+
+  for (const statement of tableStatements) {
+    for (const match of statement[1].matchAll(
+      /alter column ([a-z_]+) set default ([^,;\n]+)/gi,
+    )) {
+      defaults.set(match[1], match[2].trim());
+    }
+  }
+
+  return defaults;
 }
 
 function namesMatching(sql: string, pattern: RegExp): string[] {
@@ -116,6 +153,20 @@ describe("supabase migrations", () => {
       const schemaColumns = new Set(createdColumns(schemaSql, table));
 
       expect([...schemaColumns].sort()).toEqual([...migratedColumns].sort());
+    }
+  });
+
+  it("aligne les défauts booléens repas entre migrations et schema.sql", () => {
+    const migratedDefaults = alteredColumnDefaults(
+      allMigrationSql,
+      "meal_observations",
+    );
+
+    for (const column of ["starter_taken", "dessert_taken"]) {
+      expect(migratedDefaults.get(column)).toBe("false");
+      expect(
+        createdColumnDefault(schemaSql, "meal_observations", column),
+      ).toBe("false");
     }
   });
 

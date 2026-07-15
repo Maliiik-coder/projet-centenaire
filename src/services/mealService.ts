@@ -15,6 +15,7 @@ import type {
   SnackingAfter,
   StopReason,
 } from "@/lib/types";
+import { canonicalizeTimestamp } from "@/lib/timestamps";
 import type { AppSupabaseClient } from "@/services/serviceTypes";
 import { throwIfSupabaseError } from "@/services/serviceTypes";
 
@@ -233,7 +234,7 @@ function fromMealRow(row: MealRow, tags: string[]): MealEntry {
       frictionPoint: row.main_signal ?? "observation",
       evidenceLevel: "observation unique",
     },
-    createdAt: row.created_at,
+    createdAt: canonicalizeTimestamp(row.created_at),
   };
 }
 
@@ -276,80 +277,115 @@ export async function listMealObservations(
   );
 }
 
+export async function upsertMealObservation(
+  supabase: AppSupabaseClient,
+  userId: string,
+  meal: MealEntry,
+  signal?: AbortSignal,
+): Promise<void> {
+  const canonicalCreatedAt = canonicalizeTimestamp(meal.createdAt);
+  const mealQuery = supabase
+    .from("meal_observations")
+    .upsert(
+      {
+        user_id: userId,
+        observed_at: observedAt(meal.date, meal.time),
+        observed_date: meal.date,
+        observed_time: meal.time,
+        meal_type: meal.kind,
+        raw_text: meal.freeText,
+        quantity_served: meal.quantity,
+        serving_pattern: meal.servingPattern,
+        hunger_before: meal.hungerBefore,
+        fullness_after: meal.fullnessAfter,
+        stop_reason: meal.stopReason,
+        post_meal_snacking: meal.snackingAfter,
+        starter_taken: meal.starterTaken,
+        starter_text: meal.starterText,
+        dessert_taken: meal.dessertTaken,
+        dessert_text: meal.dessertText,
+        snack_trigger: meal.snackTrigger,
+        snack_context: meal.snackContext,
+        clarifications: meal.clarifications as unknown as Json,
+        questionnaire_version: meal.questionnaireVersion,
+        main_signal: meal.finding.frictionPoint,
+        immediate_constat: meal.finding.fact,
+        immediate_reading: meal.finding.reading,
+        immediate_next_action: meal.finding.nextAction,
+        created_at: canonicalCreatedAt,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,created_at" },
+    )
+    .select("id");
+  const { data, error } = signal
+    ? await mealQuery.abortSignal(signal).single()
+    : await mealQuery.single();
+
+  throwIfSupabaseError(error);
+
+  if (!data) {
+    return;
+  }
+
+  const deleteTagsQuery = supabase
+    .from("meal_observation_tags")
+    .delete()
+    .eq("user_id", userId)
+    .eq("observation_id", data.id);
+  const { error: deleteError } = signal
+    ? await deleteTagsQuery.abortSignal(signal)
+    : await deleteTagsQuery;
+
+  throwIfSupabaseError(deleteError);
+
+  const tags = tagsFromComponents(meal.components);
+
+  if (tags.length === 0) {
+    return;
+  }
+
+  const insertTagsQuery = supabase
+    .from("meal_observation_tags")
+    .insert(
+      tags.map((tag) => ({
+        observation_id: data.id,
+        user_id: userId,
+        tag,
+      })),
+    );
+  const { error: insertError } = signal
+    ? await insertTagsQuery.abortSignal(signal)
+    : await insertTagsQuery;
+
+  throwIfSupabaseError(insertError);
+}
+
 export async function upsertMealObservations(
   supabase: AppSupabaseClient,
   userId: string,
   meals: MealEntry[],
 ): Promise<void> {
   for (const meal of meals) {
-    const { data, error } = await supabase
-      .from("meal_observations")
-      .upsert(
-        {
-          user_id: userId,
-          observed_at: observedAt(meal.date, meal.time),
-          observed_date: meal.date,
-          observed_time: meal.time,
-          meal_type: meal.kind,
-          raw_text: meal.freeText,
-          quantity_served: meal.quantity,
-          serving_pattern: meal.servingPattern,
-          hunger_before: meal.hungerBefore,
-          fullness_after: meal.fullnessAfter,
-          stop_reason: meal.stopReason,
-          post_meal_snacking: meal.snackingAfter,
-          starter_taken: meal.starterTaken,
-          starter_text: meal.starterText,
-          dessert_taken: meal.dessertTaken,
-          dessert_text: meal.dessertText,
-          snack_trigger: meal.snackTrigger,
-          snack_context: meal.snackContext,
-          clarifications: meal.clarifications as unknown as Json,
-          questionnaire_version: meal.questionnaireVersion,
-          main_signal: meal.finding.frictionPoint,
-          immediate_constat: meal.finding.fact,
-          immediate_reading: meal.finding.reading,
-          immediate_next_action: meal.finding.nextAction,
-          created_at: meal.createdAt,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,created_at" },
-      )
-      .select("id")
-      .single();
-
-    throwIfSupabaseError(error);
-
-    if (!data) {
-      continue;
-    }
-
-    const { error: deleteError } = await supabase
-      .from("meal_observation_tags")
-      .delete()
-      .eq("user_id", userId)
-      .eq("observation_id", data.id);
-
-    throwIfSupabaseError(deleteError);
-
-    const tags = tagsFromComponents(meal.components);
-
-    if (tags.length === 0) {
-      continue;
-    }
-
-    const { error: insertError } = await supabase
-      .from("meal_observation_tags")
-      .insert(
-        tags.map((tag) => ({
-          observation_id: data.id,
-          user_id: userId,
-          tag,
-        })),
-      );
-
-    throwIfSupabaseError(insertError);
+    await upsertMealObservation(supabase, userId, meal);
   }
+}
+
+export async function deleteMealObservation(
+  supabase: AppSupabaseClient,
+  userId: string,
+  createdAt: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const canonicalCreatedAt = canonicalizeTimestamp(createdAt);
+  const query = supabase
+    .from("meal_observations")
+    .delete()
+    .eq("user_id", userId)
+    .eq("created_at", canonicalCreatedAt);
+  const { error } = signal ? await query.abortSignal(signal) : await query;
+
+  throwIfSupabaseError(error);
 }
 
 export async function deleteMealObservations(
