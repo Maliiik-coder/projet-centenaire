@@ -9,6 +9,7 @@ const EXPECTED_MIGRATIONS = [
   "20260714100000_v061_dark_mode_preference.sql",
   "20260714110000_v07_meal_tunnel.sql",
   "20260715133410_v071_meal_boolean_defaults.sql",
+  "20260715165000_v08_sport_foundation.sql",
 ] as const;
 
 const TABLES = [

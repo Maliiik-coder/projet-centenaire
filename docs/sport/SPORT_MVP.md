@@ -1,0 +1,73 @@
+# Haru Sport - tranche renforcement
+
+## Perimetre livre
+
+Cette tranche expose une route isolee `/sport`, sans integration dans le shell principal. Elle couvre :
+
+- questionnaire de premiere ouverture Sport ;
+- profil sportif local, materiel, limitations et capacites multidimensionnelles ;
+- bibliotheque initiale de mouvements de renforcement dans `src/lib/sport/exerciseLibrary.ts` ;
+- moteur deterministe et versionne dans `src/lib/sport/workoutGenerator.ts` ;
+- aperçu de seance, chronometre, pause, reprise, passage d'etape et fin ;
+- retour de seance neutre, historique basique et adaptation d'une seule variable ;
+- migration Supabase locale `20260715165000_v08_sport_foundation.sql` avec RLS explicites.
+
+Marche/course et natation sont representees dans les types du profil, mais leur generation autonome n'est pas implementee dans cette tranche.
+
+## Architecture
+
+- `src/lib/sport/types.ts` : modeles domaine Sport.
+- `src/lib/sport/config.ts` : version moteur et parametres configurables.
+- `src/lib/sport/exerciseLibrary.ts` : catalogue initial, medias en emplacements reserves.
+- `src/lib/sport/progression.ts` : adaptation a partir des retours.
+- `src/lib/sport/workoutGenerator.ts` : generation pure et reproductible.
+- `src/lib/sport/workoutTimer.ts` : chronometre pur fonde sur des horodatages.
+- `src/services/sport/*` : profil, stockage local isole, historique et permissions.
+- `src/features/sport/SportApp.tsx` : experience client isolee.
+- `src/app/sport/page.tsx` : route App Router.
+
+## Contrat d'integration shell
+
+Quand la conversation principale integrera l'onglet :
+
+1. Ajouter une cinquieme entree `Sport` a la navigation basse partagee.
+2. Router cette entree vers `/sport` ou monter `SportApp` dans le shell existant.
+3. Brancher l'utilisateur authentifie a la place de `SPORT_LOCAL_USER_ID`.
+4. Remplacer `sportLocalStore` par un miroir local officiel dans `AppData`.
+5. Conserver le moteur pur : il doit recevoir ses donnees par props/services et ne pas lire directement Supabase.
+
+Aucun fichier de navigation partage n'a ete modifie dans cette branche.
+
+## Contrat Supabase
+
+Tables utilisateur : `sport_profiles`, `sport_user_equipment`, `sport_user_limitations`, `sport_user_capabilities`, `sport_workout_sessions`, `sport_workout_steps`, `sport_workout_feedback`.
+
+Chaque table utilisateur porte `user_id` et quatre politiques RLS `select/insert/update/delete` basees sur `auth.uid()`.
+
+Tables catalogue : `sport_exercises`, `sport_exercise_variants`, `sport_exercise_media`, en lecture client uniquement. Les medias restent des emplacements avec source/licence/statut de validation. Aucun media Internet n'est importe.
+
+Aucun `supabase db push` n'a ete execute pour cette tranche.
+
+## Ajouter un exercice
+
+1. Ajouter une famille dans `STRENGTH_EXERCISES`.
+2. Definir `movementPattern`, `capabilityDimension`, `requiredEquipment`, `targetZones` et `cautionZones`.
+3. Fournir deux a quatre variantes avec difficultes 0 a 4 et liens easier/harder.
+4. Garder `validationStatus: "draft_unreviewed"` tant que le contenu n'est pas relu.
+5. Ajouter un test si l'exercice influence une selection critique.
+
+## Ajouter une regle moteur
+
+1. Ajouter un parametre dans `STRENGTH_WORKOUT_CONFIG` si la valeur est configurable.
+2. Ajouter une raison structuree dans `SportEngineReason` si la decision doit etre explicable.
+3. Modifier `workoutGenerator.ts` ou `progression.ts`, jamais le composant React.
+4. Ajouter un test qui verifie la decision et la non-modification simultanee de plusieurs axes.
+
+## Limites volontaires
+
+- Pas de calories brulees.
+- Pas de compensation alimentaire.
+- Pas d'IA decisionnelle.
+- Pas de GPS, montre, carte, analyse video, classement, competition ni coaching vocal.
+- Pas de diagnostic medical.
+- Pas de marche/course ou natation autonome dans cette tranche.
