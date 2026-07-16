@@ -549,15 +549,12 @@ function SportHeader({
     <header className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <Link
-          className="pc-focus-ring mb-2 inline-flex items-center gap-2 rounded-[var(--pc-radius-control)] text-[length:var(--pc-font-size-secondary)] font-semibold text-[var(--pc-color-primary)]"
+          aria-label="Retour a l'accueil"
+          className="pc-focus-ring mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
           href="/"
         >
           <ArrowLeft aria-hidden="true" size={18} />
-          Accueil
         </Link>
-        <p className="text-[length:var(--pc-font-size-meta)] font-semibold uppercase text-[var(--pc-color-text-muted)]">
-          Onglet isole
-        </p>
         <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
           Sport
         </h1>
@@ -1230,31 +1227,18 @@ function HomeView({
             <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
               Tableau de bord
             </p>
-            <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold">
-              Sport
-            </h2>
           </div>
         </div>
         <SportActivityChooser />
       </Surface>
       <Surface className="grid gap-3 p-4">
         <div>
-          <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
-            Action conseillee
-          </p>
-          <h3 className="mt-1 text-[length:var(--pc-font-size-card-title)] font-semibold">
+          <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
             {hasAssessment ? "Seance du jour" : "Premiere seance"}
           </h3>
-          <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
-            {hasAssessment
-              ? "Le moteur utilise ton evaluation et tes retours precedents."
-              : "Elle sert a creer un programme sur mesure, sans test maximal."}
-          </p>
         </div>
         <Button fullWidth onClick={hasAssessment ? onGenerate : onAssessment}>
-          {hasAssessment
-            ? "Preparer ma seance de renforcement musculaire"
-            : "Une premiere seance pour te creer un programme sur mesure"}
+          {hasAssessment ? "Preparer ma seance" : "Commencer"}
         </Button>
       </Surface>
       <Surface className="grid gap-3 p-4">
@@ -1461,18 +1445,11 @@ function SportActivityChooser() {
     <div className="grid gap-2">
       <button
         aria-expanded={open}
-        className="pc-focus-ring flex min-h-12 w-full items-center justify-between gap-3 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] px-3 py-2 text-left"
+        aria-label="Choisir un sport"
+        className="pc-focus-ring ml-auto flex h-11 w-11 items-center justify-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)]"
         type="button"
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="min-w-0">
-          <span className="block text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
-            Sport choisi
-          </span>
-          <span className="block truncate font-semibold">
-            Renforcement musculaire
-          </span>
-        </span>
         <ChevronDown
           aria-hidden="true"
           className={cx(
