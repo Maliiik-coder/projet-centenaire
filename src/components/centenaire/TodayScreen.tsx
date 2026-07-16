@@ -56,10 +56,7 @@ export type TodayScreenProps = {
   todayMeals: MealEntry[];
   todaySmokingEntries: SmokingEntry[];
   todayWeights: WeightEntry[];
-  weightDraft: string;
-  weightOpen: boolean;
-  onCancelWeight: () => void;
-  onChangeWeightDraft: (value: string) => void;
+  weightFallbackKg: number;
   onCloseMealActionMenu: () => void;
   onDeleteMeal: (meal: MealEntry) => void;
   onEditMeal: (meal: MealEntry) => void;
@@ -68,8 +65,7 @@ export type TodayScreenProps = {
   onOpenMeal: () => void;
   onOpenMealActionMenu: (mealId: string) => void;
   onOpenSmoking: () => void;
-  onOpenWeight: () => void;
-  onSubmitWeight: (event: FormEvent<HTMLFormElement>) => boolean;
+  onSubmitWeight: (draft: string) => boolean;
 };
 
 type TodayEvent =
@@ -111,10 +107,7 @@ export function TodayScreen({
   todayMeals,
   todaySmokingEntries,
   todayWeights,
-  weightDraft,
-  weightOpen,
-  onCancelWeight,
-  onChangeWeightDraft,
+  weightFallbackKg,
   onCloseMealActionMenu,
   onDeleteMeal,
   onEditMeal,
@@ -123,9 +116,10 @@ export function TodayScreen({
   onOpenMeal,
   onOpenMealActionMenu,
   onOpenSmoking,
-  onOpenWeight,
   onSubmitWeight,
 }: TodayScreenProps) {
+  const [weightDraft, setWeightDraft] = useState("");
+  const [weightOpen, setWeightOpen] = useState(false);
   const weightOpenRef = useRef(weightOpen);
   const pushedWeightHistoryRef = useRef(false);
   const isInitialObservationWeek = isInitialObservationDay(dayNumber);
@@ -189,19 +183,29 @@ export function TodayScreen({
   }, []);
 
   const cancelWeightInteraction = useCallback(() => {
-    onCancelWeight();
+    setWeightOpen(false);
     clearWeightHistoryState();
-  }, [clearWeightHistoryState, onCancelWeight]);
+  }, [clearWeightHistoryState]);
+
+  const openWeightInteraction = useCallback(() => {
+    setWeightDraft(
+      String(latestWeight?.weightKg ?? weightFallbackKg),
+    );
+    setWeightOpen(true);
+  }, [latestWeight, weightFallbackKg]);
 
   const submitWeight = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
-      const saved = onSubmitWeight(event);
+      event.preventDefault();
+      const saved = onSubmitWeight(weightDraft);
 
       if (saved) {
+        setWeightDraft("");
+        setWeightOpen(false);
         clearWeightHistoryState();
       }
     },
-    [clearWeightHistoryState, onSubmitWeight],
+    [clearWeightHistoryState, onSubmitWeight, weightDraft],
   );
 
   useEffect(() => {
@@ -220,7 +224,7 @@ export function TodayScreen({
 
     const handlePopState = () => {
       if (weightOpenRef.current) {
-        onCancelWeight();
+        setWeightOpen(false);
       }
       pushedWeightHistoryRef.current = false;
     };
@@ -238,7 +242,7 @@ export function TodayScreen({
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [cancelWeightInteraction, onCancelWeight, weightOpen]);
+  }, [cancelWeightInteraction, weightOpen]);
 
   return (
     <div className="space-y-5">
@@ -283,8 +287,8 @@ export function TodayScreen({
             open={weightOpen}
             weightDateLabel={weightDateLabel}
             onCancel={cancelWeightInteraction}
-            onChange={onChangeWeightDraft}
-            onOpen={onOpenWeight}
+            onChange={setWeightDraft}
+            onOpen={openWeightInteraction}
             onSubmit={submitWeight}
           />
           <div

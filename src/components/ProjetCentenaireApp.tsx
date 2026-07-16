@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Archive,
   BookOpen,
   Download,
   Dumbbell,
@@ -15,7 +14,6 @@ import {
   calculateWeeklyAnalysis,
   getLatestWeight,
   isSmokingTrackingEnabled,
-  roundOne,
 } from "@/lib/analytics";
 import { daysBetween, shouldUpdateCurrentDate, todayISO } from "@/lib/dates";
 import {
@@ -99,6 +97,11 @@ import {
   onboardingNameStep,
   onboardingWelcomeStep,
 } from "@/features/onboarding/onboardingModel";
+import { SmokingPanel } from "@/features/tracking/SmokingPanel";
+import {
+  smokingEntryFromValues,
+  weightEntryFromDraft,
+} from "@/features/tracking/dailyTrackingModel";
 import {
   Button as UIButton,
   ErrorState,
@@ -173,23 +176,12 @@ const smokingDayLabels: Record<SmokingDayState, string> = {
   cigarette: "Cigarette",
 };
 
-const smokingTriggerOptions = [
-  "voiture",
-  "stress",
-  "après-repas",
-  "hôtel",
-  "ennui",
-  "autre",
-];
-
-  const today = todayISO();
+const today = todayISO();
 const emptyMigrationSources: LocalMigrationSources = {
   guest: null,
   legacy: null,
 };
 
-const inputClass =
-  "min-h-12 w-full rounded-[16px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-base text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]";
 async function materializeUserPendingState(
   baseData: AppData,
   userId: string,
@@ -342,71 +334,6 @@ function initialPriorityText(friction: FrictionChoice): string {
   return "Note les repas et les sensations qui reviennent cette semaine.";
 }
 
-function Button({
-  children,
-  disabled = false,
-  onClick,
-  type = "button",
-  variant = "ink",
-}: {
-  children: React.ReactNode;
-  disabled?: boolean;
-  onClick?: () => void;
-  type?: "button" | "submit";
-  variant?: "ink" | "line" | "signal";
-}) {
-  const classes =
-    variant === "ink"
-      ? "bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)] shadow-[var(--pc-shadow-level-1)] hover:bg-[var(--pc-color-primary-hover)]"
-      : variant === "signal"
-        ? "border border-[#D7B8B2] bg-[#FFF7F3] text-[#8A3B32]"
-        : "border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] hover:bg-[var(--pc-color-primary-muted)]";
-
-  return (
-    <button
-      className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_55%,transparent)] active:translate-y-px active:scale-[0.99] disabled:cursor-wait disabled:opacity-55 disabled:hover:translate-y-0 ${classes}`}
-      disabled={disabled}
-      type={type}
-      onClick={() => onClick?.()}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ChoiceLine<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: Partial<Record<T, string>>;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="grid gap-2">
-      {Object.entries(options).map(([key, label]) => {
-        const selected = key === value;
-
-        return (
-          <button
-            className={`min-h-12 cursor-pointer rounded-[16px] border px-4 text-left text-sm transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_35%,transparent)] active:translate-y-px ${
-              selected
-                ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
-                : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
-            }`}
-            key={key}
-            type="button"
-            onClick={() => onChange(key as T)}
-          >
-            {label as string}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function LoadingScreen() {
   return (
     <StartupStateLayout title="Ouverture du carnet.">
@@ -551,16 +478,12 @@ export function ProjetCentenaireApp() {
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
   const [openMealActionId, setOpenMealActionId] = useState<string | null>(null);
   const mealLongPressTimeoutRef = useRef<number | null>(null);
-  const [weightOpen, setWeightOpen] = useState(false);
-  const [weightDraft, setWeightDraft] = useState("");
   const [smokingOpen, setSmokingOpen] = useState(false);
   const [journalView, setJournalView] = useState<JournalViewMode>("days");
   const [journalDate, setJournalDate] = useState<ISODate>(() => todayISO());
   const [journalWeekDate, setJournalWeekDate] = useState<ISODate>(() =>
     todayISO(),
   );
-  const [smokingState, setSmokingState] = useState<SmokingDayState>("aucun");
-  const [smokingNote, setSmokingNote] = useState("");
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [behaviorEditorOpen, setBehaviorEditorOpen] = useState(false);
@@ -682,7 +605,6 @@ export function ProjetCentenaireApp() {
           setMigrationOperation(null);
           setData(guestData);
           setProfileDraft(guestData.profile);
-          setWeightDraft("");
           return;
         }
 
@@ -732,7 +654,6 @@ export function ProjetCentenaireApp() {
           setPendingSync(false);
           setData(guestData);
           setProfileDraft(guestData.profile);
-          setWeightDraft("");
           return;
         }
 
@@ -771,7 +692,6 @@ export function ProjetCentenaireApp() {
         setCloudStatus("ready");
         setCloudSnapshot(cloudData);
         setPendingSync(hasPendingNow);
-        setWeightDraft("");
 
         if (hasPendingNow) {
           const visibleData = await materializeUserPendingState(cloudData, user.id);
@@ -822,7 +742,6 @@ export function ProjetCentenaireApp() {
         );
         setData(fallbackData);
         setProfileDraft(fallbackData.profile);
-        setWeightDraft("");
         setError(
           sessionUserId
             ? "Compte connecté. La synchronisation cloud est retardée ; un nouvel essai va démarrer automatiquement."
@@ -1805,17 +1724,6 @@ export function ProjetCentenaireApp() {
     }, 1000);
   };
 
-  const openWeightPanel = () => {
-    setWeightDraft(
-      latestTodayWeight
-        ? String(latestTodayWeight.weightKg)
-        : latestKnownWeight
-          ? String(latestKnownWeight.weightKg)
-          : String(profile.startWeightKg),
-    );
-    setWeightOpen(true);
-  };
-
   const openMealPanel = () => {
     setEditingMealId(null);
     setOpenMealActionId(null);
@@ -1854,22 +1762,14 @@ export function ProjetCentenaireApp() {
     );
   };
 
-  const addWeight = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const value = Number(weightDraft.replace(",", "."));
+  const addWeight = (draft: string) => {
+    const result = weightEntryFromDraft(currentDate, draft);
 
-    if (!Number.isFinite(value) || value < 40 || value > 300) {
-      setError("La mesure doit être comprise entre 40 et 300 kg.");
+    if (!result.entry) {
+      setError(result.error);
       return false;
     }
-
-    const entry: WeightEntry = {
-      id: createId("weight"),
-      date: currentDate,
-      time: currentTime(),
-      weightKg: roundOne(value),
-      createdAt: new Date().toISOString(),
-    };
+    const entry = result.entry;
 
     saveData(
       {
@@ -1879,8 +1779,6 @@ export function ProjetCentenaireApp() {
       latestTodayWeight ? "Mesure mise à jour." : "Mesure ajoutée au carnet.",
       [createWeightMutationDraft(entry)],
     );
-    setWeightDraft("");
-    setWeightOpen(false);
     return true;
   };
 
@@ -1910,15 +1808,8 @@ export function ProjetCentenaireApp() {
     closeMealPanel();
   };
 
-  const addSmokingEntry = () => {
-    const entry = {
-      id: createId("smoking"),
-      date: currentDate,
-      time: currentTime(),
-      state: smokingState,
-      note: smokingNote.trim() || undefined,
-      createdAt: new Date().toISOString(),
-    };
+  const addSmokingEntry = (state: SmokingDayState, note: string) => {
+    const entry = smokingEntryFromValues(currentDate, state, note);
 
     saveData(
       {
@@ -1928,8 +1819,6 @@ export function ProjetCentenaireApp() {
       "Tabac ajouté au carnet.",
       [createSmokingMutationDraft(entry)],
     );
-    setSmokingState("aucun");
-    setSmokingNote("");
     setSmokingOpen(false);
   };
 
@@ -1972,10 +1861,7 @@ export function ProjetCentenaireApp() {
       todayMeals={todayMeals}
       todaySmokingEntries={todaySmokingEntries}
       todayWeights={todayWeights}
-      weightDraft={weightDraft}
-      weightOpen={weightOpen}
-      onCancelWeight={() => setWeightOpen(false)}
-      onChangeWeightDraft={setWeightDraft}
+      weightFallbackKg={profile.startWeightKg}
       onCloseMealActionMenu={() => setOpenMealActionId(null)}
       onDeleteMeal={deleteMealFromJournal}
       onEditMeal={openMealEditor}
@@ -1984,7 +1870,6 @@ export function ProjetCentenaireApp() {
       onOpenMeal={openMealPanel}
       onOpenMealActionMenu={setOpenMealActionId}
       onOpenSmoking={() => setSmokingOpen(true)}
-      onOpenWeight={openWeightPanel}
       onSubmitWeight={addWeight}
     />
   );
@@ -2171,12 +2056,8 @@ export function ProjetCentenaireApp() {
 
       {smokingOpen ? (
         <SmokingPanel
-          note={smokingNote}
-          state={smokingState}
-          onAdd={addSmokingEntry}
-          onChangeNote={setSmokingNote}
-          onChangeState={setSmokingState}
           onClose={() => setSmokingOpen(false)}
+          onSubmit={addSmokingEntry}
         />
       ) : null}
 
@@ -2210,104 +2091,5 @@ export function ProjetCentenaireApp() {
         }}
       />
     </main>
-  );
-}
-
-function ActionPanel({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  return (
-    <div className="app-fixed-panel z-30">
-      <div className="app-inner-screen mx-auto flex max-w-md flex-col">
-        <div className="flex flex-col items-start gap-3 rounded-[22px] border border-[#DDD5C7] bg-[#FAF8F1] px-4 py-3 shadow-[0_10px_22px_rgba(23,21,18,0.045)] min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
-          <h1 className="font-serif text-2xl leading-tight min-[390px]:text-3xl">{title}</h1>
-          <button
-            className="text-sm font-semibold text-[#3A3732]"
-            type="button"
-            onClick={onClose}
-          >
-            Annuler
-          </button>
-        </div>
-        <div className="flex flex-1 flex-col justify-center py-8">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function SmokingPanel({
-  note,
-  state,
-  onAdd,
-  onChangeNote,
-  onChangeState,
-  onClose,
-}: {
-  note: string;
-  state: SmokingDayState;
-  onAdd: () => void;
-  onChangeNote: (value: string) => void;
-  onChangeState: (value: SmokingDayState) => void;
-  onClose: () => void;
-}) {
-  const showTrigger = state === "envie" || state === "cigarette";
-
-  return (
-    <ActionPanel title="Tabac" onClose={onClose}>
-      <div className="space-y-6">
-        <ChoiceLine
-          options={smokingDayLabels}
-          value={state}
-          onChange={(value) => {
-            onChangeState(value);
-
-            if (value === "aucun") {
-              onChangeNote("");
-            }
-          }}
-        />
-        {showTrigger ? (
-          <div className="space-y-3">
-            <p className="text-sm text-[var(--pc-color-text)]">Déclencheur facultatif</p>
-            <div className="flex flex-wrap gap-2">
-              {smokingTriggerOptions.map((trigger) => {
-                const selected = note === trigger;
-
-                return (
-                  <button
-                    className={`min-h-9 cursor-pointer rounded-full border px-3 text-xs font-semibold transition active:scale-[0.98] ${
-                      selected
-                        ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
-                        : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text-muted)] shadow-[var(--pc-shadow-level-1)]"
-                    }`}
-                    key={trigger}
-                    type="button"
-                    onClick={() => onChangeNote(selected ? "" : trigger)}
-                  >
-                    {trigger}
-                  </button>
-                );
-              })}
-            </div>
-            <input
-              className={inputClass}
-              value={note}
-              onChange={(event) => onChangeNote(event.target.value)}
-              placeholder="Autre déclencheur"
-            />
-          </div>
-        ) : null}
-        <Button onClick={onAdd}>
-          <Archive aria-hidden="true" size={17} />
-          Ajouter au carnet
-        </Button>
-      </div>
-    </ActionPanel>
   );
 }
