@@ -165,12 +165,13 @@ export function TodayWeightCard({
             <div className="relative">
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -inset-x-8 -inset-y-14 rounded-[3.25rem] bg-[rgba(17,24,32,0.08)] backdrop-blur-[4px]"
+                className="pointer-events-none fixed inset-0 backdrop-blur-[9px]"
                 style={{
                   maskImage:
-                    "radial-gradient(ellipse 92% 82% at 50% 50%, black 52%, rgba(0,0,0,0.62) 72%, transparent 100%)",
+                    "radial-gradient(ellipse 92% 58% at 50% 72%, #000 0%, rgba(0,0,0,0.96) 28%, rgba(0,0,0,0.82) 44%, rgba(0,0,0,0.52) 60%, rgba(0,0,0,0.24) 74%, rgba(0,0,0,0.08) 86%, transparent 100%)",
                   WebkitMaskImage:
-                    "radial-gradient(ellipse 92% 82% at 50% 50%, black 52%, rgba(0,0,0,0.62) 72%, transparent 100%)",
+                    "radial-gradient(ellipse 92% 58% at 50% 72%, #000 0%, rgba(0,0,0,0.96) 28%, rgba(0,0,0,0.82) 44%, rgba(0,0,0,0.52) 60%, rgba(0,0,0,0.24) 74%, rgba(0,0,0,0.08) 86%, transparent 100%)",
+                  WebkitBackdropFilter: "blur(9px)",
                 }}
               />
               <WeightExpandedPanel
