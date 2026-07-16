@@ -367,6 +367,13 @@ export interface SportAssessmentResults {
   cardio: AssessmentFeeling;
 }
 
+export interface SportAssessmentLevelResults {
+  upperPush: CapabilityLevel;
+  legs: CapabilityLevel;
+  core: CapabilityLevel;
+  cardio: CapabilityLevel;
+}
+
 export type TimerStatus =
   | "idle"
   | "preparation"

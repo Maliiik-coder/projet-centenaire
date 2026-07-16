@@ -33,14 +33,14 @@ import {
   syncTimer,
 } from "@/lib/sport/workoutTimer";
 import type {
-  AssessmentFeeling,
   BodyZone,
-  Exercise,
-  ExerciseVariant,
+  CapabilityDimension,
+  CapabilityLevel,
   FeedbackBodySignal,
   FeedbackCompletion,
   FeedbackDifficulty,
   GeneratedWorkoutSession,
+  SportAssessmentLevelResults,
   SportAssessmentResults,
   SportActivity,
   SportFrequency,
@@ -72,7 +72,7 @@ import {
   updateSessionStatus,
 } from "@/services/sport/workoutHistoryService";
 import {
-  applyAssessmentResults,
+  applyAssessmentLevelResults,
   hasCompletedSportAssessment,
 } from "@/services/sport/sportAssessmentService";
 
@@ -165,62 +165,12 @@ function formatSessionDate(isoDate: string): string {
   });
 }
 
-const dashboardProgressionExerciseIds = [
-  "push_up_family",
-  "bodyweight_squat",
-  "hip_hinge",
-  "glute_bridge",
-  "dead_bug",
-  "plank_family",
-  "bird_dog",
-];
-
-function noEquipmentProgressionVariants(exercise: Exercise): ExerciseVariant[] {
-  const eligibleVariants = exercise.variants.filter(
-    (variant) => variant.requiredEquipment.length === 0,
-  );
-  const byId = new Map(eligibleVariants.map((variant) => [variant.id, variant]));
-  const start =
-    byId.get("push_wall") ??
-    eligibleVariants
-      .filter(
-        (variant) => !variant.easierVariantId || !byId.has(variant.easierVariantId),
-      )
-      .sort((a, b) => a.difficulty - b.difficulty || a.id.localeCompare(b.id))[0];
-
-  if (!start) {
-    return [];
-  }
-
-  const ordered: ExerciseVariant[] = [];
-  const seen = new Set<string>();
-  let current: ExerciseVariant | undefined = start;
-
-  while (current && !seen.has(current.id)) {
-    ordered.push(current);
-    seen.add(current.id);
-    current = current.harderVariantId ? byId.get(current.harderVariantId) : undefined;
-  }
-
-  const remaining = eligibleVariants
-    .filter((variant) => !seen.has(variant.id))
-    .sort((a, b) => a.difficulty - b.difficulty || a.id.localeCompare(b.id));
-
-  return [...ordered, ...remaining];
-}
-
-function dashboardProgressions(): Array<{
-  exercise: Exercise;
-  variants: ExerciseVariant[];
-}> {
-  return dashboardProgressionExerciseIds
-    .map((exerciseId) => getExerciseById(exerciseId))
-    .filter((exercise): exercise is Exercise => exercise !== null)
-    .map((exercise) => ({
-      exercise,
-      variants: noEquipmentProgressionVariants(exercise),
-    }))
-    .filter((item) => item.variants.length > 0);
+function capabilityLevelFor(
+  data: SportLocalData,
+  dimension: CapabilityDimension,
+): CapabilityLevel | null {
+  return data.capabilities.find((capability) => capability.dimension === dimension)
+    ?.level ?? null;
 }
 
 export function SportApp() {
@@ -245,22 +195,13 @@ export function SportApp() {
     useState<FeedbackBodySignal>("none");
   const [feedbackZone, setFeedbackZone] = useState<BodyZone | "">("");
   const [feedbackComment, setFeedbackComment] = useState("");
-  const [assessmentResults, setAssessmentResults] = useState<
-    Partial<Record<keyof SportAssessmentResults, AssessmentFeeling>>
-  >({});
 
   useEffect(() => {
     const id = window.setTimeout(() => {
       const stored = loadSportLocalData();
       setData(stored);
       setSelectedDuration(stored.profile?.usualDurationMinutes ?? 15);
-      setView(
-        stored.profile?.questionnaireCompleted
-          ? hasCompletedSportAssessment(stored.capabilities)
-            ? "home"
-            : "assessment"
-          : "onboarding",
-      );
+      setView(stored.profile?.questionnaireCompleted ? "home" : "onboarding");
       setLoaded(true);
     }, 0);
 
@@ -331,20 +272,18 @@ export function SportApp() {
     const nextData = createSportDataFromDraft(safeDraft, nowIso());
     persist(nextData);
     setSelectedDuration(nextData.profile?.usualDurationMinutes ?? 15);
-    setAssessmentResults({});
-    setView("assessment");
+    setView("home");
   }
 
-  function completeAssessment(): void {
+  function completeAssessment(results: SportAssessmentLevelResults): void {
     const profile = data.profile;
-    const results = normalizeAssessmentResults(assessmentResults);
-    if (!profile || !results) {
+    if (!profile) {
       return;
     }
 
     persist({
       ...data,
-      capabilities: applyAssessmentResults(
+      capabilities: applyAssessmentLevelResults(
         data.capabilities,
         profile.userId,
         results,
@@ -485,8 +424,6 @@ export function SportApp() {
         ) : null}
         {view === "assessment" && data.profile ? (
           <AssessmentView
-            results={assessmentResults}
-            onChange={setAssessmentResults}
             onComplete={completeAssessment}
             onSkip={() => setView("home")}
           />
@@ -779,62 +716,64 @@ function ChoiceSection({
   );
 }
 
-const assessmentLabels: Record<AssessmentFeeling, string> = {
-  too_easy: "Trop facile",
-  right: "Adapte",
-  too_hard: "Trop difficile",
-  discomfort: "Gene ou douleur",
-};
-
 const assessmentItems: Array<{
   key: keyof SportAssessmentResults;
   title: string;
   instruction: string;
   exerciseId: string;
-  variantId: string;
+  variants: string[];
 }> = [
   {
     key: "upperPush",
     title: "Poussee douce",
     instruction:
-      "Pompes contre un mur pendant 20 secondes, sans chercher l'echec.",
+      "Garde le corps solide, respiration libre, et arrete avant de compenser.",
     exerciseId: "push_up_family",
-    variantId: "push_wall",
+    variants: ["push_wall", "push_knees", "push_standard", "push_feet_elevated"],
   },
   {
     key: "legs",
     title: "Jambes",
     instruction:
-      "Demi-squats courts pendant 20 secondes, amplitude confortable.",
+      "Descends dans une amplitude confortable, genoux dans l'axe.",
     exerciseId: "bodyweight_squat",
-    variantId: "bodyweight_squat_partial",
+    variants: [
+      "bodyweight_squat_partial",
+      "bodyweight_squat_controlled",
+      "bodyweight_squat_deeper",
+    ],
   },
   {
     key: "core",
     title: "Centre du corps",
     instruction:
-      "Gainage debout contre un mur pendant 20 secondes, respiration libre.",
+      "Reste stable, respire, et stoppe si la position se degrade.",
     exerciseId: "plank_family",
-    variantId: "plank_wall",
+    variants: ["plank_wall", "plank_knees", "plank_full"],
   },
   {
     key: "cardio",
     title: "Souffle",
     instruction:
-      "Marche active sur place pendant 45 secondes, capable de ralentir a tout moment.",
+      "Marche active sur place pendant 20 secondes, capable de ralentir a tout moment.",
     exerciseId: "warmup_march",
-    variantId: "warmup_march_active",
+    variants: ["warmup_march_easy", "warmup_march_active"],
   },
 ];
 
-function normalizeAssessmentResults(
-  results: Partial<Record<keyof SportAssessmentResults, AssessmentFeeling>>,
-): SportAssessmentResults | null {
+type AssessmentPhase = "intro" | "countdown" | "effort" | "question";
+
+const assessmentCountdownSeconds = 3;
+const assessmentEffortSeconds = 20;
+
+function normalizeAssessmentLevels(
+  results: Partial<Record<keyof SportAssessmentResults, CapabilityLevel>>,
+): SportAssessmentLevelResults | null {
   if (
-    !results.upperPush ||
-    !results.legs ||
-    !results.core ||
-    !results.cardio
+    results.upperPush === undefined ||
+    results.legs === undefined ||
+    results.core === undefined ||
+    results.cardio === undefined
   ) {
     return null;
   }
@@ -847,82 +786,271 @@ function normalizeAssessmentResults(
   };
 }
 
+function variantDifficulty(variantId: string): CapabilityLevel {
+  return getVariantById(variantId)?.difficulty ?? 0;
+}
+
 function AssessmentView({
-  results,
-  onChange,
   onComplete,
   onSkip,
 }: {
-  results: Partial<Record<keyof SportAssessmentResults, AssessmentFeeling>>;
-  onChange: (
-    results: Partial<Record<keyof SportAssessmentResults, AssessmentFeeling>>,
-  ) => void;
-  onComplete: () => void;
+  onComplete: (results: SportAssessmentLevelResults) => void;
   onSkip: () => void;
 }) {
-  const complete = normalizeAssessmentResults(results) !== null;
+  const [testIndex, setTestIndex] = useState(0);
+  const [variantIndex, setVariantIndex] = useState(0);
+  const [phase, setPhase] = useState<AssessmentPhase>("intro");
+  const [phaseStartedAtMs, setPhaseStartedAtMs] = useState<number | null>(null);
+  const [clockMs, setClockMs] = useState(() => Date.now());
+  const [results, setResults] = useState<
+    Partial<Record<keyof SportAssessmentResults, CapabilityLevel>>
+  >({});
+
+  const test = assessmentItems[testIndex] ?? assessmentItems[0];
+  const variantId = test.variants[variantIndex] ?? test.variants[0];
+  const variant = getVariantById(variantId);
+  const elapsedSeconds =
+    phaseStartedAtMs === null
+      ? 0
+      : Math.floor((clockMs - phaseStartedAtMs) / 1000);
+  const countdownRemaining = Math.max(
+    0,
+    assessmentCountdownSeconds - elapsedSeconds,
+  );
+  const effortRemaining = Math.max(0, assessmentEffortSeconds - elapsedSeconds);
+
+  useEffect(() => {
+    if (
+      phaseStartedAtMs === null ||
+      (phase !== "countdown" && phase !== "effort")
+    ) {
+      return undefined;
+    }
+
+    const id = window.setInterval(() => {
+      const current = Date.now();
+      const elapsed = Math.floor((current - phaseStartedAtMs) / 1000);
+      setClockMs(current);
+
+      if (phase === "countdown" && elapsed >= assessmentCountdownSeconds) {
+        setPhase("effort");
+        setPhaseStartedAtMs(current);
+        setClockMs(current);
+      }
+
+      if (phase === "effort" && elapsed >= assessmentEffortSeconds) {
+        setPhase("question");
+        setPhaseStartedAtMs(null);
+      }
+    }, 250);
+
+    return () => window.clearInterval(id);
+  }, [phase, phaseStartedAtMs]);
+
+  function resetTimer(nextPhase: AssessmentPhase): void {
+    const startedAt = Date.now();
+    setPhase(nextPhase);
+    setPhaseStartedAtMs(startedAt);
+    setClockMs(startedAt);
+  }
+
+  function moveToNextTest(
+    nextResults: Partial<Record<keyof SportAssessmentResults, CapabilityLevel>>,
+  ): void {
+    const normalized = normalizeAssessmentLevels(nextResults);
+    if (testIndex >= assessmentItems.length - 1 && normalized) {
+      onComplete(normalized);
+      return;
+    }
+
+    setTestIndex((current) =>
+      Math.min(assessmentItems.length - 1, current + 1),
+    );
+    setVariantIndex(0);
+    setPhase("intro");
+    setPhaseStartedAtMs(null);
+  }
+
+  function recordLevel(level: CapabilityLevel): Partial<
+    Record<keyof SportAssessmentResults, CapabilityLevel>
+  > {
+    const nextResults = {
+      ...results,
+      [test.key]: level,
+    };
+    setResults(nextResults);
+    return nextResults;
+  }
+
+  function handleHeld(): void {
+    const nextResults = recordLevel(variantDifficulty(variantId));
+
+    if (variantIndex < test.variants.length - 1) {
+      setVariantIndex((current) => current + 1);
+      setPhase("intro");
+      setPhaseStartedAtMs(null);
+      return;
+    }
+
+    moveToNextTest(nextResults);
+  }
+
+  function handleNotHeld(): void {
+    const previousVariantId = test.variants[Math.max(0, variantIndex - 1)];
+    const fallbackLevel =
+      results[test.key] ?? variantDifficulty(previousVariantId ?? variantId);
+    const nextResults = recordLevel(fallbackLevel);
+    moveToNextTest(nextResults);
+  }
 
   return (
-    <section className="grid gap-4">
-      <Surface className="p-4" variant="selected">
-        <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
-          Evaluation proposee
-        </p>
-        <h2 className="mt-1 text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold">
-          Caler la premiere seance
-        </h2>
-        <p className="mt-2 text-sm leading-5 text-[var(--pc-color-text-muted)]">
-          Quelques mouvements courts permettent de proposer une seance prudente,
-          sans test maximal.
-        </p>
-      </Surface>
-      {assessmentItems.map((item) => (
-        <Surface className="grid gap-3 p-4" key={item.key}>
-          <div className="grid grid-cols-[5rem_1fr] gap-3">
-            <ExerciseIllustration
-              exerciseId={item.exerciseId}
-              label={item.title}
-              variantId={item.variantId}
-            />
-            <div className="min-w-0">
-              <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
-                {item.title}
-              </h3>
-              <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
-                {item.instruction}
+    <section className="fixed inset-0 z-50 flex items-end bg-black/35 p-3 sm:items-center sm:justify-center">
+      <Surface className="max-h-[calc(100vh-2rem)] w-full overflow-y-auto p-4 sm:max-w-xl">
+        <div className="grid gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
+                Evaluation guidee
               </p>
+              <h2 className="mt-1 text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold">
+                Test {testIndex + 1} / {assessmentItems.length}
+              </h2>
             </div>
+            <Button className="min-h-10 px-3" variant="tertiary" onClick={onSkip}>
+              Plus tard
+            </Button>
           </div>
-          <div className="grid gap-2">
-            {(Object.keys(assessmentLabels) as AssessmentFeeling[]).map(
-              (feeling) => (
-                <ChoiceCard
-                  checked={results[item.key] === feeling}
-                  key={`${item.key}-${feeling}`}
-                  label={assessmentLabels[feeling]}
-                  name={`assessment-${item.key}`}
-                  value={feeling}
-                  onChange={() =>
-                    onChange({
-                      ...results,
-                      [item.key]: feeling,
-                    })
-                  }
-                />
-              ),
-            )}
+          <AssessmentStepper currentIndex={testIndex} />
+          <div>
+            <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+              {variant?.name ?? test.title}
+            </h3>
+            <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+              {variant?.guidance ?? test.instruction}
+            </p>
           </div>
-        </Surface>
-      ))}
-      <div className="grid grid-cols-[auto_1fr] gap-3">
-        <Button variant="tertiary" onClick={onSkip}>
-          Plus tard
-        </Button>
-        <Button disabled={!complete} onClick={onComplete}>
-          {"Enregistrer l'evaluation"}
-        </Button>
-      </div>
+          <AssessmentPoseStrip
+            exerciseId={test.exerciseId}
+            title={variant?.name ?? test.title}
+            variantId={variantId}
+          />
+          {phase === "intro" ? (
+            <div className="grid gap-3">
+              <Surface className="p-3" variant="subtle">
+                <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
+                  {test.instruction} Tu vas tenir 20 secondes. Si le mouvement
+                  devient inconfortable ou se degrade, reponds Non a la fin.
+                </p>
+              </Surface>
+              <Button fullWidth onClick={() => resetTimer("countdown")}>
+                Je suis pret
+              </Button>
+            </div>
+          ) : null}
+          {phase === "countdown" ? (
+            <TimerPanel
+              label="Prepare-toi"
+              value={Math.max(1, countdownRemaining)}
+            />
+          ) : null}
+          {phase === "effort" ? (
+            <div className="grid gap-3">
+              <TimerPanel label="Effort" value={effortRemaining} />
+              <Button fullWidth variant="secondary" onClick={handleNotHeld}>
+                {"J'arrete ce test"}
+              </Button>
+            </div>
+          ) : null}
+          {phase === "question" ? (
+            <div className="grid gap-3">
+              <Surface className="p-4" variant="selected">
+                <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+                  Tu as tenu les 20 secondes ?
+                </h3>
+                <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+                  Oui fait tester la variante suivante quand elle existe. Non
+                  passe au mouvement suivant.
+                </p>
+              </Surface>
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="secondary" onClick={handleNotHeld}>
+                  Non
+                </Button>
+                <Button onClick={handleHeld}>Oui</Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </Surface>
     </section>
+  );
+}
+
+function AssessmentStepper({ currentIndex }: { currentIndex: number }) {
+  return (
+    <div className="grid grid-cols-4 gap-2" aria-label="Progression evaluation">
+      {assessmentItems.map((item, index) => (
+        <div
+          className={cx(
+            "h-2 rounded-full",
+            index <= currentIndex
+              ? "bg-[var(--pc-color-primary)]"
+              : "bg-[var(--pc-color-border)]",
+          )}
+          key={item.key}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AssessmentPoseStrip({
+  exerciseId,
+  title,
+  variantId,
+}: {
+  exerciseId: string;
+  title: string;
+  variantId: string;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-2">
+        <ExerciseIllustration
+          exerciseId={exerciseId}
+          label={`${title} depart`}
+          variantId={variantId}
+        />
+        <p className="text-center text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
+          Depart
+        </p>
+      </div>
+      <div className="grid gap-2">
+        <ExerciseIllustration
+          exerciseId={exerciseId}
+          label={`${title} fin`}
+          variantId={variantId}
+        />
+        <p className="text-center text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
+          Fin
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TimerPanel({ label, value }: { label: string; value: number }) {
+  return (
+    <Surface className="grid min-h-48 place-items-center p-5 text-center" variant="selected">
+      <div>
+        <p className="text-sm font-semibold uppercase text-[var(--pc-color-primary)]">
+          {label}
+        </p>
+        <p className="mt-3 text-[4rem] leading-none font-bold tabular-nums text-[var(--pc-color-text)]">
+          {value}
+        </p>
+      </div>
+    </Surface>
   );
 }
 
@@ -959,7 +1087,6 @@ function HomeView({
       total + (session.performedDurationSeconds ?? session.plannedDurationSeconds),
     0,
   );
-  const progressions = dashboardProgressions();
 
   return (
     <section className="grid gap-4">
@@ -1042,6 +1169,11 @@ function HomeView({
           <p className="mt-2 text-lg font-semibold">{data.feedback.length}</p>
         </Surface>
       </div>
+      <StrengthProgressOverview
+        data={data}
+        hasAssessment={hasAssessment}
+        onAssessment={onAssessment}
+      />
       <section className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
@@ -1087,44 +1219,6 @@ function HomeView({
           </Surface>
         )}
       </section>
-      <section className="grid gap-3">
-        <div>
-          <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
-            Progression des mouvements
-          </h3>
-          <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
-            Une seule marche a la fois : quand une variante devient facile, la
-            suivante prend le relais.
-          </p>
-        </div>
-        {progressions.map(({ exercise, variants }) => (
-          <Surface className="grid grid-cols-[5.5rem_1fr] gap-3 p-3" key={exercise.id}>
-            <ExerciseIllustration
-              exerciseId={exercise.id}
-              label={exercise.name}
-              variantId={variants[0]?.id}
-            />
-            <div className="min-w-0">
-              <p className="font-semibold">{exercise.name}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {variants.map((variant, index) => (
-                  <span
-                    className={cx(
-                      "rounded-[var(--pc-radius-control)] border px-2 py-1 text-xs font-semibold",
-                      index === 0
-                        ? "border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]"
-                        : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] text-[var(--pc-color-text-muted)]",
-                    )}
-                    key={variant.id}
-                  >
-                    {variant.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </Surface>
-        ))}
-      </section>
       <div className="grid grid-cols-2 gap-3">
         <Button variant="secondary" onClick={hasAssessment ? onGenerate : onAssessment}>
           {hasAssessment ? "Seance du jour" : "Evaluation"}
@@ -1134,6 +1228,97 @@ function HomeView({
         </Button>
       </div>
     </section>
+  );
+}
+
+const progressDimensions: Array<{
+  dimension: CapabilityDimension;
+  label: string;
+}> = [
+  { dimension: "upper_push", label: "Poussee" },
+  { dimension: "legs", label: "Jambes" },
+  { dimension: "core", label: "Centre" },
+  { dimension: "cardio_endurance", label: "Souffle" },
+];
+
+function StrengthProgressOverview({
+  data,
+  hasAssessment,
+  onAssessment,
+}: {
+  data: SportLocalData;
+  hasAssessment: boolean;
+  onAssessment: () => void;
+}) {
+  const knownLevels = progressDimensions
+    .map((item) => capabilityLevelFor(data, item.dimension))
+    .filter((level): level is CapabilityLevel => level !== null);
+  const average =
+    hasAssessment && knownLevels.length > 0
+      ? Math.round(
+          (knownLevels.reduce<number>((total, level) => total + level, 0) /
+            (knownLevels.length * 4)) *
+            100,
+        )
+      : 0;
+
+  return (
+    <Surface className="grid gap-4 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+            Progression generale
+          </h3>
+          <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+            {"Vue d'ensemble des axes calibres par l'evaluation."}
+          </p>
+        </div>
+        <span className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] px-3 py-2 text-sm font-semibold text-[var(--pc-color-primary)]">
+          {hasAssessment ? `${average}%` : "A evaluer"}
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-[var(--pc-color-surface-subtle)]">
+        <div
+          className="h-full rounded-full bg-[var(--pc-color-primary)] transition-[width] duration-[var(--pc-motion-normal)]"
+          style={{ width: `${average}%` }}
+        />
+      </div>
+      <div className="grid gap-3">
+        {progressDimensions.map((item) => {
+          const level = capabilityLevelFor(data, item.dimension);
+          return (
+            <div className="grid gap-2" key={item.dimension}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold">{item.label}</p>
+                <p className="text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
+                  {hasAssessment && level !== null
+                    ? `Niveau ${level + 1}/5`
+                    : "A evaluer"}
+                </p>
+              </div>
+              <div className="grid grid-cols-5 gap-1">
+                {[0, 1, 2, 3, 4].map((index) => (
+                  <span
+                    className={cx(
+                      "h-2 rounded-full",
+                      hasAssessment && level !== null && index <= level
+                        ? "bg-[var(--pc-color-primary)]"
+                        : "bg-[var(--pc-color-border)]",
+                    )}
+                    key={index}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {!hasAssessment ? (
+        <Button fullWidth variant="secondary" onClick={onAssessment}>
+          {"Lancer l'evaluation guidee"}
+        </Button>
+      ) : null}
+    </Surface>
   );
 }
 

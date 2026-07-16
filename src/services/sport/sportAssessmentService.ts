@@ -1,6 +1,7 @@
 import type {
   AssessmentFeeling,
   CapabilityLevel,
+  SportAssessmentLevelResults,
   SportAssessmentResults,
   UserCapability,
 } from "@/lib/sport/types";
@@ -63,6 +64,58 @@ export function applyAssessmentResults(
     userId,
     "cardio_endurance",
     levelFromFeeling(results.cardio),
+    now,
+    "calibration",
+  );
+
+  return next;
+}
+
+export function applyAssessmentLevelResults(
+  capabilities: UserCapability[],
+  userId: string,
+  results: SportAssessmentLevelResults,
+  now: string,
+): UserCapability[] {
+  let next = capabilities;
+
+  next = upsertCapability(
+    next,
+    userId,
+    "upper_push",
+    results.upperPush,
+    now,
+    "calibration",
+  );
+  next = upsertCapability(
+    next,
+    userId,
+    "legs",
+    results.legs,
+    now,
+    "calibration",
+  );
+  next = upsertCapability(
+    next,
+    userId,
+    "posterior_chain",
+    results.legs,
+    now,
+    "calibration",
+  );
+  next = upsertCapability(
+    next,
+    userId,
+    "core",
+    results.core,
+    now,
+    "calibration",
+  );
+  next = upsertCapability(
+    next,
+    userId,
+    "cardio_endurance",
+    results.cardio,
     now,
     "calibration",
   );

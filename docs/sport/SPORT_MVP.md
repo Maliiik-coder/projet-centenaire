@@ -6,11 +6,13 @@ Cette tranche expose une route isolee `/sport`, sans integration dans le shell p
 
 - questionnaire de premiere ouverture Sport volontairement court ;
 - objectifs multiples, activite marche/course unifiee et choix renforcement musculaire ;
-- profil sportif local et capacites multidimensionnelles calibrees apres creation ;
-- seance d'evaluation proposee juste apres la creation du profil ;
+- profil sportif local, puis arrivee sur le tableau de bord apres creation ;
+- evaluation guidee ouverte volontairement depuis le tableau de bord ;
+- test sequentiel en feuille : variante, illustration depart/fin, bouton pret, compte a rebours 3 s, effort 20 s, reponse oui/non ;
+- capacites multidimensionnelles calibrees depuis le niveau de variante tenu ;
 - bibliotheque initiale de mouvements de renforcement dans `src/lib/sport/exerciseLibrary.ts` ;
-- tableau de bord `/sport` avec choix d'activite, seances faites et progressions ;
-- illustrations SVG internes pour l'evaluation, les progressions et l'aperçu de seance ;
+- tableau de bord `/sport` avec choix d'activite, seances faites et jauges de progression ;
+- illustrations SVG internes pour l'evaluation et l'aperçu de seance ;
 - moteur deterministe et versionne dans `src/lib/sport/workoutGenerator.ts` ;
 - aperçu de seance, chronometre, pause, reprise, passage d'etape et fin ;
 - retour de seance neutre, historique basique et adaptation d'une seule variable ;
@@ -18,7 +20,7 @@ Cette tranche expose une route isolee `/sport`, sans integration dans le shell p
 
 Marche/course et natation sont representees dans les types du profil et dans le selecteur du tableau de bord, avec la mention "En developpement". Leur generation autonome n'est pas implementee dans cette tranche. La marche/course est une seule progression : une personne visant la course peut commencer par marcher, et une preference "marche seulement" pourra etre ajoutee dans l'arbre dedie.
 
-La progression de renforcement privilegie les variantes sans materiel obligatoire. Exemple pour les pompes : mur, genoux, sol, puis pieds sureleves. Le moteur ne doit augmenter qu'une seule variable a la fois.
+La progression de renforcement privilegie les variantes sans materiel obligatoire. Exemple pour les pompes : mur, genoux, sol, puis pieds sureleves. Le dashboard ne liste pas toutes les variantes ; il affiche une visualisation globale par axes. Le moteur ne doit augmenter qu'une seule variable a la fois.
 
 ## Architecture
 
