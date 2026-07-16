@@ -183,13 +183,11 @@ export function MealTunnelScreen({
                   ? "Tu as grignoté quoi ?"
                   : "Note ce que tu as mangé, simplement."}
               </h1>
-              <textarea
-                className="min-h-40 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-lg leading-8 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
-                value={draft.freeText}
-                onChange={(event) =>
-                  onChange({ ...draft, freeText: event.target.value })
+              <FoodSuggestionPicker
+                suggestions={foodSuggestions}
+                onPick={(suggestion) =>
+                  onChange(addMealFoodSelection(draft, suggestion))
                 }
-                placeholder="Exemple : pâtes, deux steaks, sauce au poivre"
               />
               <SelectedFoodChips
                 foods={draft.selectedFoods}
@@ -197,11 +195,13 @@ export function MealTunnelScreen({
                   onChange(removeMealFoodSelection(draft, foodId))
                 }
               />
-              <FoodSuggestionPicker
-                suggestions={foodSuggestions}
-                onPick={(suggestion) =>
-                  onChange(addMealFoodSelection(draft, suggestion))
+              <textarea
+                className="min-h-40 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-lg leading-8 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
+                value={draft.freeText}
+                onChange={(event) =>
+                  onChange({ ...draft, freeText: event.target.value })
                 }
+                placeholder="Exemple : pâtes, deux steaks, sauce au poivre"
               />
             </section>
           ) : null}

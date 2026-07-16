@@ -184,22 +184,22 @@ export function FoodSuggestionPicker({
   return (
     <div className="grid gap-2">
       <p className={mealAnnotationClass}>Suggestions</p>
-      <div className="grid gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
         {suggestions.map((suggestion) => (
           <button
-            className="flex min-h-12 items-center gap-3 rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 text-left text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] transition hover:-translate-y-0.5 hover:border-[var(--pc-color-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_35%,transparent)] active:translate-y-px"
+            className="flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 text-left text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] transition hover:-translate-y-0.5 hover:border-[var(--pc-color-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_35%,transparent)] active:translate-y-px"
             key={suggestion.id}
             type="button"
             onClick={() => onPick(suggestion)}
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-sm font-bold text-[var(--pc-color-primary)]">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-xs font-bold text-[var(--pc-color-primary)]">
               {suggestion.label.slice(0, 1)}
             </span>
             <span className="min-w-0">
-              <span className="block text-base font-semibold">
+              <span className="block whitespace-nowrap text-sm font-semibold">
                 {suggestion.label}
               </span>
-              <span className="block text-xs font-semibold text-[var(--pc-color-text-muted)]">
+              <span className="block whitespace-nowrap text-[11px] font-semibold text-[var(--pc-color-text-muted)]">
                 {categoryLabels[suggestion.category]}
               </span>
             </span>
