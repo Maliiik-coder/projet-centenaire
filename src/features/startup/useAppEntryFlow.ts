@@ -15,7 +15,7 @@ import {
   type LaunchStage,
 } from "@/components/centenaire/LaunchScreen";
 
-export type ResumableTabId = "today" | "journal" | "insights" | "profile";
+export type ResumableTabId = "today" | "journal" | "profile";
 
 type AppEntryFlowOptions = {
   cloudUserId: string | null;
@@ -84,10 +84,11 @@ export function useAppEntryFlow({
       if (
         requestedTab === "today" ||
         requestedTab === "journal" ||
-        requestedTab === "insights" ||
         requestedTab === "profile"
       ) {
         onResumeTab(requestedTab);
+      } else if (requestedTab === "insights") {
+        onResumeTab("journal");
       }
       url.searchParams.delete(APP_RESUME_PARAM);
       url.searchParams.delete(APP_RESUME_TAB_PARAM);

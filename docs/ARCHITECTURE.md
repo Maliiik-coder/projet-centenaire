@@ -24,7 +24,10 @@ Les modules de `src/features/` suivent une frontière simple :
 - `src/features/today/TodayTimeline.tsx` : tri et rendu des faits de la journée,
   dont le menu contextuel des repas ;
 - `src/features/journal/JournalScreen.tsx` : vues Jours et Semaines du Carnet ;
-- `src/features/insights/InsightsScreen.tsx` : constats hebdomadaires ;
+- `src/features/insights/InsightsScreen.tsx` : ancienne vue autonome conservée
+  temporairement comme source de lecture, mais retirée de la navigation ;
+- `src/app/recipes/` et `src/features/recipes/` : frontière du futur module
+  Recettes, actuellement limitée à un écran de développement ;
 - `src/features/profile/ProfileScreen.tsx` : profil, préférences, compte et
   options avancées ;
 - `src/features/meal/MealTunnelScreen.tsx` : progression et rendu du tunnel

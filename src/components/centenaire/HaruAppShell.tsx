@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
+  ChefHat,
   Dumbbell,
-  LineChart,
   PenLine,
   Settings2,
 } from "lucide-react";
@@ -14,8 +14,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { AppHeader } from "@/components/centenaire/AppHeader";
 import { BottomNav } from "@/components/centenaire/BottomNav";
 
-export type AppTabId = "today" | "journal" | "insights" | "profile";
-type NavigationTabId = AppTabId | "sport";
+export type AppTabId = "today" | "journal" | "profile";
+type NavigationTabId = AppTabId | "recipes" | "sport";
 
 type TabDefinition = {
   accessibleLabel?: string;
@@ -27,7 +27,7 @@ type TabDefinition = {
 const tabs: TabDefinition[] = [
   { id: "today", label: "Jour", accessibleLabel: "Page du jour", icon: PenLine },
   { id: "journal", label: "Carnet", icon: BookOpen },
-  { id: "insights", label: "Constats", icon: LineChart },
+  { id: "recipes", label: "Recettes", icon: ChefHat },
   { id: "sport", label: "Sport", icon: Dumbbell },
   { id: "profile", label: "Profil", icon: Settings2 },
 ];
@@ -91,9 +91,9 @@ export function HaruAppShell({
         activeId={activeTab}
         items={tabs}
         onChange={(nextTab) => {
-          if (nextTab === "sport") {
+          if (nextTab === "recipes" || nextTab === "sport") {
             window.history.replaceState(null, "", appResumePath(activeTab));
-            window.location.assign("/sport");
+            window.location.assign(nextTab === "recipes" ? "/recipes" : "/sport");
             return;
           }
 

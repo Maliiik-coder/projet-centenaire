@@ -5,7 +5,7 @@ import { BottomNav } from "@/components/centenaire/BottomNav";
 
 describe("BottomNav", () => {
   it("répartit cinq destinations sur cinq colonnes stables", () => {
-    const items = ["today", "journal", "insights", "sport", "profile"].map(
+    const items = ["today", "journal", "recipes", "sport", "profile"].map(
       (id) => ({ id, icon: Dumbbell, label: id }),
     );
     const html = renderToStaticMarkup(
@@ -20,5 +20,6 @@ describe("BottomNav", () => {
       "grid-template-columns:repeat(5, minmax(0, 1fr))",
     );
     expect(html).toContain(">sport<");
+    expect(html).toContain(">recipes<");
   });
 });

@@ -8,7 +8,6 @@ import { isLocalEntryModeSelected } from "@/lib/entryMode";
 import { HaruAppShell, type AppTabId } from "@/components/centenaire/HaruAppShell";
 import { LaunchScreen } from "@/components/centenaire/LaunchScreen";
 import { TodayScreen } from "@/components/centenaire/TodayScreen";
-import { InsightsScreen } from "@/features/insights/InsightsScreen";
 import { JournalScreen } from "@/features/journal/JournalScreen";
 import type { JournalViewMode } from "@/features/journal/journalModel";
 import { MealTunnelScreen } from "@/features/meal/MealTunnelScreen";
@@ -290,15 +289,6 @@ export function ProjetCentenaireApp() {
     />
   );
 
-  const renderInsights = () => (
-    <InsightsScreen
-      analysis={analysis}
-      formatKg={formatKg}
-      smokingEnabled={smokingEnabled}
-      weights={data.weights}
-    />
-  );
-
   const renderProfile = () => (
     <ProfileScreen
       cloudEmail={cloudEmail}
@@ -324,7 +314,6 @@ export function ProjetCentenaireApp() {
   const content = {
     today: renderToday,
     journal: renderJournal,
-    insights: renderInsights,
     profile: renderProfile,
   }[activeTab]();
 
