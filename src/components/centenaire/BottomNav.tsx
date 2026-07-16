@@ -24,7 +24,12 @@ export function BottomNav<T extends string>({
       aria-label="Navigation principale"
       className="pc-bottom-nav fixed inset-x-0 bottom-0 z-[var(--pc-z-navigation)] border-t border-[var(--pc-color-border)] bg-[color-mix(in_srgb,var(--pc-color-surface)_94%,transparent)] px-[var(--pc-safe-left)] pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl"
     >
-      <div className="mx-auto grid max-w-[var(--pc-content-max-width)] grid-cols-4 gap-1">
+      <div
+        className="mx-auto grid max-w-[var(--pc-content-max-width)] gap-1"
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))`,
+        }}
+      >
         {items.map((item) => {
           const Icon = item.icon;
           const selected = item.id === activeId;

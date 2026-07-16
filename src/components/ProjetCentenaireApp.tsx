@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Cigarette,
   Download,
+  Dumbbell,
   LineChart,
   PenLine,
   Plus,
@@ -183,11 +184,12 @@ import type {
 } from "@/lib/types";
 
 type TabId = "today" | "journal" | "insights" | "profile";
+type NavigationTabId = TabId | "sport";
 type JournalFilter = "tout" | "repas" | "tabac" | "mesures";
 
 interface TabDefinition {
   accessibleLabel?: string;
-  id: TabId;
+  id: NavigationTabId;
   label: string;
   icon: LucideIcon;
 }
@@ -235,6 +237,7 @@ const tabs: TabDefinition[] = [
   { id: "today", label: "Jour", accessibleLabel: "Page du jour", icon: PenLine },
   { id: "journal", label: "Carnet", icon: BookOpen },
   { id: "insights", label: "Constats", icon: LineChart },
+  { id: "sport", label: "Sport", icon: Dumbbell },
   { id: "profile", label: "Profil", icon: Settings2 },
 ];
 
@@ -3311,7 +3314,18 @@ export function ProjetCentenaireApp() {
         />
       ) : null}
 
-      <BottomNav activeId={activeTab} items={tabs} onChange={setActiveTab} />
+      <BottomNav<NavigationTabId>
+        activeId={activeTab}
+        items={tabs}
+        onChange={(nextTab) => {
+          if (nextTab === "sport") {
+            window.location.assign("/sport");
+            return;
+          }
+
+          setActiveTab(nextTab);
+        }}
+      />
     </main>
   );
 }

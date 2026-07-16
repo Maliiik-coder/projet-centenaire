@@ -86,9 +86,12 @@ Commit de référence :
 
 - commit de base commun : `168b726` ;
 - conversation principale : branche `codex/haru-recipes-ui`, propriétaire de Recettes, de la refonte UX, de la navigation et des fichiers partagés ;
-- conversation Sport : branche `codex/sport` dans un worktree séparé, en attente du feu vert explicite `GO SPORT` ;
+- conversation Sport : branche `codex/sport` publiée après livraison de la
+  première tranche isolée ;
 - Sport travaille uniquement dans son domaine isolé et ne modifie pas le shell, la navigation, le stockage partagé, le tunnel repas ou Recettes ;
-- l’intégration finale de Sport dans la navigation, `AppData`, le miroir local et le cloud partagé est réalisée par la conversation principale après validation de la branche Sport ;
+- la route `/sport` est reliée à la navigation basse principale par une
+  cinquième entrée ; l’intégration ultérieure dans `AppData`, le miroir local et
+  le cloud partagé reste sous la responsabilité de la conversation principale ;
 - aucun chantier parallèle ne pousse ou ne fusionne directement dans `main` sans validation explicite.
 
 ## 4. Retours terrain
@@ -355,8 +358,8 @@ Décisions :
 - validation des choix à avancement automatique par appui maintenu de 500 ms ;
 - correction du blocage qui conservait l'état bleu d'une réponse sur les
   questions suivantes ;
-- démarrage séquencé : logo et chargement 2 s, apparition du slogan pendant
-  1 s, puis bouton Commencer ;
+- démarrage séquencé : logo et chargement 3 s, apparition du slogan pendant
+  2 s, puis bouton Commencer ;
 - choix d'accès avant l'onboarding : Google, lien email ou mode local limité à
   l'appareil ;
 - retour d'authentification directement sur la première question du profil.
@@ -365,7 +368,8 @@ Décisions :
 
 ### Chantier parallèle — Sport
 
-Statut : cadré, worktree prêt, développement non déclenché.
+Statut : première tranche isolée développée, validée et reliée à la navigation
+principale par la route `/sport`.
 
 Première tranche validée :
 - questionnaire dédié à la première ouverture de Sport ;
@@ -374,6 +378,8 @@ Première tranche validée :
 - génération déterministe, versionnée et explicable ;
 - aperçu, chronomètre, pause, reprise et fin de séance ;
 - retour neutre, adaptation d’une seule variable à la fois et historique basique ;
+- cinquième entrée `Sport` dans la barre de navigation basse ;
+- stockage Sport encore local et isolé, avant raccordement explicite au compte ;
 - aucune calorie brûlée, IA décisionnelle, compétition ou diagnostic médical.
 
 Itérations suivantes :

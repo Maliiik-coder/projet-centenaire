@@ -9,6 +9,7 @@ const EXPECTED_MIGRATIONS = [
   "20260714100000_v061_dark_mode_preference.sql",
   "20260714110000_v07_meal_tunnel.sql",
   "20260715133410_v071_meal_boolean_defaults.sql",
+  "20260715165000_v08_sport_foundation.sql",
   "20260716090000_initial_behavior_assessment.sql",
 ] as const;
 
@@ -139,7 +140,7 @@ describe("supabase migrations", () => {
   });
 
   it("ajoute le portrait comportemental versionné au profil", () => {
-    const onboardingSql = migrationSql(EXPECTED_MIGRATIONS[6]);
+    const onboardingSql = migrationSql(EXPECTED_MIGRATIONS[7]);
 
     expect(onboardingSql).toContain("initial_behavior_assessment jsonb");
     expect(schemaSql).toContain("initial_behavior_assessment jsonb");
