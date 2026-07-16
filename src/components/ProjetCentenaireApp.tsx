@@ -90,6 +90,8 @@ import { WeightTrendChart } from "@/components/WeightTrendChart";
 import { AppHeader } from "@/components/centenaire/AppHeader";
 import { BottomNav } from "@/components/centenaire/BottomNav";
 import {
+  LAUNCH_LOADING_DURATION_MS,
+  LAUNCH_READY_DELAY_MS,
   LaunchScreen,
   type LaunchStage,
 } from "@/components/centenaire/LaunchScreen";
@@ -1140,10 +1142,10 @@ export function ProjetCentenaireApp() {
   useEffect(() => {
     const sloganTimer = window.setTimeout(() => {
       setLaunchStage("slogan");
-    }, 2000);
+    }, LAUNCH_LOADING_DURATION_MS);
     const readyTimer = window.setTimeout(() => {
       setLaunchStage("ready");
-    }, 3000);
+    }, LAUNCH_READY_DELAY_MS);
 
     return () => {
       window.clearTimeout(sloganTimer);

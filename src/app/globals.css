@@ -466,7 +466,9 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .launch-progress {
-  animation: launch-progress 2s linear both;
+  animation-name: launch-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
 }
 
 @keyframes launch-progress {

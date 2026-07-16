@@ -3,6 +3,11 @@ import { Button } from "@/components/ui";
 
 export type LaunchStage = "loading" | "slogan" | "ready";
 
+export const LAUNCH_LOADING_DURATION_MS = 3000;
+export const LAUNCH_SLOGAN_REVEAL_DURATION_MS = 2000;
+export const LAUNCH_READY_DELAY_MS =
+  LAUNCH_LOADING_DURATION_MS + LAUNCH_SLOGAN_REVEAL_DURATION_MS;
+
 export function LaunchScreen({
   dataReady,
   onStart,
@@ -28,26 +33,43 @@ export function LaunchScreen({
               }`}
               role="status"
             >
-              <span className="launch-progress block h-full rounded-full bg-[var(--pc-color-primary)]" />
+              <span
+                className="launch-progress block h-full rounded-full bg-[var(--pc-color-primary)]"
+                style={{ animationDuration: `${LAUNCH_LOADING_DURATION_MS}ms` }}
+              />
             </div>
             <p
               aria-live="polite"
-              className={`text-lg font-semibold text-[var(--pc-color-text-muted)] transition-opacity duration-[1000ms] ${
+              className={`text-lg font-semibold text-[var(--pc-color-text-muted)] transition-opacity ${
                 sloganVisible ? "opacity-100" : "opacity-0"
               }`}
+              style={{
+                transitionDuration: `${LAUNCH_SLOGAN_REVEAL_DURATION_MS}ms`,
+              }}
             >
               Un jour à la fois.
             </p>
           </div>
         </section>
 
-        {stage === "ready" ? (
-          <footer className="soft-enter pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-4">
-            <Button disabled={!dataReady} fullWidth onClick={onStart}>
-              Commencer
-            </Button>
-          </footer>
-        ) : null}
+        <footer
+          aria-hidden={stage !== "ready"}
+          className="pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-4"
+        >
+          <Button
+            className={`transition-opacity duration-200 ${
+              stage === "ready"
+                ? "opacity-100"
+                : "pointer-events-none invisible opacity-0"
+            }`}
+            disabled={!dataReady || stage !== "ready"}
+            fullWidth
+            onClick={onStart}
+            tabIndex={stage === "ready" ? undefined : -1}
+          >
+            Commencer
+          </Button>
+        </footer>
       </div>
     </main>
   );
