@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
-  Download,
   Dumbbell,
   LineChart,
   PenLine,
@@ -67,7 +66,6 @@ import {
   LaunchScreen,
   type LaunchStage,
 } from "@/components/centenaire/LaunchScreen";
-import { StartupStateLayout } from "@/components/centenaire/StartupStateLayout";
 import { TodayScreen } from "@/components/centenaire/TodayScreen";
 import { InsightsScreen } from "@/features/insights/InsightsScreen";
 import { JournalScreen } from "@/features/journal/JournalScreen";
@@ -103,10 +101,10 @@ import {
   weightEntryFromDraft,
 } from "@/features/tracking/dailyTrackingModel";
 import {
-  Button as UIButton,
-  ErrorState,
-  Surface,
-} from "@/components/ui";
+  ConnectedResetScreen,
+  LoadingScreen,
+  MigrationDecisionScreen,
+} from "@/features/startup/StartupScreens";
 import { loadCloudData } from "@/services/cloudDataService";
 import { resetConnectedLocalData } from "@/services/connectedResetService";
 import {
@@ -332,120 +330,6 @@ function initialPriorityText(friction: FrictionChoice): string {
   }
 
   return "Note les repas et les sensations qui reviennent cette semaine.";
-}
-
-function LoadingScreen() {
-  return (
-    <StartupStateLayout title="Ouverture du carnet.">
-      <div
-        aria-label="Ouverture du carnet"
-        className="h-1.5 w-24 overflow-hidden rounded-[var(--pc-radius-full)] bg-[var(--pc-color-border)]"
-        role="status"
-      >
-        <span className="block h-full w-1/2 animate-pulse rounded-[var(--pc-radius-full)] bg-[var(--pc-color-primary)]" />
-      </div>
-    </StartupStateLayout>
-  );
-}
-
-function ConnectedResetScreen({ failed }: { failed: boolean }) {
-  return (
-    <StartupStateLayout
-      description={
-        failed
-          ? "Le cloud n’a pas pu être rechargé. Les anciennes données locales ne sont plus affichées."
-          : undefined
-      }
-      title={failed ? "Reconnexion nécessaire." : "Réinitialisation locale."}
-    >
-      {failed ? (
-        <UIButton onClick={() => window.location.reload()} variant="secondary">
-          Recharger le carnet
-        </UIButton>
-      ) : (
-        <div
-          aria-label="Réinitialisation locale"
-          className="h-1.5 w-24 overflow-hidden rounded-[var(--pc-radius-full)] bg-[var(--pc-color-border)]"
-          role="status"
-        >
-          <span className="block h-full w-1/2 animate-pulse rounded-[var(--pc-radius-full)] bg-[var(--pc-color-primary)]" />
-        </div>
-      )}
-    </StartupStateLayout>
-  );
-}
-
-function MigrationDecisionScreen({
-  busy,
-  cloudEmail,
-  cloudHasProfile,
-  error,
-  localHasProfile,
-  onAttach,
-  onExport,
-  onKeepCloud,
-  operationStarted,
-}: {
-  busy: boolean;
-  cloudEmail: string | null;
-  cloudHasProfile: boolean;
-  error: string | null;
-  localHasProfile: boolean;
-  onAttach: () => void;
-  onExport: () => void;
-  onKeepCloud: () => void;
-  operationStarted: boolean;
-}) {
-  return (
-    <StartupStateLayout
-      eyebrow="Association des données"
-      title="Des données existent sur cet appareil."
-    >
-      <Surface as="section" className="space-y-4 p-4 min-[390px]:p-5">
-          <p className="text-[length:var(--pc-font-size-secondary)] leading-6 text-[var(--pc-color-text-muted)]">
-            {operationStarted
-              ? "L’association a déjà commencé. Termine-la avec la même opération pour conserver un état cohérent."
-              : `Connecté avec ${cloudEmail ?? "ce compte"}. Choisis leur destination avant d’ouvrir le carnet.`}
-          </p>
-          {cloudHasProfile && localHasProfile ? (
-            <p className="rounded-[var(--pc-radius-card)] bg-[var(--pc-color-primary-soft)] px-4 py-3 text-[length:var(--pc-font-size-secondary)] leading-6 text-[var(--pc-color-primary)]">
-              Le profil et les préférences du compte seront conservés. Les notes,
-              mesures et événements locaux seront ajoutés sans effacer ceux du
-              compte.
-            </p>
-          ) : null}
-          {error ? <ErrorState message={error} /> : null}
-          <div className="grid gap-2">
-            <UIButton disabled={busy} fullWidth onClick={onAttach}>
-              {busy
-                ? "Association en cours…"
-                : operationStarted
-                  ? "Terminer l’association"
-                  : "Associer ces données à mon compte"}
-            </UIButton>
-            {!operationStarted ? (
-              <UIButton
-                disabled={busy}
-                fullWidth
-                onClick={onKeepCloud}
-                variant="secondary"
-              >
-                Garder uniquement les données du compte
-              </UIButton>
-            ) : null}
-            <UIButton
-              disabled={busy}
-              fullWidth
-              onClick={onExport}
-              variant="tertiary"
-            >
-              <Download aria-hidden="true" size={17} />
-              Exporter les données de cet appareil
-            </UIButton>
-          </div>
-      </Surface>
-    </StartupStateLayout>
-  );
 }
 
 export function ProjetCentenaireApp() {

@@ -443,7 +443,7 @@ Objectif : sortir progressivement les écrans et contrôleurs métier de
 `ProjetCentenaireApp.tsx`, sans recréer une seconde application ni réécrire la
 tuyauterie fiable.
 
-Statut au 16 juillet 2026 : quatre tranches réalisées. Les écrans Aujourd’hui,
+Statut au 16 juillet 2026 : cinq tranches réalisées. Les écrans Aujourd’hui,
 Carnet, Constats et Profil possèdent désormais des frontières dédiées. Le tunnel
 Repas possède également son écran, son modèle de brouillon et ses règles de
 progression testables. L’onboarding et l’éditeur du portrait comportemental
@@ -451,8 +451,10 @@ possèdent désormais leur état et leur modèle dans `src/features/onboarding/`
 La roue Poids possède son état dans Aujourd’hui et le panneau Tabac ainsi que les
 règles de création des entrées quotidiennes sont isolés dans
 `src/features/tracking/`. Le shell conserve les mutations, la session et la
-synchronisation ; les écrans émettent des intentions par callbacks et n’accèdent
-pas directement au stockage ou à Supabase. Voir
+synchronisation. Les écrans de chargement, réinitialisation et décision de
+migration sont également isolés sans déplacer les règles cloud. Les écrans
+émettent des intentions par callbacks et n’accèdent pas directement au stockage
+ou à Supabase. Voir
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Ordre recommandé :
@@ -462,8 +464,8 @@ Ordre recommandé :
 - ajouter Recettes et les futurs modules dans des frontières indépendantes ;
 - couvrir chaque extraction avant de supprimer l'ancien code.
 
-Prochaines extractions : écrans de démarrage et de migration locale, puis
-orchestration de session et de persistance.
+Prochaine extraction : orchestration de session et de persistance dans des hooks
+dédiés, avec tests de cloisonnement inchangés.
 
 ### V0.8 — Bilan quotidien
 

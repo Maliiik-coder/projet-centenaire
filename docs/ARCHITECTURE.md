@@ -39,14 +39,16 @@ Les modules de `src/features/` suivent une frontière simple :
   entrées quotidiennes Poids et Tabac ;
 - `src/components/centenaire/TodayScreen.tsx` : possède localement l’ouverture,
   le brouillon et l’historique navigateur de la roue Poids ;
+- `src/features/startup/StartupScreens.tsx` : chargement, réinitialisation locale
+  et décision explicite de migration ;
 - `src/app/sport/` et `src/features/sport/` : module Sport isolé par route.
 
 ## Ordre d’extraction suivant
 
-1. Extraire les écrans de démarrage et de migration locale.
-2. Isoler l’orchestration de session et de persistance dans des hooks dédiés.
-3. Extraire les gestionnaires de repas et de suivi quotidien dans des
+1. Isoler l’orchestration de session et de persistance dans des hooks dédiés.
+2. Extraire les gestionnaires de repas et de suivi quotidien dans des
    contrôleurs dédiés si leur taille augmente de nouveau.
+3. Déplacer les fonctions de formatage transversales vers leurs domaines.
 4. Réduire `ProjetCentenaireApp.tsx` à un shell de session, navigation et
    orchestration.
 
