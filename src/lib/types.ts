@@ -159,7 +159,97 @@ export type SnackTrigger =
   | "craving"
   | "unsure";
 export type SnackContext = "hotel" | "car" | "home" | "work" | "other";
-export type QuestionnaireVersion = "legacy" | "v0.7";
+export type QuestionnaireVersion = "legacy" | "v0.7" | "v2";
+
+export type MealQuantityUnit =
+  | "piece"
+  | "portion"
+  | "plate"
+  | "bowl"
+  | "glass"
+  | "slice"
+  | "spoon"
+  | "handful"
+  | "other"
+  | "unknown";
+
+export type MealQuantityConfidence =
+  | "not_estimated"
+  | "low"
+  | "medium"
+  | "high";
+
+export interface MealQuantityEstimate {
+  amount: number | null;
+  unit: MealQuantityUnit;
+  text: string | null;
+  confidence: MealQuantityConfidence;
+}
+
+export type MealSectionKind = "starter" | "main" | "dessert" | "snack";
+export type MealPassageRelation =
+  | "same"
+  | "partial"
+  | "side_only"
+  | "smaller"
+  | "other";
+export type MealItemRecognitionStatus =
+  | "unprocessed"
+  | "recognized"
+  | "confirmed"
+  | "ambiguous"
+  | "unrecognized"
+  | "from_recipe_snapshot";
+
+export interface MealItemV2 {
+  id: string;
+  rawText: string;
+  recognitionStatus: MealItemRecognitionStatus;
+  canonicalName: string | null;
+  ciqualCode: string | null;
+  confidence: number | null;
+  quantity: MealQuantityEstimate | null;
+}
+
+export interface MealPassageV2 {
+  id: string;
+  index: number;
+  relationToPrevious: MealPassageRelation | null;
+  relationText: string | null;
+  items: MealItemV2[];
+}
+
+export interface MealSectionV2 {
+  id: string;
+  kind: MealSectionKind;
+  rawText: string;
+  quantity: MealQuantityEstimate | null;
+  passages: MealPassageV2[];
+}
+
+export type HungerAtReservice = "yes" | "not_really" | "no" | "unsure";
+export type ReserviceReason =
+  | "pleasure"
+  | "habit"
+  | "stress_emotion"
+  | "food_available"
+  | "avoid_waste"
+  | "others"
+  | "unsure";
+
+export interface MealBehaviorV2 {
+  hungerBefore: HungerBefore;
+  fullnessAfter: FullnessAfter;
+  hungerAtReservice: HungerAtReservice | null;
+  reserviceReasons: ReserviceReason[];
+}
+
+export interface MealStructureV2 {
+  version: 2;
+  source: "meal_tunnel_v2" | "legacy_adapter";
+  sections: MealSectionV2[];
+  behavior: MealBehaviorV2;
+}
 
 export interface MealClarification {
   key: string;
@@ -197,6 +287,7 @@ export interface MealEntry {
   snackContext: SnackContext | null;
   clarifications: MealClarification[];
   questionnaireVersion: QuestionnaireVersion;
+  mealStructure?: MealStructureV2 | null;
   components: MealComponents;
   finding: ImmediateFinding;
   createdAt: string;

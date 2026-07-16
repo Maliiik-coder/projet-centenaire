@@ -110,6 +110,7 @@ export interface Database {
           snack_trigger: string | null;
           snack_context: string | null;
           clarifications: Json | null;
+          meal_structure: Json | null;
           questionnaire_version: string | null;
           main_signal: string | null;
           immediate_constat: string | null;
@@ -139,6 +140,7 @@ export interface Database {
           snack_trigger?: string | null;
           snack_context?: string | null;
           clarifications?: Json | null;
+          meal_structure?: Json | null;
           questionnaire_version?: string | null;
           main_signal?: string | null;
           immediate_constat?: string | null;
@@ -166,6 +168,7 @@ export interface Database {
           snack_trigger?: string | null;
           snack_context?: string | null;
           clarifications?: Json | null;
+          meal_structure?: Json | null;
           questionnaire_version?: string | null;
           main_signal?: string | null;
           immediate_constat?: string | null;

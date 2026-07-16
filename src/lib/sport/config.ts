@@ -7,6 +7,8 @@ export const SPORT_ENGINE_VERSION = "sport-strength-mvp-2026-07-15.1";
 
 export const SPORT_LOCAL_STORAGE_KEY = "haru-sport-isolated-v1";
 
+export const SPORT_SCOPED_LOCAL_STORAGE_PREFIX = "haru-sport-isolated-v2";
+
 export const SPORT_LOCAL_USER_ID = "local-sport-user";
 
 export const STRENGTH_WORKOUT_CONFIG = {

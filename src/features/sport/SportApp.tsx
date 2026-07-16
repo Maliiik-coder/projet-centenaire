@@ -63,6 +63,7 @@ import type {
   WorkoutTimerState,
 } from "@/lib/sport/types";
 import { SPORT_LOCAL_USER_ID } from "@/lib/sport/config";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   BackButton,
   Button,
@@ -73,7 +74,13 @@ import {
   TextInput,
 } from "@/components/ui";
 import { cx } from "@/components/ui/styles";
-import { loadSportLocalData, saveSportLocalData } from "@/services/sport/sportLocalStore";
+import {
+  guestSportStorageScope,
+  loadSportLocalData,
+  saveSportLocalData,
+  userSportStorageScope,
+  type SportStorageScope,
+} from "@/services/sport/sportLocalStore";
 import {
   createDefaultSportOnboardingDraft,
   createEmptySportData,
@@ -200,6 +207,7 @@ function capabilityLevelFor(
 
 export function SportApp() {
   const [loaded, setLoaded] = useState(false);
+  const [storageScope, setStorageScope] = useState<SportStorageScope | null>(null);
   const [data, setData] = useState<SportLocalData>(() => createEmptySportData());
   const [view, setView] = useState<SportView>("home");
   const [draft, setDraft] = useState<SportOnboardingDraft>(() =>
@@ -224,22 +232,48 @@ export function SportApp() {
   const [feedbackComment, setFeedbackComment] = useState("");
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      const stored = loadSportLocalData();
+    let cancelled = false;
+
+    const loadScopedData = async () => {
+      let scope: SportStorageScope = guestSportStorageScope;
+      const supabase = getSupabaseBrowserClient();
+
+      if (supabase) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const userId = sessionData.session?.user.id;
+          if (userId) {
+            scope = userSportStorageScope(userId);
+          }
+        } catch {
+          scope = guestSportStorageScope;
+        }
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      const stored = loadSportLocalData(scope);
       setData(stored);
+      setStorageScope(scope);
       setSelectedDuration(stored.profile?.usualDurationMinutes ?? 15);
       setView(stored.profile?.questionnaireCompleted ? "home" : "access");
       setLoaded(true);
-    }, 0);
+    };
 
-    return () => window.clearTimeout(id);
+    void loadScopedData();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (loaded) {
-      saveSportLocalData(data);
+    if (loaded && storageScope) {
+      saveSportLocalData(storageScope, data);
     }
-  }, [data, loaded]);
+  }, [data, loaded, storageScope]);
 
   useEffect(() => {
     if (view !== "active" || !timer) {
@@ -296,7 +330,15 @@ export function SportApp() {
       limitationDescription: "",
       pullCapability: null,
     };
-    const nextData = createSportDataFromDraft(safeDraft, nowIso());
+    const sportUserId =
+      storageScope?.kind === "user"
+        ? storageScope.userId
+        : SPORT_LOCAL_USER_ID;
+    const nextData = createSportDataFromDraft(
+      safeDraft,
+      nowIso(),
+      sportUserId,
+    );
     persist(nextData);
     setSelectedDuration(nextData.profile?.usualDurationMinutes ?? 15);
     setDashboardDurationSelected(false);

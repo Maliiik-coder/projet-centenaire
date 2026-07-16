@@ -1,13 +1,14 @@
 const CACHE_PREFIX = "projet-centenaire-fieldbook-";
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v8`;
 const PUBLIC_NAVIGATION_PATHS = ["/", "/offline"];
 const PRECACHED_ASSET_PATHS = [
-  "/brand/Haru.png",
-  "/brand/Haru2.png",
-  "/brand/Haru3.png",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/icon-maskable-512.png",
+  "/brand/haru-wordmark-7px.png",
+  "/brand/haru-mark-7px.png",
+  "/brand/haru-full-7px.png",
+  "/icon-192-v3.png",
+  "/icon-512-v3.png",
+  "/icon-maskable-512-v3.png",
+  "/apple-touch-icon-v3.png",
 ];
 const APP_SHELL_PATHS = [
   ...PUBLIC_NAVIGATION_PATHS,

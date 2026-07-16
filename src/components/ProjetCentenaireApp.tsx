@@ -13,7 +13,6 @@ import {
   Dumbbell,
   LineChart,
   PenLine,
-  Plus,
   RefreshCw,
   Scale,
   Settings2,
@@ -28,14 +27,17 @@ import {
   roundOne,
 } from "@/lib/analytics";
 import {
+  addDays,
   calculateAgeOnDate,
   daysBetween,
   formatLongDate,
   formatShortDate,
   shouldUpdateCurrentDate,
+  startOfWeek,
   todayISO,
 } from "@/lib/dates";
 import {
+  dedupeDailyWeights,
   upsertDailyWeightEntry,
   upsertSmokingEntry,
 } from "@/lib/dataStabilization";
@@ -54,11 +56,15 @@ import {
   type MealTunnelStepId,
 } from "@/lib/mealTunnel";
 import {
-  clarificationChoices,
   detectMealComponents,
+  getClarificationChoices,
   mergeDetectedClarifications,
 } from "@/lib/foodDetection";
 import { shouldShowActiveMission } from "@/lib/mission";
+import {
+  INITIAL_OBSERVATION_MEAL_MESSAGE,
+  isInitialObservationDay,
+} from "@/lib/observationPhase";
 import {
   APP_RESUME_PARAM,
   APP_RESUME_TAB_PARAM,
@@ -113,7 +119,7 @@ import {
   OnboardingPreparationScreen,
 } from "@/components/centenaire/OnboardingPreparationScreen";
 import { StartupStateLayout } from "@/components/centenaire/StartupStateLayout";
-import { TodayActionTile } from "@/components/centenaire/TodayActionTile";
+import { TodayScreen } from "@/components/centenaire/TodayScreen";
 import {
   Button as UIButton,
   ChoiceCard,
@@ -166,6 +172,7 @@ import type {
   BehaviorFrequency,
   FrictionChoice,
   FullnessAfter,
+  HungerAtReservice,
   HungerBefore,
   InitialBehaviorAnswers,
   InitialBehaviorAssessment,
@@ -174,17 +181,23 @@ import type {
   MealClarification,
   MealComponents,
   MealEntry,
+  MealPassageRelation,
   MealMutation,
   MealKind,
+  MealQuantityEstimate,
+  MealQuantityUnit,
+  MealStructureV2,
   NonMealMutationDraft,
   Profile,
   PerceivedFriction,
   ProfessionalSupportStatus,
   QuestionnaireVersion,
+  ReserviceReason,
   ServedQuantity,
   ServingPattern,
   SnackContext,
   SnackTrigger,
+  SmokingEntry,
   SmokingDayState,
   SmokingGoal,
   SmokingStatus,
@@ -195,7 +208,30 @@ import type {
 
 type TabId = "today" | "journal" | "insights" | "profile";
 type NavigationTabId = TabId | "sport";
-type JournalFilter = "tout" | "repas" | "tabac" | "mesures";
+type JournalViewMode = "days" | "weeks";
+
+type JournalDayEvent =
+  | {
+      createdAt: string;
+      id: string;
+      kind: "meal";
+      meal: MealEntry;
+      time: string;
+    }
+  | {
+      createdAt: string;
+      id: string;
+      kind: "weight";
+      time: string;
+      weight: WeightEntry;
+    }
+  | {
+      createdAt: string;
+      id: string;
+      kind: "smoking";
+      smoking: SmokingEntry;
+      time: string;
+    };
 
 interface TabDefinition {
   accessibleLabel?: string;
@@ -222,22 +258,38 @@ interface OnboardingDraft {
   smokingGoal?: SmokingGoal;
 }
 
+interface MealQuantityDraft {
+  amount: string;
+  unit: MealQuantityUnit;
+  note: string;
+}
+
 interface MealDraft {
   kind: ActiveMealKind;
+  date: ISODate;
+  time: string;
   freeText: string;
   quantity: ServedQuantity;
   servingPattern: ServingPattern;
+  mainQuantity: MealQuantityDraft;
   hungerBefore: HungerBefore;
+  hungerAtReservice: HungerAtReservice | null;
   afterMeal: MealAfter;
   fullnessAfter: FullnessAfter;
   stopReason: StopReason;
   snackingAfter: SnackingAfter;
   starterTaken: boolean;
   starterText: string;
+  starterQuantity: MealQuantityDraft;
   dessertTaken: boolean;
   dessertText: string;
+  dessertQuantity: MealQuantityDraft;
+  snackQuantity: MealQuantityDraft;
   snackTrigger: SnackTrigger | null;
   snackContext: SnackContext | null;
+  reserviceRelation: MealPassageRelation | null;
+  reserviceText: string;
+  reserviceReasons: ReserviceReason[];
   clarifications: MealClarification[];
   questionnaireVersion: QuestionnaireVersion;
   components: MealComponents;
@@ -319,9 +371,9 @@ const professionalSupportLabels: Record<ProfessionalSupportStatus, string> = {
 };
 
 const servingPatternLabels: Record<ServingPattern, string> = {
-  none: "Non",
-  once: "Oui, une fois",
-  multiple: "Oui, plusieurs fois",
+  none: "Une portion",
+  once: "Une reprise",
+  multiple: "Plusieurs reprises",
   buffet: "Buffet / plusieurs passages",
 };
 
@@ -341,6 +393,55 @@ const fullnessLabels: Record<FullnessAfter, string> = {
   fine: "Bien",
   too_full: "Trop plein",
   uncomfortable: "Inconfortable",
+};
+
+const quantityUnitLabels: Record<MealQuantityUnit, string> = {
+  piece: "pièce",
+  portion: "portion",
+  plate: "assiette",
+  bowl: "bol",
+  glass: "verre",
+  slice: "part",
+  spoon: "cuillère",
+  handful: "poignée",
+  other: "autre",
+  unknown: "je ne sais pas",
+};
+
+const quickQuantityUnits: MealQuantityUnit[] = [
+  "portion",
+  "plate",
+  "bowl",
+  "piece",
+  "glass",
+  "slice",
+  "other",
+  "unknown",
+];
+
+const reserviceRelationLabels: Record<MealPassageRelation, string> = {
+  same: "La même chose",
+  partial: "Seulement certains éléments",
+  side_only: "Surtout l’accompagnement",
+  smaller: "Une plus petite quantité",
+  other: "Autre",
+};
+
+const reserviceHungerLabels: Record<HungerAtReservice, string> = {
+  yes: "Oui",
+  not_really: "Pas vraiment",
+  no: "Non",
+  unsure: "Je ne sais pas",
+};
+
+const reserviceReasonLabels: Record<ReserviceReason, string> = {
+  pleasure: "Plaisir / goût",
+  habit: "Habitude",
+  stress_emotion: "Stress ou émotion",
+  food_available: "Le plat était devant moi",
+  avoid_waste: "Ne pas gaspiller",
+  others: "Les autres se resservaient",
+  unsure: "Je ne sais pas",
 };
 
 const smokingDayLabels: Record<SmokingDayState, string> = {
@@ -375,39 +476,46 @@ const snackContextLabels: Record<SnackContext, string> = {
   other: "Autre",
 };
 
-const componentLabels: Record<keyof MealComponents, string> = {
-  proteins: "Protéines",
-  vegetables: "Légumes",
-  starches: "Féculents",
-  fried: "Friture",
-  dessert: "Dessert",
-  richSauce: "Sauce riche",
-  ultraProcessed: "Très transformé",
-  sugaryDrink: "Boisson sucrée",
-  zeroDrink: "Boisson zéro",
-  alcohol: "Alcool",
-};
+function emptyQuantityDraft(unit: MealQuantityUnit = "portion"): MealQuantityDraft {
+  return {
+    amount: "1",
+    unit,
+    note: "",
+  };
+}
 
-const emptyMealDraft: MealDraft = {
-  kind: "dejeuner",
-  freeText: "",
-  quantity: "reasonable-plate",
-  servingPattern: "none",
-  hungerBefore: "yes",
-  afterMeal: "fine",
-  fullnessAfter: "fine",
-  stopReason: "rassasie",
-  snackingAfter: "non",
-  starterTaken: false,
-  starterText: "",
-  dessertTaken: false,
-  dessertText: "",
-  snackTrigger: null,
-  snackContext: null,
-  clarifications: [],
-  questionnaireVersion: "v0.7",
-  components: { ...EMPTY_COMPONENTS },
-};
+function createEmptyMealDraft(date: ISODate = todayISO()): MealDraft {
+  return {
+    kind: "dejeuner",
+    date,
+    time: currentTime(),
+    freeText: "",
+    quantity: "reasonable-plate",
+    servingPattern: "none",
+    mainQuantity: emptyQuantityDraft("plate"),
+    hungerBefore: "yes",
+    hungerAtReservice: null,
+    afterMeal: "fine",
+    fullnessAfter: "fine",
+    stopReason: "rassasie",
+    snackingAfter: "non",
+    starterTaken: false,
+    starterText: "",
+    starterQuantity: emptyQuantityDraft("portion"),
+    dessertTaken: false,
+    dessertText: "",
+    dessertQuantity: emptyQuantityDraft("portion"),
+    snackQuantity: emptyQuantityDraft("portion"),
+    snackTrigger: null,
+    snackContext: null,
+    reserviceRelation: null,
+    reserviceText: "",
+    reserviceReasons: [],
+    clarifications: [],
+    questionnaireVersion: "v2",
+    components: { ...EMPTY_COMPONENTS },
+  };
+}
 
 const today = todayISO();
 const emptyMigrationSources: LocalMigrationSources = {
@@ -468,6 +576,72 @@ function currentTime(): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date());
+}
+
+function parseQuantityAmount(value: string): number | null {
+  const amount = Number(value.replace(",", "."));
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+function quantityEstimateFromDraft(
+  draft: MealQuantityDraft,
+): MealQuantityEstimate {
+  const amount = parseQuantityAmount(draft.amount);
+  const note = draft.note.trim() || null;
+  const hasUsableUnit = draft.unit !== "unknown";
+
+  return {
+    amount,
+    unit: draft.unit,
+    text: note,
+    confidence:
+      amount && hasUsableUnit
+        ? "medium"
+        : hasUsableUnit || note
+          ? "low"
+          : "not_estimated",
+  };
+}
+
+function quantityDraftFromEstimate(
+  estimate: MealQuantityEstimate | null | undefined,
+  fallbackUnit: MealQuantityUnit,
+): MealQuantityDraft {
+  return {
+    amount: estimate?.amount ? String(estimate.amount) : "1",
+    unit: estimate?.unit ?? fallbackUnit,
+    note: estimate?.text ?? "",
+  };
+}
+
+function quantitySummary(quantity: MealQuantityEstimate | null | undefined): string | null {
+  if (!quantity) {
+    return null;
+  }
+
+  if (quantity.text) {
+    return quantity.text;
+  }
+
+  if (quantity.amount && quantity.unit !== "unknown") {
+    return `${quantity.amount.toLocaleString("fr-FR", {
+      maximumFractionDigits: 1,
+    })} ${quantityUnitLabels[quantity.unit]}`;
+  }
+
+  if (quantity.unit !== "unknown") {
+    return quantityUnitLabels[quantity.unit];
+  }
+
+  return null;
+}
+
+function mealSectionQuantity(
+  meal: MealEntry,
+  kind: "starter" | "main" | "dessert" | "snack",
+): MealQuantityEstimate | null {
+  return meal.mealStructure?.sections.find((section) => section.kind === kind)
+    ?.quantity ?? null;
 }
 
 function countLabel(count: number, singular: string, plural: string): string {
@@ -571,20 +745,211 @@ function prepareDetectedMealDraft(draft: MealDraft): MealDraft {
   };
 }
 
+function sanitizeMealDraftForKind(draft: MealDraft): MealDraft {
+  if (draft.kind === "dejeuner" || draft.kind === "diner") {
+    return draft;
+  }
+
+  return {
+    ...draft,
+    starterTaken: false,
+    starterText: "",
+    starterQuantity: emptyQuantityDraft("portion"),
+    dessertTaken: false,
+    dessertText: "",
+    dessertQuantity: emptyQuantityDraft("portion"),
+    servingPattern: "none",
+    hungerAtReservice: null,
+    reserviceRelation: null,
+    reserviceText: "",
+    reserviceReasons: [],
+  };
+}
+
+function hasReservice(servingPattern: ServingPattern): boolean {
+  return servingPattern === "once" ||
+    servingPattern === "multiple" ||
+    servingPattern === "buffet";
+}
+
+function shouldAskReserviceReason(draft: MealDraft): boolean {
+  return (
+    hasReservice(draft.servingPattern) &&
+    (draft.hungerAtReservice === "not_really" ||
+      draft.hungerAtReservice === "no")
+  );
+}
+
+function shouldSkipMealStep(stepId: MealTunnelStepId, draft: MealDraft): boolean {
+  if (stepId === "clarifications") {
+    return draft.clarifications.length === 0;
+  }
+
+  if (
+    stepId === "reservice-detail" ||
+    stepId === "reservice-hunger"
+  ) {
+    return !hasReservice(draft.servingPattern);
+  }
+
+  if (stepId === "reservice-reason") {
+    return !shouldAskReserviceReason(draft);
+  }
+
+  return false;
+}
+
+function createMealItem(
+  rawText: string,
+  quantity: MealQuantityEstimate | null,
+) {
+  return {
+    id: createId("meal-item"),
+    rawText,
+    recognitionStatus: "unprocessed" as const,
+    canonicalName: null,
+    ciqualCode: null,
+    confidence: null,
+    quantity,
+  };
+}
+
+function createSinglePassageSection({
+  kind,
+  rawText,
+  quantity,
+}: {
+  kind: "starter" | "main" | "dessert" | "snack";
+  rawText: string;
+  quantity: MealQuantityEstimate | null;
+}): MealStructureV2["sections"][number] {
+  return {
+    id: createId(`meal-section-${kind}`),
+    kind,
+    rawText,
+    quantity,
+    passages: [
+      {
+        id: createId("meal-passage"),
+        index: 1,
+        relationToPrevious: null,
+        relationText: null,
+        items: [createMealItem(rawText, quantity)],
+      },
+    ],
+  };
+}
+
+function buildMealStructure(draft: MealDraft): MealStructureV2 {
+  const sections: MealStructureV2["sections"] = [];
+  const mainQuantity = quantityEstimateFromDraft(draft.mainQuantity);
+
+  if (draft.starterTaken && draft.starterText.trim()) {
+    sections.push(
+      createSinglePassageSection({
+        kind: "starter",
+        rawText: draft.starterText.trim(),
+        quantity: quantityEstimateFromDraft(draft.starterQuantity),
+      }),
+    );
+  }
+
+  if (draft.kind === "grignotage") {
+    sections.push(
+      createSinglePassageSection({
+        kind: "snack",
+        rawText: draft.freeText.trim(),
+        quantity: quantityEstimateFromDraft(draft.snackQuantity),
+      }),
+    );
+  } else {
+    const mainSection = createSinglePassageSection({
+      kind: "main",
+      rawText: draft.freeText.trim(),
+      quantity: mainQuantity,
+    });
+
+    if (hasReservice(draft.servingPattern)) {
+      const reserviceText =
+        draft.reserviceText.trim() ||
+        (draft.reserviceRelation === "same"
+          ? draft.freeText.trim()
+          : reserviceRelationLabels[draft.reserviceRelation ?? "other"]);
+
+      mainSection.passages.push({
+        id: createId("meal-passage"),
+        index: 2,
+        relationToPrevious: draft.reserviceRelation ?? "other",
+        relationText: draft.reserviceText.trim() || null,
+        items: [
+          createMealItem(
+            reserviceText,
+            draft.reserviceRelation === "smaller" ? null : mainQuantity,
+          ),
+        ],
+      });
+    }
+
+    sections.push(mainSection);
+  }
+
+  if (draft.dessertTaken && draft.dessertText.trim()) {
+    sections.push(
+      createSinglePassageSection({
+        kind: "dessert",
+        rawText: draft.dessertText.trim(),
+        quantity: quantityEstimateFromDraft(draft.dessertQuantity),
+      }),
+    );
+  }
+
+  return {
+    version: 2,
+    source: "meal_tunnel_v2",
+    sections,
+    behavior: {
+      hungerBefore: draft.hungerBefore,
+      fullnessAfter: draft.fullnessAfter,
+      hungerAtReservice: hasReservice(draft.servingPattern)
+        ? draft.hungerAtReservice ?? "unsure"
+        : null,
+      reserviceReasons: shouldAskReserviceReason(draft)
+        ? draft.reserviceReasons
+        : [],
+    },
+  };
+}
+
 function mealDetailLine(meal: MealEntry): string {
   const details = [];
   const servingPattern = meal.servingPattern ?? servingPatternFromQuantity(meal.quantity);
   const fullness = meal.fullnessAfter ?? fullnessFromAfterMeal(meal.afterMeal);
+  const starterQuantity = quantitySummary(mealSectionQuantity(meal, "starter"));
+  const mainQuantity = quantitySummary(
+    mealSectionQuantity(meal, meal.kind === "grignotage" ? "snack" : "main"),
+  );
+  const dessertQuantity = quantitySummary(mealSectionQuantity(meal, "dessert"));
 
   if (meal.starterTaken && meal.starterText) {
-    details.push(`Entrée · ${meal.starterText}`);
+    details.push(
+      starterQuantity
+        ? `Entrée · ${meal.starterText} · ${starterQuantity}`
+        : `Entrée · ${meal.starterText}`,
+    );
   }
 
   if (meal.dessertTaken && meal.dessertText) {
-    details.push(`Dessert · ${meal.dessertText}`);
+    details.push(
+      dessertQuantity
+        ? `Dessert · ${meal.dessertText} · ${dessertQuantity}`
+        : `Dessert · ${meal.dessertText}`,
+    );
   }
 
   if (meal.kind === "grignotage") {
+    if (mainQuantity) {
+      details.push(mainQuantity);
+    }
     if (meal.snackTrigger) {
       details.push(snackTriggerLabels[meal.snackTrigger].toLowerCase());
     }
@@ -592,8 +957,18 @@ function mealDetailLine(meal: MealEntry): string {
       details.push(snackContextLabels[meal.snackContext].toLowerCase());
     }
   } else {
+    if (mainQuantity) {
+      details.push(mainQuantity);
+    }
     details.push(servingPatternLabels[servingPattern].toLowerCase());
     details.push(hungerLabels[meal.hungerBefore].toLowerCase());
+    if (meal.mealStructure?.behavior.hungerAtReservice) {
+      details.push(
+        `faim au resservice · ${
+          reserviceHungerLabels[meal.mealStructure.behavior.hungerAtReservice]
+        }`.toLowerCase(),
+      );
+    }
   }
 
   details.push(fullnessLabels[fullness].toLowerCase());
@@ -601,10 +976,47 @@ function mealDetailLine(meal: MealEntry): string {
   return details.join(" · ");
 }
 
-function mealTagLabels(components: MealComponents): string[] {
-  return (Object.keys(componentLabels) as Array<keyof MealComponents>)
-    .filter((key) => components[key])
-    .map((key) => componentLabels[key]);
+function mealTagLabels(): string[] {
+  return [];
+}
+
+function buildJournalDayEvents(data: AppData, date: ISODate): JournalDayEvent[] {
+  return [
+    ...data.weights
+      .filter((weight) => weight.date === date)
+      .map((weight) => ({
+        createdAt: weight.createdAt,
+        id: weight.id,
+        kind: "weight" as const,
+        time: weight.time,
+        weight,
+      })),
+    ...data.meals
+      .filter((meal) => meal.date === date)
+      .map((meal) => ({
+        createdAt: meal.createdAt,
+        id: meal.id,
+        kind: "meal" as const,
+        meal,
+        time: meal.time,
+      })),
+    ...data.smokingEntries
+      .filter((smoking) => smoking.date === date)
+      .map((smoking) => ({
+        createdAt: smoking.createdAt,
+        id: smoking.id,
+        kind: "smoking" as const,
+        smoking,
+        time: smoking.time,
+      })),
+  ].sort(
+    (a, b) =>
+      a.time.localeCompare(b.time) || a.createdAt.localeCompare(b.createdAt),
+  );
+}
+
+function sameWeek(a: ISODate, b: ISODate): boolean {
+  return startOfWeek(a) === startOfWeek(b);
 }
 
 function buildSmokingDaySummary(
@@ -624,7 +1036,11 @@ function buildSmokingDaySummary(
     return countLabel(cravingCount, "envie forte", "envies fortes");
   }
 
-  return "Aucun noté";
+  return "Aucun";
+}
+
+function smokingEntryLine(entry: SmokingEntry): string {
+  return `${smokingDayLabels[entry.state]}${entry.note ? ` · ${entry.note}` : ""}`;
 }
 
 function initialPriorityText(friction: FrictionChoice): string {
@@ -640,7 +1056,7 @@ function initialPriorityText(friction: FrictionChoice): string {
     return "Observer la régularité des journées pendant 7 jours.";
   }
 
-  return "Observer sans corriger brutalement pendant 7 jours.";
+  return "Note les repas et les sensations qui reviennent cette semaine.";
 }
 
 function needsSmokingGoal(status: SmokingStatus): boolean {
@@ -1138,14 +1554,20 @@ export function ProjetCentenaireApp() {
   });
   const [mealOpen, setMealOpen] = useState(false);
   const [mealStep, setMealStep] = useState(0);
-  const [mealDraft, setMealDraft] = useState<MealDraft>(emptyMealDraft);
+  const [mealDraft, setMealDraft] = useState<MealDraft>(() =>
+    createEmptyMealDraft(currentDate),
+  );
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
   const [openMealActionId, setOpenMealActionId] = useState<string | null>(null);
   const mealLongPressTimeoutRef = useRef<number | null>(null);
   const [weightOpen, setWeightOpen] = useState(false);
   const [weightDraft, setWeightDraft] = useState("");
   const [smokingOpen, setSmokingOpen] = useState(false);
-  const [journalFilter, setJournalFilter] = useState<JournalFilter>("tout");
+  const [journalView, setJournalView] = useState<JournalViewMode>("days");
+  const [journalDate, setJournalDate] = useState<ISODate>(() => todayISO());
+  const [journalWeekDate, setJournalWeekDate] = useState<ISODate>(() =>
+    todayISO(),
+  );
   const [smokingState, setSmokingState] = useState<SmokingDayState>("aucun");
   const [smokingNote, setSmokingNote] = useState("");
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
@@ -2404,6 +2826,7 @@ export function ProjetCentenaireApp() {
   const todayMeals = data.meals.filter((meal) => meal.date === currentDate);
   const todayWeights = data.weights.filter((weight) => weight.date === currentDate);
   const latestTodayWeight = getLatestWeight(todayWeights);
+  const latestKnownWeight = getLatestWeight(data.weights);
   const todaySmokingEntries = data.smokingEntries.filter(
     (entry) => entry.date === currentDate,
   );
@@ -2419,7 +2842,6 @@ export function ProjetCentenaireApp() {
     priority: analysis.priority,
     initialFriction: profile.initialFriction,
   });
-  const mealCountText = countLabel(todayMeals.length, "observation", "observations");
   const smokingSummary = buildSmokingDaySummary(todaySmokingEntries);
   const supabaseConfigured = isSupabaseConfigured();
 
@@ -2458,14 +2880,20 @@ export function ProjetCentenaireApp() {
   };
 
   const openWeightPanel = () => {
-    setWeightDraft(latestTodayWeight ? String(latestTodayWeight.weightKg) : "");
+    setWeightDraft(
+      latestTodayWeight
+        ? String(latestTodayWeight.weightKg)
+        : latestKnownWeight
+          ? String(latestKnownWeight.weightKg)
+          : String(profile.startWeightKg),
+    );
     setWeightOpen(true);
   };
 
   const openMealPanel = () => {
     setEditingMealId(null);
     setOpenMealActionId(null);
-    setMealDraft(emptyMealDraft);
+    setMealDraft(createEmptyMealDraft(currentDate));
     setMealStep(0);
     setMealOpen(true);
   };
@@ -2474,30 +2902,62 @@ export function ProjetCentenaireApp() {
     setMealOpen(false);
     setEditingMealId(null);
     setMealStep(0);
-    setMealDraft(emptyMealDraft);
+    setMealDraft(createEmptyMealDraft(currentDate));
   };
 
   const openMealEditor = (meal: MealEntry) => {
+    const mainSection = meal.mealStructure?.sections.find(
+      (section) => section.kind === "main" || section.kind === "snack",
+    );
+    const starterSection = meal.mealStructure?.sections.find(
+      (section) => section.kind === "starter",
+    );
+    const dessertSection = meal.mealStructure?.sections.find(
+      (section) => section.kind === "dessert",
+    );
+    const reservicePassage = mainSection?.passages.find(
+      (passage) => passage.index > 1,
+    );
+
     setOpenMealActionId(null);
     setEditingMealId(meal.id);
     setMealDraft({
       kind: activeKindFromMealKind(meal.kind),
+      date: meal.date,
+      time: meal.time,
       freeText: meal.freeText,
       quantity: meal.quantity,
       servingPattern: meal.servingPattern ?? servingPatternFromQuantity(meal.quantity),
+      mainQuantity: quantityDraftFromEstimate(
+        mainSection?.quantity,
+        meal.kind === "grignotage" ? "portion" : "plate",
+      ),
       hungerBefore: hungerForTunnel(meal.hungerBefore),
+      hungerAtReservice: meal.mealStructure?.behavior.hungerAtReservice ?? null,
       afterMeal: meal.afterMeal,
       fullnessAfter: meal.fullnessAfter ?? fullnessFromAfterMeal(meal.afterMeal),
       stopReason: meal.stopReason,
       snackingAfter: "non",
       starterTaken: meal.starterTaken ?? false,
       starterText: meal.starterText ?? "",
+      starterQuantity: quantityDraftFromEstimate(
+        starterSection?.quantity,
+        "portion",
+      ),
       dessertTaken: meal.dessertTaken ?? false,
       dessertText: meal.dessertText ?? "",
+      dessertQuantity: quantityDraftFromEstimate(
+        dessertSection?.quantity,
+        "portion",
+      ),
+      snackQuantity: quantityDraftFromEstimate(mainSection?.quantity, "portion"),
       snackTrigger: meal.snackTrigger ?? null,
       snackContext: meal.snackContext ?? null,
+      reserviceRelation: reservicePassage?.relationToPrevious ?? null,
+      reserviceText: reservicePassage?.relationText ?? "",
+      reserviceReasons: meal.mealStructure?.behavior.reserviceReasons ?? [],
       clarifications: meal.clarifications ?? [],
-      questionnaireVersion: "v0.7",
+      questionnaireVersion: "v2",
       components: { ...meal.components },
     });
     setMealStep(0);
@@ -2507,7 +2967,7 @@ export function ProjetCentenaireApp() {
   const deleteMealFromJournal = (meal: MealEntry) => {
     setOpenMealActionId(null);
 
-    if (!window.confirm("Supprimer cette observation repas ?")) {
+    if (!window.confirm("Supprimer ce repas ?")) {
       return;
     }
 
@@ -2516,7 +2976,7 @@ export function ProjetCentenaireApp() {
         ...data,
         meals: deleteMealEntry(data.meals, meal.id),
       },
-      "Observation supprimée.",
+      "Repas supprimé.",
       [],
       cloudUserId ? [createMealDeleteMutation(cloudUserId, meal.createdAt)] : [],
     );
@@ -2528,7 +2988,7 @@ export function ProjetCentenaireApp() {
 
     if (!Number.isFinite(value) || value < 40 || value > 300) {
       setError("La mesure doit être comprise entre 40 et 300 kg.");
-      return;
+      return false;
     }
 
     const entry: WeightEntry = {
@@ -2549,6 +3009,7 @@ export function ProjetCentenaireApp() {
     );
     setWeightDraft("");
     setWeightOpen(false);
+    return true;
   };
 
   const addMealToJournal = () => {
@@ -2556,9 +3017,20 @@ export function ProjetCentenaireApp() {
       setError("Ajoute une observation courte avant de continuer.");
       return;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(mealDraft.date)) {
+      setError("Choisis une date valide.");
+      return;
+    }
+    if (!/^\d{2}:\d{2}$/.test(mealDraft.time)) {
+      setError("Choisis une heure valide.");
+      return;
+    }
 
-    const preparedDraft = prepareDetectedMealDraft(mealDraft);
+    const preparedDraft = prepareDetectedMealDraft(
+      sanitizeMealDraftForKind(mealDraft),
+    );
     const quantity = quantityFromServingPattern(preparedDraft.servingPattern);
+    const mealStructure = buildMealStructure(preparedDraft);
     const finding = buildImmediateFinding({
       kind: preparedDraft.kind,
       servingPattern: preparedDraft.servingPattern,
@@ -2575,8 +3047,8 @@ export function ProjetCentenaireApp() {
       : null;
     const entry: MealEntry = {
       id: editedMeal?.id ?? createId("meal"),
-      date: editedMeal?.date ?? currentDate,
-      time: editedMeal?.time ?? currentTime(),
+      date: preparedDraft.date,
+      time: preparedDraft.time,
       kind: preparedDraft.kind,
       freeText: preparedDraft.freeText.trim(),
       quantity,
@@ -2599,7 +3071,8 @@ export function ProjetCentenaireApp() {
       snackTrigger: preparedDraft.kind === "grignotage" ? preparedDraft.snackTrigger : null,
       snackContext: preparedDraft.kind === "grignotage" ? preparedDraft.snackContext : null,
       clarifications: preparedDraft.clarifications,
-      questionnaireVersion: "v0.7",
+      questionnaireVersion: "v2",
+      mealStructure,
       components: preparedDraft.components,
       finding,
       createdAt: editedMeal?.createdAt ?? new Date().toISOString(),
@@ -2612,7 +3085,7 @@ export function ProjetCentenaireApp() {
           ? updateMealEntry(data.meals, editedMeal.id, entry)
           : [...data.meals, entry],
       },
-      editedMeal ? "Observation mise à jour." : "Observation ajoutée au carnet.",
+      editedMeal ? "Repas mis à jour." : "Repas ajouté au carnet.",
       [],
       cloudUserId ? [createMealUpsertMutation(cloudUserId, entry)] : [],
     );
@@ -2623,8 +3096,17 @@ export function ProjetCentenaireApp() {
     const currentDraft = draftOverride ?? mealDraft;
     const stepIds = getMealTunnelStepIds(currentDraft.kind);
     const currentStepId = stepIds[mealStep];
-    const nextStepIndex = Math.min(stepIds.length - 1, mealStep + 1);
-    const nextStepId = stepIds[nextStepIndex];
+
+    if (currentStepId === "time") {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(currentDraft.date)) {
+        setError("Choisis une date valide.");
+        return;
+      }
+      if (!/^\d{2}:\d{2}$/.test(currentDraft.time)) {
+        setError("Choisis une heure valide.");
+        return;
+      }
+    }
 
     if (
       (currentStepId === "text" || currentStepId === "snack-text") &&
@@ -2652,15 +3134,61 @@ export function ProjetCentenaireApp() {
       return;
     }
 
-    const nextDraft =
-      nextStepId === "tags" ||
-      (currentDraft.kind === "grignotage" && nextStepId === "finding")
+    if (
+      currentStepId === "reservice-detail" &&
+      hasReservice(currentDraft.servingPattern) &&
+      !currentDraft.reserviceRelation
+    ) {
+      setError("Précise rapidement ce que contenait la reprise.");
+      return;
+    }
+
+    if (
+      currentStepId === "reservice-reason" &&
+      shouldAskReserviceReason(currentDraft) &&
+      currentDraft.reserviceReasons.length === 0
+    ) {
+      setError("Choisis une raison, ou Je ne sais pas.");
+      return;
+    }
+
+    let nextDraft =
+      currentStepId === "text" ||
+      currentStepId === "snack-text" ||
+      currentStepId === "starter" ||
+      currentStepId === "dessert"
         ? prepareDetectedMealDraft(currentDraft)
         : currentDraft;
+    let nextStepIndex = Math.min(stepIds.length - 1, mealStep + 1);
+
+    while (
+      nextStepIndex < stepIds.length - 1 &&
+      shouldSkipMealStep(stepIds[nextStepIndex], nextDraft)
+    ) {
+      nextStepIndex += 1;
+    }
+
+    if (stepIds[nextStepIndex] === "finding") {
+      nextDraft = prepareDetectedMealDraft(nextDraft);
+    }
 
     setError(null);
     setMealDraft(nextDraft);
     setMealStep(nextStepIndex);
+  };
+
+  const goToPreviousMealStep = () => {
+    const stepIds = getMealTunnelStepIds(mealDraft.kind);
+    let previousStepIndex = Math.max(0, mealStep - 1);
+
+    while (
+      previousStepIndex > 0 &&
+      shouldSkipMealStep(stepIds[previousStepIndex], mealDraft)
+    ) {
+      previousStepIndex -= 1;
+    }
+
+    setMealStep(previousStepIndex);
   };
 
   const addSmokingEntry = () => {
@@ -2678,7 +3206,7 @@ export function ProjetCentenaireApp() {
         ...data,
         smokingEntries: upsertSmokingEntry(data.smokingEntries, entry),
       },
-      "Observation tabac ajoutée au carnet.",
+      "Tabac ajouté au carnet.",
       [createSmokingMutationDraft(entry)],
     );
     setSmokingState("aucun");
@@ -2710,144 +3238,88 @@ export function ProjetCentenaireApp() {
   };
 
   const renderToday = () => (
-    <div className="space-y-5">
-      <header>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
-            Jour {String(dayNumber).padStart(3, "0")}
-          </h1>
-          <p className="text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
-            {formatLongDate(currentDate)}
-          </p>
-        </div>
-      </header>
-
-      {showMissionBlock ? (
-        <Surface as="section" className="px-4 py-3" variant="subtle">
-          <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-            Mission en cours
-          </p>
-          <p className="mt-1.5 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text)]">
-            {activePriorityText}
-          </p>
-        </Surface>
-      ) : null}
-
-      <section className="space-y-3">
-        <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold text-[var(--pc-color-text)]">
-          Aujourd’hui
-        </h2>
-        <div className="grid gap-3">
-          <TodayActionTile
-            actionLabel={latestTodayWeight ? "Modifier le poids" : "Noter le poids"}
-            compact
-            icon={Scale}
-            label="Poids du matin"
-            showActionLabel={false}
-            value={
-              latestTodayWeight ? formatKg(latestTodayWeight.weightKg) : "Non renseigné"
-            }
-            onClick={openWeightPanel}
-          />
-          <div className={smokingEnabled ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
-            <TodayActionTile
-              actionLabel="Observation repas"
-              icon={Plus}
-              label="Repas"
-              primary
-              showActionLabel={false}
-              value={mealCountText}
-              onClick={openMealPanel}
-            />
-            {smokingEnabled ? (
-              <TodayActionTile
-                actionLabel="Noter tabac"
-                icon={Cigarette}
-                label="Tabac"
-                showActionLabel={false}
-                value={smokingSummary}
-                onClick={() => setSmokingOpen(true)}
-              />
-            ) : null}
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold text-[var(--pc-color-text)]">
-            Chronologie du jour
-          </h2>
-          <p className="shrink-0 text-[length:var(--pc-font-size-meta)] leading-4 text-[var(--pc-color-text-muted)]">
-            {mealCountText}
-          </p>
-        </div>
-        {openMealActionId ? (
-          <button
-            aria-label="Fermer le menu repas"
-            className="fixed inset-0 z-10 cursor-default bg-transparent"
-            type="button"
-            onClick={() => setOpenMealActionId(null)}
-          />
-        ) : null}
-        <div className="mt-4 space-y-3">
-          {todayMeals.length === 0 ? (
-            <Surface
-              className="flex items-center gap-3 px-4 py-3 text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]"
-              variant="subtle"
-            >
-              <BookOpen
-                aria-hidden="true"
-                className="shrink-0 text-[var(--pc-color-primary)]"
-                size={18}
-              />
-              <p>Aucune note repas pour aujourd’hui.</p>
-            </Surface>
-          ) : (
-            todayMeals.map((meal) => (
-              <TodayChronologyMeal
-                key={meal.id}
-                meal={meal}
-                menuOpen={openMealActionId === meal.id}
-                onDelete={() => deleteMealFromJournal(meal)}
-                onEdit={() => openMealEditor(meal)}
-                onLongPressCancel={clearMealLongPress}
-                onLongPressStart={() => startMealLongPress(meal.id)}
-                onOpenMenu={() => setOpenMealActionId(meal.id)}
-              />
-            ))
-          )}
-        </div>
-      </section>
-    </div>
+    <TodayScreen
+      currentDate={currentDate}
+      dayNumber={dayNumber}
+      formatKg={formatKg}
+      formatMealDetail={mealDetailLine}
+      formatMealTags={mealTagLabels}
+      formatSmokingEntry={smokingEntryLine}
+      latestWeight={latestKnownWeight}
+      mealActionMenuId={openMealActionId}
+      repereText={activePriorityText}
+      showRepere={showMissionBlock}
+      smokingEnabled={smokingEnabled}
+      smokingSummary={smokingSummary}
+      todayMeals={todayMeals}
+      todaySmokingEntries={todaySmokingEntries}
+      todayWeights={todayWeights}
+      weightDraft={weightDraft}
+      weightOpen={weightOpen}
+      onCancelWeight={() => setWeightOpen(false)}
+      onChangeWeightDraft={setWeightDraft}
+      onCloseMealActionMenu={() => setOpenMealActionId(null)}
+      onDeleteMeal={deleteMealFromJournal}
+      onEditMeal={openMealEditor}
+      onLongPressMealCancel={clearMealLongPress}
+      onLongPressMealStart={startMealLongPress}
+      onOpenMeal={openMealPanel}
+      onOpenMealActionMenu={setOpenMealActionId}
+      onOpenSmoking={() => setSmokingOpen(true)}
+      onOpenWeight={openWeightPanel}
+      onSubmitWeight={addWeight}
+    />
   );
 
-  const renderJournal = () => (
-    <div className="space-y-5">
-      <PageTitle kicker="Carnet" title="Chronologie">
-        <p>Les observations sont listées par ordre chronologique.</p>
-      </PageTitle>
-      <div className="grid grid-cols-4 gap-1 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-primary-soft)] p-1 shadow-[var(--pc-shadow-level-1)]">
-        {(["tout", "repas", "tabac", "mesures"] as JournalFilter[]).map(
-          (filter) => (
-            <button
-              className={`min-h-10 rounded-full text-xs font-semibold transition active:scale-[0.98] ${
-                journalFilter === filter
-                  ? "bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)]"
-                  : "text-[var(--pc-color-text)]"
-              }`}
-              key={filter}
-              type="button"
-              onClick={() => setJournalFilter(filter)}
-            >
-              {filter}
-            </button>
-          ),
+  const renderJournal = () => {
+    const selectedWeekAnalysis = calculateWeeklyAnalysis(data, journalWeekDate);
+    const canGoNextDay = journalDate < currentDate;
+    const canGoNextWeek = startOfWeek(journalWeekDate) < startOfWeek(currentDate);
+
+    return (
+      <div className="space-y-5">
+        <PageTitle kicker="Carnet" title="Mémoire">
+          <p>Le poids d’abord, puis les faits qui aident à comprendre.</p>
+        </PageTitle>
+
+        <JournalWeightOverview profile={profile} weights={data.weights} />
+
+        <JournalSegmentedControl value={journalView} onChange={setJournalView} />
+
+        {pendingSync ? (
+          <Surface className="px-4 py-3" variant="subtle">
+            <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
+              Des changements locaux attendent la synchronisation.
+            </p>
+          </Surface>
+        ) : null}
+
+        {journalView === "days" ? (
+          <JournalDaysView
+            currentDate={currentDate}
+            date={journalDate}
+            events={buildJournalDayEvents(data, journalDate)}
+            canGoNext={canGoNextDay}
+            onDeleteMeal={deleteMealFromJournal}
+            onEditMeal={openMealEditor}
+            onGoToday={() => setJournalDate(currentDate)}
+            onNext={() => setJournalDate((date) => addDays(date, 1))}
+            onPrevious={() => setJournalDate((date) => addDays(date, -1))}
+          />
+        ) : (
+          <JournalWeeksView
+            analysis={selectedWeekAnalysis}
+            canGoNext={canGoNextWeek}
+            currentDate={currentDate}
+            smokingEnabled={smokingEnabled}
+            onGoCurrent={() => setJournalWeekDate(currentDate)}
+            onNext={() => setJournalWeekDate((date) => addDays(date, 7))}
+            onPrevious={() => setJournalWeekDate((date) => addDays(date, -7))}
+          />
         )}
       </div>
-      <Chronology data={data} filter={journalFilter} />
-    </div>
-  );
+    );
+  };
 
   const renderInsights = () => (
     <div className="space-y-5">
@@ -3361,15 +3833,6 @@ export function ProjetCentenaireApp() {
         {content}
       </div>
 
-      {weightOpen ? (
-        <WeightPanel
-          draft={weightDraft}
-          onChange={setWeightDraft}
-          onClose={() => setWeightOpen(false)}
-          onSubmit={addWeight}
-        />
-      ) : null}
-
       {smokingOpen ? (
         <SmokingPanel
           note={smokingNote}
@@ -3384,13 +3847,14 @@ export function ProjetCentenaireApp() {
       {mealOpen ? (
         <MealObservation
           draft={mealDraft}
+          initialObservationActive={isInitialObservationDay(dayNumber)}
           step={mealStep}
           submitLabel={editingMealId ? "Mettre à jour" : "Ajouter au carnet"}
           onAdd={addMealToJournal}
           onChange={setMealDraft}
           onClose={closeMealPanel}
           onNext={goToNextMealStep}
-          onPrevious={() => setMealStep((step) => Math.max(0, step - 1))}
+          onPrevious={goToPreviousMealStep}
         />
       ) : null}
 
@@ -4244,43 +4708,6 @@ function ActionPanel({
   );
 }
 
-function WeightPanel({
-  draft,
-  onChange,
-  onClose,
-  onSubmit,
-}: {
-  draft: string;
-  onChange: (value: string) => void;
-  onClose: () => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <ActionPanel title="Mesure du matin" onClose={onClose}>
-      <form className="space-y-7" onSubmit={onSubmit}>
-        <label className="grid gap-3 text-sm text-[#3A3732]">
-          Mesure en kg
-          <div className="flex items-end gap-3">
-            <input
-              className="min-h-14 flex-1 rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-3xl font-semibold tabular-nums text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
-              inputMode="decimal"
-              type="number"
-              value={draft}
-              onChange={(event) => onChange(event.target.value)}
-              placeholder="149"
-            />
-            <span className="pb-3 text-sm text-[var(--pc-color-text-muted)]">kg</span>
-          </div>
-        </label>
-        <Button type="submit">
-          <Scale aria-hidden="true" size={17} />
-          Ajouter au carnet
-        </Button>
-      </form>
-    </ActionPanel>
-  );
-}
-
 function SmokingPanel({
   note,
   state,
@@ -4354,6 +4781,7 @@ function SmokingPanel({
 
 function MealObservation({
   draft,
+  initialObservationActive,
   step,
   submitLabel,
   onAdd,
@@ -4363,6 +4791,7 @@ function MealObservation({
   onPrevious,
 }: {
   draft: MealDraft;
+  initialObservationActive: boolean;
   step: number;
   submitLabel: string;
   onAdd: () => void;
@@ -4384,20 +4813,21 @@ function MealObservation({
     snackContext: draft.snackContext,
     components: draft.components,
   });
-  const componentKeys = Object.keys(componentLabels) as Array<keyof MealComponents>;
-  const detectedTags = componentKeys.filter((key) => draft.components[key]);
-  const [editingTags, setEditingTags] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const choose = (nextDraft: MealDraft) => {
     onChange(nextDraft);
     onNext(nextDraft);
   };
-  const tagsToShow = editingTags ? componentKeys : detectedTags;
   const showNextButton =
+    stepId === "time" ||
     stepId === "text" ||
     stepId === "snack-text" ||
     stepId === "starter" ||
     stepId === "dessert" ||
-    stepId === "tags";
+    stepId === "clarifications" ||
+    stepId === "quantity" ||
+    stepId === "reservice-detail" ||
+    stepId === "reservice-reason";
 
   return (
     <div className="app-fixed-panel z-30">
@@ -4417,8 +4847,63 @@ function MealObservation({
               <TunnelChoiceLine
                 options={activeMealKindLabels}
                 value={draft.kind}
-                onPick={(value) => choose({ ...draft, kind: value })}
+                onPick={(value) =>
+                  choose(sanitizeMealDraftForKind({ ...draft, kind: value }))
+                }
               />
+            </TunnelQuestion>
+          ) : null}
+
+          {stepId === "time" ? (
+            <TunnelQuestion title="À quelle heure as-tu mangé ?">
+              <div className="grid gap-4">
+                <input
+                  className="min-h-16 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-3xl font-semibold tabular-nums text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
+                  type="time"
+                  value={draft.time}
+                  onChange={(event) =>
+                    onChange({ ...draft, time: event.target.value })
+                  }
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className="min-h-9 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 text-sm font-semibold text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
+                    type="button"
+                    onClick={() => onChange({ ...draft, date: todayISO() })}
+                  >
+                    Aujourd’hui
+                  </button>
+                  <button
+                    className="min-h-9 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 text-sm font-semibold text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
+                    type="button"
+                    onClick={() =>
+                      onChange({ ...draft, date: addDays(todayISO(), -1) })
+                    }
+                  >
+                    Hier
+                  </button>
+                  <button
+                    className="min-h-9 rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
+                    type="button"
+                    onClick={() => setShowDatePicker((current) => !current)}
+                  >
+                    Changer la date
+                  </button>
+                </div>
+                <p className="text-sm font-semibold text-[var(--pc-color-text-muted)]">
+                  {formatShortDate(draft.date)}
+                </p>
+                {showDatePicker ? (
+                  <input
+                    className={inputClass}
+                    type="date"
+                    value={draft.date}
+                    onChange={(event) =>
+                      onChange({ ...draft, date: event.target.value })
+                    }
+                  />
+                ) : null}
+              </div>
             </TunnelQuestion>
           ) : null}
 
@@ -4456,14 +4941,23 @@ function MealObservation({
                 }}
               />
               {draft.starterTaken ? (
-                <input
-                  className={inputClass}
-                  value={draft.starterText}
-                  onChange={(event) =>
-                    onChange({ ...draft, starterText: event.target.value })
-                  }
-                  placeholder="C’était quoi ?"
-                />
+                <div className="grid gap-4">
+                  <input
+                    className={inputClass}
+                    value={draft.starterText}
+                    onChange={(event) =>
+                      onChange({ ...draft, starterText: event.target.value })
+                    }
+                    placeholder="C’était quoi ?"
+                  />
+                  <QuantityFields
+                    label="Quantité approximative"
+                    value={draft.starterQuantity}
+                    onChange={(starterQuantity) =>
+                      onChange({ ...draft, starterQuantity })
+                    }
+                  />
+                </div>
               ) : null}
             </TunnelQuestion>
           ) : null}
@@ -4483,15 +4977,50 @@ function MealObservation({
                 }}
               />
               {draft.dessertTaken ? (
-                <input
-                  className={inputClass}
-                  value={draft.dessertText}
-                  onChange={(event) =>
-                    onChange({ ...draft, dessertText: event.target.value })
-                  }
-                  placeholder="C’était quoi ?"
-                />
+                <div className="grid gap-4">
+                  <input
+                    className={inputClass}
+                    value={draft.dessertText}
+                    onChange={(event) =>
+                      onChange({ ...draft, dessertText: event.target.value })
+                    }
+                    placeholder="C’était quoi ?"
+                  />
+                  <QuantityFields
+                    label="Quantité approximative"
+                    value={draft.dessertQuantity}
+                    onChange={(dessertQuantity) =>
+                      onChange({ ...draft, dessertQuantity })
+                    }
+                  />
+                </div>
               ) : null}
+            </TunnelQuestion>
+          ) : null}
+
+          {stepId === "quantity" ? (
+            <TunnelQuestion
+              title={
+                draft.kind === "grignotage"
+                  ? "Tu en as pris quelle quantité ?"
+                  : "Tu dirais quelle quantité ?"
+              }
+            >
+              <QuantityFields
+                label="Quantité approximative"
+                value={
+                  draft.kind === "grignotage"
+                    ? draft.snackQuantity
+                    : draft.mainQuantity
+                }
+                onChange={(quantity) =>
+                  onChange(
+                    draft.kind === "grignotage"
+                      ? { ...draft, snackQuantity: quantity }
+                      : { ...draft, mainQuantity: quantity },
+                  )
+                }
+              />
             </TunnelQuestion>
           ) : null}
 
@@ -4500,8 +5029,96 @@ function MealObservation({
               <TunnelChoiceLine
                 options={servingPatternLabels}
                 value={draft.servingPattern}
-                onPick={(value) => choose({ ...draft, servingPattern: value })}
+                onPick={(value) =>
+                  choose({
+                    ...draft,
+                    servingPattern: value,
+                    hungerAtReservice: value === "none" ? null : draft.hungerAtReservice,
+                    reserviceReasons: value === "none" ? [] : draft.reserviceReasons,
+                    reserviceRelation: value === "none" ? null : draft.reserviceRelation,
+                    reserviceText: value === "none" ? "" : draft.reserviceText,
+                  })
+                }
               />
+            </TunnelQuestion>
+          ) : null}
+
+          {stepId === "reservice-detail" ? (
+            <TunnelQuestion title="La reprise contenait quoi ?">
+              <div className="grid gap-4">
+                <TunnelChoiceLine
+                  options={reserviceRelationLabels}
+                  value={
+                    (draft.reserviceRelation ?? "__none") as MealPassageRelation
+                  }
+                  onPick={(value) =>
+                    onChange({
+                      ...draft,
+                      reserviceRelation: value,
+                      reserviceText:
+                        value === "same" ? "" : draft.reserviceText,
+                    })
+                  }
+                />
+                {draft.reserviceRelation &&
+                draft.reserviceRelation !== "same" ? (
+                  <input
+                    className={inputClass}
+                    value={draft.reserviceText}
+                    onChange={(event) =>
+                      onChange({ ...draft, reserviceText: event.target.value })
+                    }
+                    placeholder="Exemple : juste des frites, un peu de pâtes"
+                  />
+                ) : null}
+              </div>
+            </TunnelQuestion>
+          ) : null}
+
+          {stepId === "reservice-hunger" ? (
+            <TunnelQuestion title="Au moment de te resservir, tu avais encore faim ?">
+              <TunnelChoiceLine
+                options={reserviceHungerLabels}
+                value={draft.hungerAtReservice ?? "unsure"}
+                onPick={(value) =>
+                  choose({ ...draft, hungerAtReservice: value })
+                }
+              />
+            </TunnelQuestion>
+          ) : null}
+
+          {stepId === "reservice-reason" ? (
+            <TunnelQuestion title="Qu’est-ce qui a joué ?">
+              <div className="grid gap-2">
+                {Object.entries(reserviceReasonLabels).map(([key, label]) => {
+                  const reason = key as ReserviceReason;
+                  const selected = draft.reserviceReasons.includes(reason);
+
+                  return (
+                    <button
+                      className={`min-h-12 rounded-[18px] border px-4 text-left text-base transition active:scale-[0.99] ${
+                        selected
+                          ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
+                          : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
+                      }`}
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        onChange({
+                          ...draft,
+                          reserviceReasons: selected
+                            ? draft.reserviceReasons.filter(
+                                (item) => item !== reason,
+                              )
+                            : [...draft.reserviceReasons, reason],
+                        })
+                      }
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </TunnelQuestion>
           ) : null}
 
@@ -4558,52 +5175,15 @@ function MealObservation({
             </TunnelQuestion>
           ) : null}
 
-          {stepId === "tags" ? (
+          {stepId === "clarifications" ? (
             <section className="space-y-4">
-              <p className={annotationClass}>Ce que l’application a repéré</p>
-              <div className="flex flex-wrap gap-2">
-                {tagsToShow.map((key) => {
-                  const selected = draft.components[key];
-
-                  return (
-                    <button
-                      className={`min-h-9 cursor-pointer rounded-full border px-3 text-xs font-semibold transition active:scale-[0.98] ${
-                        selected
-                          ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
-                          : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text-muted)] shadow-[var(--pc-shadow-level-1)]"
-                      }`}
-                      key={key}
-                      type="button"
-                      onClick={() =>
-                        onChange({
-                          ...draft,
-                          components: {
-                            ...draft.components,
-                            [key]: !selected,
-                          },
-                        })
-                      }
-                    >
-                      {componentLabels[key]}
-                    </button>
-                  );
-                })}
-                {!editingTags && detectedTags.length === 0 ? (
-                  <p className="text-sm text-[var(--pc-color-text-muted)]">
-                    Aucune étiquette détectée automatiquement.
-                  </p>
-                ) : null}
-              </div>
-              <button
-                className="inline-flex min-h-9 w-fit items-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)] transition active:scale-[0.98]"
-                type="button"
-                onClick={() => setEditingTags((current) => !current)}
-              >
-                {editingTags ? "Masquer les étiquettes" : "Modifier les étiquettes"}
-              </button>
+              <p className={annotationClass}>Petite précision</p>
+              <h1 className="font-serif text-3xl leading-tight text-[var(--pc-color-text)]">
+                Je te demande juste ça.
+              </h1>
               {draft.clarifications.length > 0 ? (
                 <div className="space-y-4 pt-2">
-                  {draft.clarifications.slice(0, 2).map((clarification) => (
+                  {draft.clarifications.slice(0, 3).map((clarification) => (
                     <ClarificationQuestion
                       clarification={clarification}
                       key={clarification.key}
@@ -4627,13 +5207,24 @@ function MealObservation({
           {stepId === "finding" ? (
             <section className="space-y-6">
               <ConstatPart title="Ce que je vois" text={finding.fact} emphasized />
-              <div className="space-y-5 rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
-                <ConstatPart title="Point à surveiller" text={finding.reading} />
-                <ConstatPart title="Prochaine fois" text={finding.nextAction} />
-              </div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
-                {finding.evidenceLevel}
-              </p>
+              {initialObservationActive ? (
+                <div className="rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
+                  <ConstatPart
+                    title="Pour l’instant"
+                    text={INITIAL_OBSERVATION_MEAL_MESSAGE}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-5 rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
+                    <ConstatPart title="Point à surveiller" text={finding.reading} />
+                    <ConstatPart title="Prochaine fois" text={finding.nextAction} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
+                    {finding.evidenceLevel}
+                  </p>
+                </>
+              )}
             </section>
           ) : null}
         </div>
@@ -4649,7 +5240,7 @@ function MealObservation({
           )}
           {showNextButton ? (
             <Button onClick={onNext}>
-              {stepId === "tags" ? "Voir le retour" : "Continuer"}
+              Continuer
               <ChevronRight aria-hidden="true" size={17} />
             </Button>
           ) : null}
@@ -4679,6 +5270,59 @@ function TunnelQuestion({
       </h1>
       {children}
     </section>
+  );
+}
+
+function QuantityFields({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: MealQuantityDraft;
+  onChange: (value: MealQuantityDraft) => void;
+}) {
+  return (
+    <div className="grid gap-3">
+      <p className={annotationClass}>{label}</p>
+      <div className="grid grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)] gap-2">
+        <input
+          className={inputClass}
+          inputMode="decimal"
+          value={value.amount}
+          onChange={(event) =>
+            onChange({ ...value, amount: event.target.value })
+          }
+          placeholder="1"
+        />
+        <select
+          className={inputClass}
+          value={value.unit}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              unit: event.target.value as MealQuantityUnit,
+            })
+          }
+        >
+          {quickQuantityUnits.map((unit) => (
+            <option key={unit} value={unit}>
+              {quantityUnitLabels[unit]}
+            </option>
+          ))}
+        </select>
+      </div>
+      {value.unit === "other" || value.unit === "unknown" ? (
+        <input
+          className={inputClass}
+          value={value.note}
+          onChange={(event) =>
+            onChange({ ...value, note: event.target.value })
+          }
+          placeholder="Précise si tu veux"
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -4722,13 +5366,15 @@ function ClarificationQuestion({
   clarification: MealClarification;
   onChange: (clarification: MealClarification) => void;
 }) {
+  const choices = getClarificationChoices(clarification.key);
+
   return (
     <div className="rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-3 shadow-[var(--pc-shadow-level-1)]">
       <p className="mb-3 text-sm font-semibold text-[var(--pc-color-text)]">
         {clarification.question}
       </p>
       <div className="flex flex-wrap gap-2">
-        {clarificationChoices.map((choice) => {
+        {choices.map((choice) => {
           const selected = clarification.value === choice;
 
           return (
@@ -4805,197 +5451,597 @@ function EmptyState({ title, text }: { title: string; text: string }) {
   );
 }
 
-function TodayChronologyMeal({
-  meal,
-  menuOpen,
-  onDelete,
-  onEdit,
-  onLongPressCancel,
-  onLongPressStart,
-  onOpenMenu,
+function JournalSegmentedControl({
+  value,
+  onChange,
 }: {
-  meal: MealEntry;
-  menuOpen: boolean;
-  onDelete: () => void;
-  onEdit: () => void;
-  onLongPressCancel: () => void;
-  onLongPressStart: () => void;
-  onOpenMenu: () => void;
+  value: JournalViewMode;
+  onChange: (value: JournalViewMode) => void;
 }) {
+  const options: Array<{ id: JournalViewMode; label: string }> = [
+    { id: "days", label: "Jours" },
+    { id: "weeks", label: "Semaines" },
+  ];
+
   return (
-    <article
-      aria-label="Observation repas. Appui long pour modifier ou supprimer."
-      className={`pc-focus-ring pc-motion-safe relative grid cursor-pointer select-none grid-cols-[2.75rem_minmax(0,1fr)] gap-3 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-3 shadow-[var(--pc-shadow-level-1)] transition-[border-color,box-shadow,transform] duration-[var(--pc-motion-fast)] [-webkit-touch-callout:none] [-webkit-user-select:none] hover:border-[var(--pc-color-primary)] active:translate-y-px ${
-        menuOpen ? "z-20" : ""
-      }`}
-      role="button"
-      tabIndex={0}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        onOpenMenu();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpenMenu();
-        }
-      }}
-      onPointerCancel={onLongPressCancel}
-      onPointerDown={() => {
-        if (!menuOpen) {
-          onLongPressStart();
-        }
-      }}
-      onPointerLeave={onLongPressCancel}
-      onPointerUp={onLongPressCancel}
+    <div
+      aria-label="Vue du carnet"
+      className="grid grid-cols-2 gap-1 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-primary-soft)] p-1 shadow-[var(--pc-shadow-level-1)]"
+      role="tablist"
     >
-      <p className="pt-1 text-[length:var(--pc-font-size-meta)] leading-4 font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
-        {meal.time}
-      </p>
-      {menuOpen ? (
-        <div className="absolute right-2 top-11 z-30 grid min-w-32 gap-1 rounded-[16px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-1 text-sm shadow-[var(--pc-shadow-level-2)]">
-          <button
-            className="rounded-[12px] px-3 py-2 text-left font-semibold text-[var(--pc-color-text)] transition hover:bg-[var(--pc-color-primary-soft)]"
-            type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onEdit}
-          >
-            Modifier
-          </button>
-          <button
-            className="rounded-[12px] px-3 py-2 text-left font-semibold text-[#8A3B32] transition hover:bg-[#FFF7F3]"
-            type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onDelete}
-          >
-            Supprimer
-          </button>
-        </div>
-      ) : null}
-      <div className="flex min-w-0 gap-2">
-        <span className="mt-2 size-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]" />
-        <div className="min-w-0">
-          <p className="text-[length:var(--pc-font-size-secondary)] leading-5 font-semibold text-[var(--pc-color-text)]">
-            {mealKindLabels[meal.kind]}
-          </p>
-          <p className="mt-0.5 truncate text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text)]">
-            {meal.freeText}
-          </p>
-          <p className="mt-1 truncate text-[length:var(--pc-font-size-meta)] leading-4 text-[var(--pc-color-text-muted)]">
-            {mealDetailLine(meal)}
-          </p>
-          {mealTagLabels(meal.components).length > 0 ? (
-            <p className="mt-1 truncate text-[11px] leading-4 font-semibold text-[var(--pc-color-text-subtle)]">
-              {mealTagLabels(meal.components).slice(0, 3).join(" · ")}
-            </p>
-          ) : null}
-          <p className="mt-2 inline-flex w-fit rounded-[var(--pc-radius-full)] bg-[var(--pc-color-primary-soft)] px-2.5 py-1 text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-            Signal · {meal.finding.frictionPoint}
-          </p>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function ChronologyMeal({ meal }: { meal: MealEntry }) {
-  return (
-    <article className="rounded-[20px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]">
-      <div className="flex items-center justify-between gap-3">
-        <p className="font-semibold text-[var(--pc-color-text)]">{mealKindLabels[meal.kind]}</p>
-        <p className="text-xs font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
-          {meal.time}
-        </p>
-      </div>
-      <p className="mt-2 leading-7 text-[var(--pc-color-text)]">{meal.freeText}</p>
-      <p className="mt-2 text-sm text-[var(--pc-color-text-muted)]">
-        {mealDetailLine(meal)}
-      </p>
-      {mealTagLabels(meal.components).length > 0 ? (
-        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#8B8277]">
-          {mealTagLabels(meal.components).slice(0, 4).join(" · ")}
-        </p>
-      ) : null}
-      <p className="mt-3 inline-flex rounded-full bg-[var(--pc-color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--pc-color-primary)]">
-        Signal : {meal.finding.frictionPoint}
-      </p>
-    </article>
-  );
-}
-
-function Chronology({ data, filter }: { data: AppData; filter: JournalFilter }) {
-  const entries = [
-    ...data.meals.map((meal) => ({
-      id: meal.id,
-      type: "repas" as JournalFilter,
-      date: meal.date,
-      createdAt: meal.createdAt,
-      node: <ChronologyMeal meal={meal} />,
-    })),
-    ...data.smokingEntries.map((entry) => ({
-      id: entry.id,
-      type: "tabac" as JournalFilter,
-      date: entry.date,
-      createdAt: entry.createdAt,
-      node: (
-        <article className="rounded-[20px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-semibold text-[var(--pc-color-text)]">Tabac</p>
-            <p className="text-xs font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
-              {entry.time}
-            </p>
-          </div>
-          <p className="mt-2 text-[var(--pc-color-text)]">
-            {smokingDayLabels[entry.state]}
-            {entry.note ? ` · ${entry.note}` : ""}
-          </p>
-        </article>
-      ),
-    })),
-    ...data.weights.map((entry) => ({
-      id: entry.id,
-      type: "mesures" as JournalFilter,
-      date: entry.date,
-      createdAt: entry.createdAt,
-      node: (
-        <article className="rounded-[20px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-semibold text-[var(--pc-color-text)]">Mesure</p>
-            <p className="text-xs font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
-              {entry.time}
-            </p>
-          </div>
-          <p className="mt-2 text-[var(--pc-color-text)]">{formatKg(entry.weightKg)}</p>
-        </article>
-      ),
-    })),
-  ]
-    .filter((entry) => filter === "tout" || entry.type === filter)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-
-  if (entries.length === 0) {
-    return (
-      <div className="mt-6">
-        <EmptyState
-          title="Aucune observation."
-          text="Le carnet ne conclut pas sans preuves. Continue d'observer."
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-6 space-y-5">
-      {entries.map((entry) => (
-        <div key={`${entry.type}-${entry.id}`}>
-          <p className="mb-2 text-xs uppercase tracking-[0.14em] text-[#7A7166]">
-            {formatShortDate(entry.date)}
-          </p>
-          {entry.node}
-        </div>
+      {options.map((option) => (
+        <button
+          aria-selected={value === option.id}
+          className={`min-h-11 rounded-full text-sm font-semibold transition active:scale-[0.98] ${
+            value === option.id
+              ? "bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)]"
+              : "text-[var(--pc-color-text)]"
+          }`}
+          key={option.id}
+          role="tab"
+          type="button"
+          onClick={() => onChange(option.id)}
+        >
+          {option.label}
+        </button>
       ))}
     </div>
   );
+}
+
+function JournalWeightOverview({
+  profile,
+  weights,
+}: {
+  profile: Profile;
+  weights: WeightEntry[];
+}) {
+  const measuredWeights = dedupeDailyWeights(weights).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+  const latestWeight = getLatestWeight(measuredWeights);
+  const chartPoints = [
+    {
+      date: profile.startDate,
+      id: "start",
+      value: profile.startWeightKg,
+    },
+    ...measuredWeights.map((weight) => ({
+      date: weight.date,
+      id: weight.id,
+      value: weight.weightKg,
+    })),
+  ];
+
+  return (
+    <Surface as="section" className="overflow-hidden px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
+            Évolution du poids
+          </p>
+          <h2 className="mt-1 text-2xl leading-8 font-bold text-[var(--pc-color-text)]">
+            Depuis le départ
+          </h2>
+        </div>
+        <Scale
+          aria-hidden="true"
+          className="mt-1 text-[var(--pc-color-primary)]"
+          size={24}
+          strokeWidth={2.25}
+        />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
+            Départ
+          </p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--pc-color-text)]">
+            {formatKg(profile.startWeightKg)}
+          </p>
+        </div>
+        <div className="min-w-0 text-right">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
+            Dernière mesure
+          </p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--pc-color-text)]">
+            {latestWeight ? formatKg(latestWeight.weightKg) : "Aucune"}
+          </p>
+        </div>
+      </div>
+
+      <SimpleWeightChart points={chartPoints} />
+    </Surface>
+  );
+}
+
+function SimpleWeightChart({
+  points,
+}: {
+  points: Array<{ date: ISODate; id: string; value: number }>;
+}) {
+  const width = 320;
+  const height = 132;
+  const paddingX = 18;
+  const paddingY = 18;
+  const values = points.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = Math.max(max - min, 0.8);
+  const lower = min - span * 0.25;
+  const upper = max + span * 0.25;
+  const firstDate = points[0]?.date ?? todayISO();
+  const lastDate = points[points.length - 1]?.date ?? firstDate;
+  const totalDays = Math.max(0, daysBetween(firstDate, lastDate));
+  const xRange = width - paddingX * 2;
+  const yRange = height - paddingY * 2;
+  const toX = (point: { date: ISODate }, index: number) => {
+    if (points.length === 1) {
+      return width / 2;
+    }
+
+    if (totalDays === 0) {
+      return paddingX + (xRange * index) / (points.length - 1);
+    }
+
+    return paddingX + (xRange * daysBetween(firstDate, point.date)) / totalDays;
+  };
+  const toY = (value: number) =>
+    paddingY + yRange - ((value - lower) / (upper - lower)) * yRange;
+  const svgPoints = points
+    .map((point, index) => `${toX(point, index)},${toY(point.value)}`)
+    .join(" ");
+  const visibleDots = points.filter(
+    (_, index) =>
+      points.length <= 15 || index === 0 || index === points.length - 1,
+  );
+
+  return (
+    <div
+      aria-label="Courbe simple du poids depuis le départ"
+      className="mt-4 h-36 w-full"
+      role="img"
+    >
+      <svg
+        aria-hidden="true"
+        className="h-full w-full overflow-visible"
+        preserveAspectRatio="none"
+        viewBox={`0 0 ${width} ${height}`}
+      >
+        <line
+          stroke="var(--pc-color-border)"
+          strokeDasharray="6 8"
+          strokeWidth="2"
+          x1={paddingX}
+          x2={width - paddingX}
+          y1={height / 2}
+          y2={height / 2}
+        />
+        {points.length > 1 ? (
+          <polyline
+            fill="none"
+            points={svgPoints}
+            stroke="var(--pc-color-primary)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="4"
+          />
+        ) : null}
+        {visibleDots.map((point) => {
+          const pointIndex = points.indexOf(point);
+          const isEdge = pointIndex === 0 || pointIndex === points.length - 1;
+
+          return (
+            <circle
+              cx={toX(point, pointIndex)}
+              cy={toY(point.value)}
+              fill={
+                isEdge
+                  ? "var(--pc-color-primary)"
+                  : "var(--pc-color-primary-muted)"
+              }
+              key={point.id}
+              r={isEdge ? 4.5 : 3}
+            />
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function JournalDaysView({
+  currentDate,
+  date,
+  events,
+  canGoNext,
+  onDeleteMeal,
+  onEditMeal,
+  onGoToday,
+  onNext,
+  onPrevious,
+}: {
+  currentDate: ISODate;
+  date: ISODate;
+  events: JournalDayEvent[];
+  canGoNext: boolean;
+  onDeleteMeal: (meal: MealEntry) => void;
+  onEditMeal: (meal: MealEntry) => void;
+  onGoToday: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
+}) {
+  return (
+    <section className="space-y-4" aria-labelledby="journal-days-title">
+      <div className="flex items-center justify-between gap-3">
+        <UIIconButton label="Jour précédent" onClick={onPrevious}>
+          <ChevronLeft aria-hidden="true" size={22} />
+        </UIIconButton>
+        <div className="min-w-0 text-center">
+          <h2
+            className="text-lg leading-6 font-bold text-[var(--pc-color-text)]"
+            id="journal-days-title"
+          >
+            {formatLongDate(date)}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--pc-color-text-muted)]">
+            {events.length === 0
+              ? "Aucun événement"
+              : countLabel(events.length, "événement", "événements")}
+          </p>
+        </div>
+        <UIIconButton
+          disabled={!canGoNext}
+          label="Jour suivant"
+          onClick={onNext}
+        >
+          <ChevronRight aria-hidden="true" size={22} />
+        </UIIconButton>
+      </div>
+
+      {date !== currentDate ? (
+        <div className="flex justify-center">
+          <Button onClick={onGoToday} variant="line">
+            Aujourd’hui
+          </Button>
+        </div>
+      ) : null}
+
+      {events.length === 0 ? (
+        <EmptyState
+          title="Rien noté ce jour-là."
+          text="Une journée vide reste neutre : Haru n’en tire aucun score."
+        />
+      ) : (
+        <div className="space-y-3">
+          {events.map((event) => {
+            if (event.kind === "meal") {
+              return (
+                <JournalMealEvent
+                  key={`meal-${event.id}`}
+                  meal={event.meal}
+                  onDelete={() => onDeleteMeal(event.meal)}
+                  onEdit={() => onEditMeal(event.meal)}
+                />
+              );
+            }
+
+            if (event.kind === "weight") {
+              return (
+                <JournalFactEvent
+                  icon={Scale}
+                  key={`weight-${event.id}`}
+                  time={event.time}
+                  title="Poids"
+                  value={formatKg(event.weight.weightKg)}
+                />
+              );
+            }
+
+            return (
+              <JournalFactEvent
+                icon={Cigarette}
+                key={`smoking-${event.id}`}
+                time={event.time}
+                title="Tabac"
+                value={smokingEntryLine(event.smoking)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function JournalMealEvent({
+  meal,
+  onDelete,
+  onEdit,
+}: {
+  meal: MealEntry;
+  onDelete: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <Surface as="article" className="p-3">
+      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-3">
+        <p className="pt-1 text-sm font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
+          {meal.time}
+        </p>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-start gap-2">
+            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
+              <BookOpen aria-hidden="true" size={17} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--pc-color-text)]">
+                {mealKindLabels[meal.kind]}
+              </p>
+              <p className="mt-0.5 text-sm leading-5 text-[var(--pc-color-text)]">
+                {meal.freeText}
+              </p>
+              <p className="mt-1 text-xs leading-4 text-[var(--pc-color-text-muted)]">
+                {mealDetailLine(meal)}
+              </p>
+            </div>
+          </div>
+          {meal.finding?.fact ? (
+            <p className="mt-3 rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] px-3 py-2 text-sm leading-5 text-[var(--pc-color-primary)]">
+              {meal.finding.fact}
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              className="min-h-10 rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-text)] transition active:scale-[0.98]"
+              type="button"
+              onClick={onEdit}
+            >
+              Modifier
+            </button>
+            <button
+              className="min-h-10 rounded-full border border-[var(--pc-color-danger)] bg-[var(--pc-color-danger-soft)] px-3 text-sm font-semibold text-[var(--pc-color-danger)] transition active:scale-[0.98]"
+              type="button"
+              onClick={onDelete}
+            >
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+function JournalFactEvent({
+  icon: Icon,
+  time,
+  title,
+  value,
+}: {
+  icon: LucideIcon;
+  time: string;
+  title: string;
+  value: string;
+}) {
+  return (
+    <Surface as="article" className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-3 p-3">
+      <p className="pt-1 text-sm font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
+        {time}
+      </p>
+      <div className="flex min-w-0 gap-2">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
+          <Icon aria-hidden="true" size={17} strokeWidth={2.25} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[var(--pc-color-text)]">
+            {title}
+          </p>
+          <p className="mt-0.5 text-sm leading-5 text-[var(--pc-color-text)]">
+            {value}
+          </p>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+function JournalWeeksView({
+  analysis,
+  canGoNext,
+  currentDate,
+  smokingEnabled,
+  onGoCurrent,
+  onNext,
+  onPrevious,
+}: {
+  analysis: ReturnType<typeof calculateWeeklyAnalysis>;
+  canGoNext: boolean;
+  currentDate: ISODate;
+  smokingEnabled: boolean;
+  onGoCurrent: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
+}) {
+  const isCurrentWeek = sameWeek(analysis.weekStart, currentDate);
+  const hasEnoughMealData = analysis.mealCount >= 5;
+  const rhythms = buildWeeklyRhythms(analysis, smokingEnabled);
+
+  return (
+    <section className="space-y-4" aria-labelledby="journal-weeks-title">
+      <div className="flex items-center justify-between gap-3">
+        <UIIconButton label="Semaine précédente" onClick={onPrevious}>
+          <ChevronLeft aria-hidden="true" size={22} />
+        </UIIconButton>
+        <div className="min-w-0 text-center">
+          <h2
+            className="text-lg leading-6 font-bold text-[var(--pc-color-text)]"
+            id="journal-weeks-title"
+          >
+            {formatShortDate(analysis.weekStart)} - {formatShortDate(analysis.weekEnd)}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--pc-color-text-muted)]">
+            {isCurrentWeek ? "Lecture provisoire" : "Semaine terminée"}
+          </p>
+        </div>
+        <UIIconButton
+          disabled={!canGoNext}
+          label="Semaine suivante"
+          onClick={onNext}
+        >
+          <ChevronRight aria-hidden="true" size={22} />
+        </UIIconButton>
+      </div>
+
+      {!isCurrentWeek ? (
+        <div className="flex justify-center">
+          <Button onClick={onGoCurrent} variant="line">
+            Semaine en cours
+          </Button>
+        </div>
+      ) : null}
+
+      <Surface as="section" className="px-4 py-4">
+        <p className={annotationClass}>Ce qui est noté</p>
+        <dl className="mt-3 grid grid-cols-2 gap-2">
+          <JournalMetric label="Repas" value={analysis.mealCount} />
+          <JournalMetric label="Resservice" value={analysis.multiPlateMeals} />
+          <JournalMetric label="Sans vraie faim" value={analysis.mealsStartedWithoutHunger} />
+          <JournalMetric label="Trop plein" value={analysis.mealsEndedTooFull} />
+          {smokingEnabled ? (
+            <JournalMetric label="Tabac" value={analysis.smokingEntries} />
+          ) : null}
+          <JournalMetric
+            label="Poids"
+            value={
+              analysis.weightAverageKg === null
+                ? "Non renseigné"
+                : formatKg(analysis.weightAverageKg)
+            }
+          />
+        </dl>
+      </Surface>
+
+      <Surface as="section" className="px-4 py-4">
+        <p className={annotationClass}>Rythmes observés</p>
+        {rhythms.length === 0 ? (
+          <p className="mt-3 text-sm leading-6 text-[var(--pc-color-text)]">
+            Aucun rythme dominant net avec les données disponibles.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--pc-color-text)]">
+            {rhythms.map((rhythm) => (
+              <li className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface-subtle)] px-3 py-2" key={rhythm}>
+                {rhythm}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Surface>
+
+      <Surface as="section" className="px-4 py-4">
+        <p className={annotationClass}>Hypothèse de Haru</p>
+        <p className="mt-3 text-sm leading-6 text-[var(--pc-color-text)]">
+          {weeklyHypothesisText(analysis, hasEnoughMealData)}
+        </p>
+      </Surface>
+
+      <Surface as="section" className="px-4 py-4" variant="subtle">
+        <p className={annotationClass}>
+          {isCurrentWeek ? "À observer" : "Expérience possible"}
+        </p>
+        <p className="mt-3 text-sm leading-6 text-[var(--pc-color-text)]">
+          {hasEnoughMealData
+            ? analysis.priority.action
+            : "Continuer à noter quelques repas avant de choisir une action."}
+        </p>
+      </Surface>
+    </section>
+  );
+}
+
+function JournalMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface-subtle)] p-3">
+      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--pc-color-text-muted)]">
+        {label}
+      </dt>
+      <dd className="mt-1 text-lg font-bold tabular-nums text-[var(--pc-color-text)]">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function buildWeeklyRhythms(
+  analysis: ReturnType<typeof calculateWeeklyAnalysis>,
+  smokingEnabled: boolean,
+): string[] {
+  const rhythms = [];
+
+  if (analysis.multiPlateMeals > 0) {
+    rhythms.push(
+      `${analysis.multiPlateMeals} repas avec resservice ou plusieurs passages.`,
+    );
+  }
+
+  if (analysis.mealsStartedWithoutHunger > 0) {
+    rhythms.push(
+      `${analysis.mealsStartedWithoutHunger} repas avec peu de faim réelle au départ.`,
+    );
+  }
+
+  if (analysis.mealsEndedTooFull > 0) {
+    rhythms.push(`${analysis.mealsEndedTooFull} repas finissent trop plein.`);
+  }
+
+  if (analysis.snackingWithoutHunger > 0) {
+    rhythms.push(
+      countLabel(
+        analysis.snackingWithoutHunger,
+        "grignotage de contexte noté.",
+        "grignotages de contexte notés.",
+      ),
+    );
+  }
+
+  if (smokingEnabled && analysis.smokingEntries > 0) {
+    rhythms.push(
+      countLabel(
+        analysis.smokingEntries,
+        "événement tabac noté.",
+        "événements tabac notés.",
+      ),
+    );
+  }
+
+  return rhythms;
+}
+
+function weeklyHypothesisText(
+  analysis: ReturnType<typeof calculateWeeklyAnalysis>,
+  hasEnoughMealData: boolean,
+): string {
+  if (!hasEnoughMealData) {
+    return "Haru attend encore quelques faits avant de proposer une hypothèse.";
+  }
+
+  if (analysis.priority.id === "maintenance") {
+    return "Haru ne voit pas encore de signal principal à isoler cette semaine.";
+  }
+
+  const hypothesisLabel = analysis.priority.label
+    .replace(/^Priorité\s+/i, "")
+    .toLowerCase();
+
+  return `Haru regarderait d’abord ${hypothesisLabel}, parce que ${analysis.priority.rationale.toLowerCase()}`;
 }
 
 function Fact({ label, value }: { label: string; value: string | number }) {

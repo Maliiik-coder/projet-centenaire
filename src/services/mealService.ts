@@ -8,6 +8,7 @@ import type {
   MealAfter,
   MealComponents,
   MealEntry,
+  MealStructureV2,
   ServedQuantity,
   ServingPattern,
   SnackContext,
@@ -20,6 +21,7 @@ import type { AppSupabaseClient } from "@/services/serviceTypes";
 import { throwIfSupabaseError } from "@/services/serviceTypes";
 
 type MealRow = Database["public"]["Tables"]["meal_observations"]["Row"];
+type MealInsert = Database["public"]["Tables"]["meal_observations"]["Insert"];
 type MealTagRow = Database["public"]["Tables"]["meal_observation_tags"]["Row"];
 
 const componentKeys = Object.keys(EMPTY_COMPONENTS) as Array<keyof MealComponents>;
@@ -185,6 +187,20 @@ function normalizeClarifications(value: Json | null): MealClarification[] {
     }));
 }
 
+function normalizeMealStructure(value: Json | null): MealStructureV2 | null {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    "version" in value &&
+    value.version === 2
+  ) {
+    return value as unknown as MealStructureV2;
+  }
+
+  return null;
+}
+
 function componentsFromTags(tags: string[]): MealComponents {
   return componentKeys.reduce<MealComponents>(
     (components, key) => ({
@@ -225,7 +241,13 @@ function fromMealRow(row: MealRow, tags: string[]): MealEntry {
     snackTrigger: normalizeSnackTrigger(row.snack_trigger),
     snackContext: normalizeSnackContext(row.snack_context),
     clarifications: normalizeClarifications(row.clarifications),
-    questionnaireVersion: row.questionnaire_version === "v0.7" ? "v0.7" : "legacy",
+    questionnaireVersion:
+      row.questionnaire_version === "v2"
+        ? "v2"
+        : row.questionnaire_version === "v0.7"
+          ? "v0.7"
+          : "legacy",
+    mealStructure: normalizeMealStructure(row.meal_structure),
     components: componentsFromTags(tags),
     finding: {
       fact: row.immediate_constat ?? "Observation ajoutée.",
@@ -235,6 +257,42 @@ function fromMealRow(row: MealRow, tags: string[]): MealEntry {
       evidenceLevel: "observation unique",
     },
     createdAt: canonicalizeTimestamp(row.created_at),
+  };
+}
+
+export function buildMealObservationUpsert(
+  userId: string,
+  meal: MealEntry,
+  updatedAt = new Date().toISOString(),
+): MealInsert {
+  return {
+    user_id: userId,
+    observed_at: observedAt(meal.date, meal.time),
+    observed_date: meal.date,
+    observed_time: meal.time,
+    meal_type: meal.kind,
+    raw_text: meal.freeText,
+    quantity_served: meal.quantity,
+    serving_pattern: meal.servingPattern,
+    hunger_before: meal.hungerBefore,
+    fullness_after: meal.fullnessAfter,
+    stop_reason: meal.stopReason,
+    post_meal_snacking: meal.snackingAfter,
+    starter_taken: meal.starterTaken,
+    starter_text: meal.starterText,
+    dessert_taken: meal.dessertTaken,
+    dessert_text: meal.dessertText,
+    snack_trigger: meal.snackTrigger,
+    snack_context: meal.snackContext,
+    clarifications: meal.clarifications as unknown as Json,
+    meal_structure: (meal.mealStructure ?? null) as unknown as Json,
+    questionnaire_version: meal.questionnaireVersion,
+    main_signal: meal.finding.frictionPoint,
+    immediate_constat: meal.finding.fact,
+    immediate_reading: meal.finding.reading,
+    immediate_next_action: meal.finding.nextAction,
+    created_at: canonicalizeTimestamp(meal.createdAt),
+    updated_at: updatedAt,
   };
 }
 
@@ -283,38 +341,10 @@ export async function upsertMealObservation(
   meal: MealEntry,
   signal?: AbortSignal,
 ): Promise<void> {
-  const canonicalCreatedAt = canonicalizeTimestamp(meal.createdAt);
   const mealQuery = supabase
     .from("meal_observations")
     .upsert(
-      {
-        user_id: userId,
-        observed_at: observedAt(meal.date, meal.time),
-        observed_date: meal.date,
-        observed_time: meal.time,
-        meal_type: meal.kind,
-        raw_text: meal.freeText,
-        quantity_served: meal.quantity,
-        serving_pattern: meal.servingPattern,
-        hunger_before: meal.hungerBefore,
-        fullness_after: meal.fullnessAfter,
-        stop_reason: meal.stopReason,
-        post_meal_snacking: meal.snackingAfter,
-        starter_taken: meal.starterTaken,
-        starter_text: meal.starterText,
-        dessert_taken: meal.dessertTaken,
-        dessert_text: meal.dessertText,
-        snack_trigger: meal.snackTrigger,
-        snack_context: meal.snackContext,
-        clarifications: meal.clarifications as unknown as Json,
-        questionnaire_version: meal.questionnaireVersion,
-        main_signal: meal.finding.frictionPoint,
-        immediate_constat: meal.finding.fact,
-        immediate_reading: meal.finding.reading,
-        immediate_next_action: meal.finding.nextAction,
-        created_at: canonicalCreatedAt,
-        updated_at: new Date().toISOString(),
-      },
+      buildMealObservationUpsert(userId, meal),
       { onConflict: "user_id,created_at" },
     )
     .select("id");

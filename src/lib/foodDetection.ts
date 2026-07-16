@@ -174,6 +174,16 @@ const ambiguousFoods = [
     patterns: ["pizza"],
   },
   {
+    key: "sauce",
+    question: "La sauce était plutôt à quoi ?",
+    patterns: ["sauce"],
+  },
+  {
+    key: "boisson",
+    question: "La boisson était plutôt quoi ?",
+    patterns: ["soda", "coca", "pepsi", "ice tea", "orangina", "sprite"],
+  },
+  {
     key: "salade-composee",
     question: "La salade composée était plutôt à quoi ?",
     patterns: ["salade composee", "salade composée", "bowl"],
@@ -194,6 +204,30 @@ export const clarificationChoices = [
   "Je ne sais pas",
   "Autre",
 ];
+
+const clarificationChoicesByKey: Record<string, string[]> = {
+  sauce: [
+    "Tomate",
+    "Crème / fromage",
+    "Mayonnaise",
+    "Sauce légère",
+    "Je ne sais pas",
+    "Autre",
+  ],
+  boisson: [
+    "Eau",
+    "Soda sucré",
+    "Zéro / light",
+    "Jus",
+    "Alcool",
+    "Je ne sais pas",
+    "Autre",
+  ],
+};
+
+export function getClarificationChoices(key: string): string[] {
+  return clarificationChoicesByKey[key] ?? clarificationChoices;
+}
 
 export function normalizeFoodText(text: string): string {
   return text
@@ -238,7 +272,7 @@ export function detectMealClarifications(text: string): MealClarification[] {
     .filter((food) =>
       food.patterns.some((pattern) => containsWord(normalized, pattern)),
     )
-    .slice(0, 2)
+    .slice(0, 3)
     .map((food) => ({
       key: food.key,
       question: food.question,

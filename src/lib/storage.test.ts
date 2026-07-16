@@ -110,6 +110,88 @@ describe("storage normalization", () => {
     expect(data.meals[0]?.createdAt).toBe("2026-07-14T12:00:00.000Z");
   });
 
+  it("conserve et normalise la structure détaillée d'un repas V2", () => {
+    const data = normalizeData({
+      profile: null,
+      weights: [],
+      activities: [],
+      smokingEntries: [],
+      meals: [
+        {
+          id: "meal-v2",
+          date: "2026-07-16",
+          time: "12:45",
+          kind: "dejeuner",
+          freeText: "steak, pâtes et champignons",
+          quantity: "two-plates",
+          servingPattern: "once",
+          hungerBefore: "yes",
+          afterMeal: "too_full",
+          fullnessAfter: "too_full",
+          mealStructure: {
+            version: 2,
+            source: "meal_tunnel_v2",
+            sections: [
+              {
+                id: "main",
+                kind: "main",
+                rawText: "steak, pâtes et champignons",
+                quantity: {
+                  amount: 1,
+                  unit: "plate",
+                  text: null,
+                  confidence: "medium",
+                },
+                passages: [
+                  {
+                    id: "passage-1",
+                    index: 1,
+                    relationToPrevious: null,
+                    relationText: null,
+                    items: [
+                      {
+                        id: "item-1",
+                        rawText: "steak, pâtes et champignons",
+                        recognitionStatus: "unprocessed",
+                        canonicalName: null,
+                        ciqualCode: null,
+                        confidence: null,
+                        quantity: null,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+            behavior: {
+              hungerBefore: "yes",
+              fullnessAfter: "too_full",
+              hungerAtReservice: "not_really",
+              reserviceReasons: ["pleasure", "habit", "invalide"],
+            },
+          },
+          createdAt: "2026-07-16T10:45:00.000Z",
+        },
+      ],
+    });
+
+    expect(data.meals[0]?.questionnaireVersion).toBe("legacy");
+    expect(data.meals[0]?.mealStructure).toMatchObject({
+      version: 2,
+      source: "meal_tunnel_v2",
+      sections: [
+        {
+          kind: "main",
+          quantity: { amount: 1, unit: "plate", confidence: "medium" },
+        },
+      ],
+      behavior: {
+        hungerAtReservice: "not_really",
+        reserviceReasons: ["pleasure", "habit"],
+      },
+    });
+  });
+
   it("déplie le format versionné réellement importable", () => {
     const imported = normalizeImportedData({
       version: 1,

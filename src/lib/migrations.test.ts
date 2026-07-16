@@ -11,6 +11,7 @@ const EXPECTED_MIGRATIONS = [
   "20260715133410_v071_meal_boolean_defaults.sql",
   "20260715165000_v08_sport_foundation.sql",
   "20260716090000_initial_behavior_assessment.sql",
+  "20260716120000_v2_meal_structure.sql",
 ] as const;
 
 const TABLES = [
@@ -20,7 +21,23 @@ const TABLES = [
   "meal_observation_tags",
   "tobacco_events",
   "weekly_reports",
+  "sport_profiles",
+  "sport_user_equipment",
+  "sport_user_limitations",
+  "sport_user_capabilities",
+  "sport_exercises",
+  "sport_exercise_variants",
+  "sport_exercise_media",
+  "sport_workout_sessions",
+  "sport_workout_steps",
+  "sport_workout_feedback",
 ] as const;
+
+const SPORT_CATALOG_TABLES = new Set<string>([
+  "sport_exercises",
+  "sport_exercise_variants",
+  "sport_exercise_media",
+]);
 
 const migrationsPath = join(process.cwd(), "supabase", "migrations");
 const schemaSql = readFileSync(
@@ -146,12 +163,22 @@ describe("supabase migrations", () => {
     expect(schemaSql).toContain("initial_behavior_assessment jsonb");
   });
 
-  it("maintient schema.sql aligné avec les créations et évolutions", () => {
-    const initialSql = migrationSql(EXPECTED_MIGRATIONS[0]);
+  it("ajoute la structure repas V2 au tunnel repas", () => {
+    const mealV2Sql = migrationSql(EXPECTED_MIGRATIONS[8]);
 
+    expect(mealV2Sql).toContain("meal_structure jsonb");
+    expect(schemaSql).toContain("meal_structure jsonb");
+  });
+
+  it("maintient schema.sql aligné avec les créations et évolutions", () => {
     for (const table of TABLES) {
       const migratedColumns = new Set([
-        ...createdColumns(initialSql, table),
+        ...migrationFiles.flatMap((file) =>
+          createdColumns(
+            readFileSync(join(migrationsPath, file), "utf8"),
+            table,
+          ),
+        ),
         ...migrationFiles.flatMap((file) =>
           addedColumns(
             readFileSync(join(migrationsPath, file), "utf8"),
@@ -195,6 +222,12 @@ describe("supabase migrations", () => {
       expect(schemaSql).toContain(
         `alter table public.${table} enable row level security;`,
       );
+
+      if (SPORT_CATALOG_TABLES.has(table)) {
+        expect(schemaSql).toContain(`${table}_select_catalog`);
+        continue;
+      }
+
       for (const operation of ["select", "insert", "update", "delete"]) {
         expect(schemaSql).toContain(`${table}_${operation}_own`);
       }

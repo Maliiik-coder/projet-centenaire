@@ -10,7 +10,7 @@ describe("OnboardingPreparationScreen", () => {
     const html = renderToStaticMarkup(<OnboardingPreparationScreen />);
 
     expect(ONBOARDING_PREPARATION_DURATION_MS).toBe(3_000);
-    expect(html).toContain("%2Fbrand%2FHaru2.png");
+    expect(html).toContain("%2Fbrand%2Fharu-mark-7px.png");
     expect(html).toContain('aria-label="Préparation de ton bilan"');
     expect(html).toContain("animation-duration:3000ms");
   });

@@ -9,6 +9,12 @@ import type {
   MealClarification,
   MealComponents,
   MealEntry,
+  MealItemRecognitionStatus,
+  MealPassageRelation,
+  MealQuantityConfidence,
+  MealQuantityUnit,
+  MealStructureV2,
+  ReserviceReason,
   Profile,
   QuestionnaireVersion,
   ServedQuantity,
@@ -392,7 +398,11 @@ function normalizeSnackContext(value: unknown): SnackContext | null {
 }
 
 function normalizeQuestionnaireVersion(value: unknown): QuestionnaireVersion {
-  return value === "v0.7" ? "v0.7" : "legacy";
+  if (value === "v2" || value === "v0.7") {
+    return value;
+  }
+
+  return "legacy";
 }
 
 function normalizeClarifications(value: unknown): MealClarification[] {
@@ -406,6 +416,149 @@ function normalizeClarifications(value: unknown): MealClarification[] {
     value: typeof item.value === "string" ? item.value : null,
     customText: typeof item.customText === "string" ? item.customText : null,
   }));
+}
+
+function normalizeMealQuantityUnit(value: unknown): MealQuantityUnit {
+  return value === "piece" ||
+    value === "portion" ||
+    value === "plate" ||
+    value === "bowl" ||
+    value === "glass" ||
+    value === "slice" ||
+    value === "spoon" ||
+    value === "handful" ||
+    value === "other" ||
+    value === "unknown"
+    ? value
+    : "unknown";
+}
+
+function normalizeMealQuantityConfidence(value: unknown): MealQuantityConfidence {
+  return value === "not_estimated" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high"
+    ? value
+    : "not_estimated";
+}
+
+function normalizeMealQuantity(value: unknown) {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const amount = asNumber(value.amount, Number.NaN);
+
+  return {
+    amount: Number.isFinite(amount) ? amount : null,
+    unit: normalizeMealQuantityUnit(value.unit),
+    text: asString(value.text, "") || null,
+    confidence: normalizeMealQuantityConfidence(value.confidence),
+  };
+}
+
+function normalizeMealItemStatus(value: unknown): MealItemRecognitionStatus {
+  return value === "recognized" ||
+    value === "confirmed" ||
+    value === "ambiguous" ||
+    value === "unrecognized" ||
+    value === "from_recipe_snapshot"
+    ? value
+    : "unprocessed";
+}
+
+function normalizeMealPassageRelation(value: unknown): MealPassageRelation | null {
+  return value === "same" ||
+    value === "partial" ||
+    value === "side_only" ||
+    value === "smaller" ||
+    value === "other"
+    ? value
+    : null;
+}
+
+function normalizeReserviceReasons(value: unknown): ReserviceReason[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is ReserviceReason =>
+    item === "pleasure" ||
+    item === "habit" ||
+    item === "stress_emotion" ||
+    item === "food_available" ||
+    item === "avoid_waste" ||
+    item === "others" ||
+    item === "unsure",
+  );
+}
+
+function normalizeMealStructure(value: unknown): MealStructureV2 | null {
+  if (!isRecord(value) || value.version !== 2) {
+    return null;
+  }
+
+  const sections = Array.isArray(value.sections) ? value.sections : [];
+  const behavior = isRecord(value.behavior) ? value.behavior : {};
+
+  return {
+    version: 2,
+    source:
+      value.source === "legacy_adapter" ? "legacy_adapter" : "meal_tunnel_v2",
+    sections: sections.filter(isRecord).map((section, sectionIndex) => ({
+      id: asString(section.id, `section-${sectionIndex + 1}`),
+      kind:
+        section.kind === "starter" ||
+        section.kind === "main" ||
+        section.kind === "dessert" ||
+        section.kind === "snack"
+          ? section.kind
+          : "main",
+      rawText: asString(section.rawText),
+      quantity: normalizeMealQuantity(section.quantity),
+      passages: (Array.isArray(section.passages) ? section.passages : [])
+        .filter(isRecord)
+        .map((passage, passageIndex) => ({
+          id: asString(passage.id, `passage-${sectionIndex + 1}-${passageIndex + 1}`),
+          index: asNumber(passage.index, passageIndex + 1),
+          relationToPrevious: normalizeMealPassageRelation(
+            passage.relationToPrevious,
+          ),
+          relationText: asString(passage.relationText, "") || null,
+          items: (Array.isArray(passage.items) ? passage.items : [])
+            .filter(isRecord)
+            .map((item, itemIndex) => ({
+              id: asString(
+                item.id,
+                `item-${sectionIndex + 1}-${passageIndex + 1}-${itemIndex + 1}`,
+              ),
+              rawText: asString(item.rawText),
+              recognitionStatus: normalizeMealItemStatus(item.recognitionStatus),
+              canonicalName: asString(item.canonicalName, "") || null,
+              ciqualCode: asString(item.ciqualCode, "") || null,
+              confidence: Number.isFinite(item.confidence)
+                ? (item.confidence as number)
+                : null,
+              quantity: normalizeMealQuantity(item.quantity),
+            })),
+        })),
+    })),
+    behavior: {
+      hungerBefore: normalizeHunger(behavior.hungerBefore),
+      fullnessAfter: normalizeFullness(
+        behavior.fullnessAfter,
+        normalizeAfter(behavior.fullnessAfter),
+      ),
+      hungerAtReservice:
+        behavior.hungerAtReservice === "yes" ||
+        behavior.hungerAtReservice === "not_really" ||
+        behavior.hungerAtReservice === "no" ||
+        behavior.hungerAtReservice === "unsure"
+          ? behavior.hungerAtReservice
+          : null,
+      reserviceReasons: normalizeReserviceReasons(behavior.reserviceReasons),
+    },
+  };
 }
 
 function normalizeComponents(value: unknown): MealComponents {
@@ -461,6 +614,7 @@ function normalizeMeal(value: unknown): MealEntry | null {
   const components = isRecord(value.components)
     ? normalizeComponents(value.components)
     : { ...EMPTY_COMPONENTS };
+  const mealStructure = normalizeMealStructure(value.mealStructure);
   const finding =
     normalizeFinding(value.finding) ??
     buildImmediateFinding({
@@ -496,6 +650,7 @@ function normalizeMeal(value: unknown): MealEntry | null {
     snackContext: normalizeSnackContext(value.snackContext),
     clarifications: normalizeClarifications(value.clarifications),
     questionnaireVersion: normalizeQuestionnaireVersion(value.questionnaireVersion),
+    ...(mealStructure ? { mealStructure } : {}),
     components,
     finding,
     createdAt,

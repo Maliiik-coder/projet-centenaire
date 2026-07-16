@@ -1,6 +1,26 @@
-import { SPORT_LOCAL_STORAGE_KEY } from "@/lib/sport/config";
+import {
+  SPORT_LOCAL_STORAGE_KEY,
+  SPORT_SCOPED_LOCAL_STORAGE_PREFIX,
+} from "@/lib/sport/config";
 import type { SportGoal, SportLocalData, SportProfile } from "@/lib/sport/types";
 import { createEmptySportData } from "@/services/sport/sportProfileService";
+
+export type SportStorageScope =
+  | { kind: "guest" }
+  | { kind: "user"; userId: string };
+
+type SportLocalDataEnvelope = {
+  version: 1;
+  ownerUserId: string | null;
+  updatedAt: string;
+  data: SportLocalData;
+};
+
+export const guestSportStorageScope: SportStorageScope = { kind: "guest" };
+
+export function userSportStorageScope(userId: string): SportStorageScope {
+  return { kind: "user", userId };
+}
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -79,7 +99,32 @@ function normalizeProfile(value: unknown): SportProfile | null {
   };
 }
 
-export function loadSportLocalData(): SportLocalData {
+function storageKey(scope: SportStorageScope): string {
+  return scope.kind === "guest"
+    ? `${SPORT_SCOPED_LOCAL_STORAGE_PREFIX}:guest`
+    : `${SPORT_SCOPED_LOCAL_STORAGE_PREFIX}:user:${encodeURIComponent(scope.userId)}`;
+}
+
+function ownerUserId(scope: SportStorageScope): string | null {
+  return scope.kind === "user" ? scope.userId : null;
+}
+
+function normalizeEnvelope(
+  value: unknown,
+  scope: SportStorageScope,
+): SportLocalData | null {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.data)) {
+    return null;
+  }
+
+  if (value.ownerUserId !== ownerUserId(scope)) {
+    return null;
+  }
+
+  return normalizeSportData(value.data);
+}
+
+export function loadSportLocalData(scope: SportStorageScope): SportLocalData {
   const storage = getLocalStorage();
   if (!storage) {
     return createEmptySportData();
@@ -87,7 +132,7 @@ export function loadSportLocalData(): SportLocalData {
 
   let raw: string | null = null;
   try {
-    raw = storage.getItem(SPORT_LOCAL_STORAGE_KEY);
+    raw = storage.getItem(storageKey(scope));
   } catch {
     return createEmptySportData();
   }
@@ -97,34 +142,57 @@ export function loadSportLocalData(): SportLocalData {
   }
 
   try {
-    return normalizeSportData(JSON.parse(raw));
+    return normalizeEnvelope(JSON.parse(raw), scope) ?? createEmptySportData();
   } catch {
     return createEmptySportData();
   }
 }
 
-export function saveSportLocalData(data: SportLocalData): void {
+export function saveSportLocalData(
+  scope: SportStorageScope,
+  data: SportLocalData,
+): void {
   const storage = getLocalStorage();
   if (!storage) {
     return;
   }
 
   try {
-    storage.setItem(SPORT_LOCAL_STORAGE_KEY, JSON.stringify(data));
+    const envelope: SportLocalDataEnvelope = {
+      version: 1,
+      ownerUserId: ownerUserId(scope),
+      updatedAt: new Date().toISOString(),
+      data,
+    };
+    storage.setItem(storageKey(scope), JSON.stringify(envelope));
   } catch {
     // The Sport slice remains usable even when browser storage is unavailable.
   }
 }
 
-export function clearSportLocalData(): void {
+export function clearSportLocalData(scope: SportStorageScope): void {
   const storage = getLocalStorage();
   if (!storage) {
     return;
   }
 
   try {
-    storage.removeItem(SPORT_LOCAL_STORAGE_KEY);
+    storage.removeItem(storageKey(scope));
   } catch {
     // Clearing is best-effort for the isolated local mirror.
+  }
+}
+
+export function loadLegacySportLocalData(): SportLocalData | null {
+  const storage = getLocalStorage();
+  if (!storage) {
+    return null;
+  }
+
+  try {
+    const raw = storage.getItem(SPORT_LOCAL_STORAGE_KEY);
+    return raw ? normalizeSportData(JSON.parse(raw)) : null;
+  } catch {
+    return null;
   }
 }

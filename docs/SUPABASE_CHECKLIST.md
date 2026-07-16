@@ -1,4 +1,4 @@
-# Supabase checklist V0.7.1
+# Supabase checklist — socle V0.7.1 et extensions locales
 
 Cette checklist doit être exécutée avant chaque release qui modifie le schéma.
 Une base liée ne doit jamais être déclarée à jour à partir du seul contenu de
@@ -19,7 +19,9 @@ Ordre attendu :
 4. `20260714100000_v061_dark_mode_preference.sql`
 5. `20260714110000_v07_meal_tunnel.sql`
 6. `20260715133410_v071_meal_boolean_defaults.sql`
-7. `20260716090000_initial_behavior_assessment.sql`
+7. `20260715165000_v08_sport_foundation.sql`
+8. `20260716090000_initial_behavior_assessment.sql`
+9. `20260716120000_v2_meal_structure.sql`
 
 ## Contrôle avec Supabase CLI
 
@@ -36,27 +38,15 @@ timestamp apparaît dans les colonnes locale et distante. Le dry-run doit répon
 que la base distante est à jour. La dernière commande applique réellement les
 migrations et exige une validation explicite du projet ciblé.
 
-Contrôle historique en lecture seule du 15 juillet 2026, avant l'ajout de la
-migration corrective :
+Contrôle distant du 16 juillet 2026 :
 
-- `20260711095000`, `20260711223000` et `20260714090000` sont présents à distance ;
-- `20260714100000` et `20260714110000` sont absents à distance ;
-- le dry-run proposait uniquement les migrations V0.6.1 et V0.7.
+- les neuf migrations sont alignées en local et à distance ;
+- `20260715165000_v08_sport_foundation.sql` et
+  `20260716120000_v2_meal_structure.sql` ont été appliquées avec
+  `db push --linked --include-all` après un dry-run explicite ;
+- le dry-run final répond `Remote database is up to date`.
 
-La migration `20260715133410_v071_meal_boolean_defaults.sql` a été ajoutée
-localement après ce contrôle pour aligner les défauts de `starter_taken` et
-`dessert_taken` avec `schema.sql`.
-
-Nouveau contrôle en lecture seule après l'ajout :
-
-- les trois premières migrations restent présentes localement et à distance ;
-- `20260714100000`, `20260714110000` et `20260715133410` sont locaux uniquement ;
-- le dry-run annonce exactement V0.6.1, V0.7 et la correction V0.7.1 ;
-- aucun `db push` réel n'a été exécuté pendant cette passe.
-
-Point restant avant release : relancer `npx supabase db push --linked --dry-run`,
-valider le projet et les trois fichiers annoncés, puis seulement exécuter
-`npx supabase db push --linked`. Relancer ensuite la liste, le dry-run et les
+Avant chaque prochaine release SQL, relancer la liste, le dry-run et les
 requêtes SQL ci-dessous.
 
 ## Tables et colonnes
@@ -69,6 +59,16 @@ Tables attendues :
 - `meal_observation_tags`
 - `tobacco_events`
 - `weekly_reports`
+- `sport_profiles`
+- `sport_user_equipment`
+- `sport_user_limitations`
+- `sport_user_capabilities`
+- `sport_exercises`
+- `sport_exercise_variants`
+- `sport_exercise_media`
+- `sport_workout_sessions`
+- `sport_workout_steps`
+- `sport_workout_feedback`
 
 Colonnes de préférences attendues dans `profiles` :
 
@@ -89,6 +89,7 @@ Colonnes stabilisées ou ajoutées dans `meal_observations` :
 - `snack_context text`
 - `clarifications jsonb default '[]'::jsonb`
 - `questionnaire_version text`
+- `meal_structure jsonb`
 
 Requête de contrôle dans SQL Editor ou avec `supabase db query --linked` :
 
@@ -124,8 +125,9 @@ order by tablename, indexname;
 
 ## Row Level Security
 
-RLS doit être activée sur les six tables applicatives. Chacune doit disposer de
-quatre politiques : `SELECT`, `INSERT`, `UPDATE` et `DELETE`.
+RLS doit être activée sur les tables applicatives historiques et Sport. Les
+tables détenues par un utilisateur disposent de quatre politiques : `SELECT`,
+`INSERT`, `UPDATE` et `DELETE`.
 
 - `SELECT` et `DELETE` : `user_id = auth.uid()` dans `using` ;
 - `INSERT` : `user_id = auth.uid()` dans `with check` ;
@@ -142,7 +144,17 @@ where n.nspname = 'public'
     'meal_observations',
     'meal_observation_tags',
     'tobacco_events',
-    'weekly_reports'
+    'weekly_reports',
+    'sport_profiles',
+    'sport_user_equipment',
+    'sport_user_limitations',
+    'sport_user_capabilities',
+    'sport_exercises',
+    'sport_exercise_variants',
+    'sport_exercise_media',
+    'sport_workout_sessions',
+    'sport_workout_steps',
+    'sport_workout_feedback'
   )
 order by c.relname;
 
@@ -153,8 +165,10 @@ order by tablename, cmd;
 ```
 
 Contrôle distant du 15 juillet 2026 : RLS est activée et les quatre politiques
-`auth.uid()` sont présentes sur chacune des six tables. Cette vérification doit
-être répétée après le prochain push.
+`auth.uid()` sont présentes sur chacune des six tables historiques. La migration
+Sport créant les politiques attendues a été appliquée avec succès le 16 juillet.
+Un nouvel export direct du schéma n'a pas été produit, car `supabase db dump`
+nécessite Docker Desktop sur cette machine.
 
 ## Validation fonctionnelle
 

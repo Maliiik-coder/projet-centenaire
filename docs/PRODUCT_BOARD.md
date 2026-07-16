@@ -23,9 +23,10 @@ Principes :
 - alimentation, tabac, mouvement et santé globale à terme ;
 - l’application doit rester simple à renseigner.
 
-## 2. Statut actuel — V0.7.1
+## 2. Statut actuel — socle V0.7.1, refonte mobile en cours
 
-Haru est actuellement en V0.7.1.
+Le socle technique de Haru reste la V0.7.1. L'interface et plusieurs parcours
+fonctionnels sont désormais en refonte progressive, écran par écran.
 
 État :
 - application en production sur Vercel ;
@@ -41,6 +42,14 @@ Haru est actuellement en V0.7.1.
 - fondations visuelles mobiles et identité Haru intégrées sur `main` ;
 - contrôles de release Supabase renforcés : une base existante n'est plus
   considérée à jour sans comparaison explicite des migrations locales et distantes.
+- démarrage et onboarding Haru finalisés dans leur première version testable ;
+- page Aujourd'hui restructurée autour d'une saisie de poids intégrée et d'un
+  repère neutre pendant les sept premiers jours ;
+- tunnel repas V2 structuré localement, sans affichage de calories ni connexion
+  Ciqual à ce stade ;
+- Carnet réorganisé en lectures Jours et Semaines ; la disparition de l'onglet
+  Constats séparé reste à finaliser avec l'arrivée de Recettes ;
+- module Sport accessible par une cinquième entrée de navigation.
 
 Commit de référence :
 - `a6641db` — `Prepare V0.6.1 production fixes`
@@ -53,9 +62,9 @@ Commit de référence :
 
 - Nom public définitif : Haru. « Projet Centenaire » reste le nom historique du projet et du dépôt.
 - Kit de marque officiel :
-  - `public/brand/Haru.png` : mot-symbole horizontal pour les en-têtes ;
-  - `public/brand/Haru2.png` : monogramme pour l’icône PWA et mobile ;
-  - `public/brand/Haru3.png` : signature « Un jour à la fois. » pour le démarrage et l’accueil de l’onboarding ;
+  - `public/brand/haru-wordmark-7px.png` : mot-symbole horizontal pour les en-têtes ;
+  - `public/brand/haru-mark-7px.png` : monogramme pour l’icône PWA et mobile ;
+  - `public/brand/haru-full-7px.png` : signature « Un jour à la fois. » pour le démarrage et l’accueil de l’onboarding ;
   - les trois masters sont transparents et recadrés au contenu utile.
 - Direction artistique : interface mobile claire, calme et humaine, pensée comme un compagnon du quotidien.
 - Structure visuelle : succession de fenêtres mobiles plein format, avec grands espaces, surfaces blanches, progression courte et action principale basse.
@@ -84,6 +93,18 @@ Commit de référence :
 - Les anciennes données “Collation” restent lisibles et sont traitées comme “Grignotage”.
 - Le grignotage doit être un type d’observation, pas une question après repas.
 - Le petit déjeuner ne doit pas demander entrée/dessert.
+- Pendant les sept premiers jours, Haru observe sans proposer de correction
+  immédiate après un repas. Les tendances et pistes d'action viennent après
+  consolidation des faits.
+- Carnet regroupe la lecture quotidienne et hebdomadaire. À terme, Constats ne
+  reste pas un onglet autonome.
+- Navigation cible validée : `Aujourd'hui · Carnet · Recettes · Sport · Profil`.
+- La page Aujourd'hui reste gratuite. L'hypothèse commerciale à valider est
+  5 euros pour Recettes, 5 euros pour Sport, ou 8 euros pour les deux.
+- L'IA conversationnelle et analytique est prévue, mais seulement après
+  stabilisation des modèles de données et des règles déterministes.
+- Un backend d'administration séparé sera nécessaire pour les contenus, les
+  signalements, le catalogue et le support. Sa forme exacte reste à cadrer.
 
 ### Coordination des chantiers parallèles
 
@@ -96,6 +117,23 @@ Commit de référence :
   cinquième entrée ; l’intégration ultérieure dans `AppData`, le miroir local et
   le cloud partagé reste sous la responsabilité de la conversation principale ;
 - aucun chantier parallèle ne pousse ou ne fusionne directement dans `main` sans validation explicite.
+
+### Audit d'intégration du 16 juillet 2026
+
+- les chantiers Aujourd'hui, Repas et Carnet sont présents dans la même branche ;
+- le poids s'édite sans navigation et sans déplacement de l'écran arrière ;
+- le tunnel repas V2 conserve heure, composition, passages, faim et satiété ;
+- le bilan immédiat reste descriptif durant la semaine d'observation ;
+- les changements de type de repas ne conservent plus de champs cachés
+  incompatibles ;
+- la structure détaillée du repas est persistée dans `meal_structure` ;
+- les migrations Sport et repas V2 ont été appliquées à la base liée après un
+  dry-run limité à ces deux fichiers ;
+- les neuf migrations sont alignées en local et à distance et le dry-run final
+  confirme que la base distante est à jour ;
+- le stockage local Sport est désormais cloisonné entre invité et chaque
+  `userId` Supabase ; l'ancienne clé globale reste récupérable mais n'est jamais
+  chargée automatiquement dans un compte.
 
 ## 4. Retours terrain
 
@@ -303,33 +341,14 @@ Changements réalisés :
 
 ### État Supabase avant release
 
-Contrôle distant historique effectué le 15 juillet 2026 avec Supabase CLI
-2.109.1, avant l'ajout de la migration corrective :
+Contrôle distant final effectué le 16 juillet 2026 :
 
-- migrations V0.5, stabilisation V0.5 et préférences V0.6 présentes à distance ;
-- migration V0.6.1 `dark_mode` absente à distance ;
-- migration V0.7 tunnel repas absente à distance ;
-- dry-run limité à ces deux migrations manquantes ;
-- aucun push réel effectué pendant cette première passe de contrôle.
-
-La migration corrective V0.7.1 a été ajoutée localement après ce contrôle.
-Le nouveau `migration list --linked` et le nouveau dry-run confirment trois
-migrations locales absentes à distance :
-
-- V0.6.1 `dark_mode` ;
-- V0.7 tunnel repas ;
-- V0.7.1 défauts booléens repas.
-
-Aucun push réel n'a été exécuté pendant cette correction SQL.
-Le dry-run devra être relancé immédiatement avant tout futur push.
-
-La base distante ne doit pas être déclarée prête V0.7.1 avant exécution de
-`npx supabase db push --linked` puis nouvelle vérification de l'historique, des
-colonnes, des index et de la RLS.
-
-RLS distante vérifiée avant push : activée sur les six tables applicatives, avec
-quatre politiques `auth.uid()` par table. Les six index d'unicité attendus sont
-également présents.
+- les neuf migrations sont alignées en local et à distance ;
+- les fondations Sport et `meal_structure` V2 ont été appliquées après dry-run ;
+- le dry-run final répond `Remote database is up to date` ;
+- les politiques RLS historiques restent en place et la migration Sport crée
+  les politiques propres aux ressources utilisateur ainsi que la lecture du
+  catalogue public.
 
 ### Audit dépendances
 
@@ -388,7 +407,8 @@ Première tranche validée :
 - aperçu, chronomètre, pause, reprise et fin de séance ;
 - retour neutre, adaptation d’une seule variable à la fois et historique basique ;
 - cinquième entrée `Sport` dans la barre de navigation basse ;
-- stockage Sport encore local et isolé, avant raccordement explicite au compte ;
+- stockage Sport encore local, mais cache cloisonné entre invité et comptes
+  Supabase avant le futur raccordement cloud ;
 - aucune calorie brûlée, IA décisionnelle, compétition ou diagnostic médical.
 
 Itérations suivantes :
@@ -411,6 +431,19 @@ Objectifs :
 - réutilisation future de Ciqual pour fiabiliser l’analyse qualitative du tunnel repas.
 
 Le brief Recettes est un document de vision à découper en tranches verticales. Il ne doit pas être implémenté en un seul diff.
+
+### Chantier d'architecture — modularisation
+
+Objectif : sortir progressivement les écrans et contrôleurs métier de
+`ProjetCentenaireApp.tsx`, sans recréer une seconde application ni réécrire la
+tuyauterie fiable.
+
+Ordre recommandé :
+- stabiliser les contrats Aujourd'hui, Repas et Carnet déjà intégrés ;
+- extraire leurs contrôleurs, vues et helpers par domaine ;
+- conserver un shell Haru mince pour la session, la navigation et le routage ;
+- ajouter Recettes et les futurs modules dans des frontières indépendantes ;
+- couvrir chaque extraction avant de supprimer l'ancien code.
 
 ### V0.8 — Bilan quotidien
 
@@ -508,7 +541,7 @@ profil multidimensionnel doit être conçue avant son exploitation métier ou cl
 
 Ne pas ajouter pour l’instant :
 - réseau social généraliste, fil communautaire, commentaires ou messagerie ;
-- paiement ;
+- paiement avant cadrage des droits d'accès, de la facturation et de la restauration d'achat ;
 - IA complète ;
 - notifications push ;
 - Apple Health ;
@@ -529,4 +562,6 @@ Ne pas ajouter pour l’instant :
 - Quelle quantité de données nutritionnelles afficher hors des fiches recettes ?
 - Comment relier une recette au tunnel repas sans transformer la saisie en formulaire nutritionnel ?
 - Quelle stratégie d’import, de versionnement et de mise à jour retenir pour Ciqual ?
-- La navigation cible doit-elle devenir `Jour · Suivi · Recettes · Sport · Profil` en regroupant Carnet et Constats dans Suivi ?
+- Quel fournisseur de paiement et quel modèle de droits utiliser pour Recettes,
+  Sport et le bundle ?
+- Quel périmètre donner au premier backend d'administration ?

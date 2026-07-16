@@ -11,16 +11,20 @@ import {
 
 describe("meal tunnel", () => {
   it("ne contient plus la question de grignotage après repas", () => {
-    expect(MEAL_TUNNEL_STEPS).toBe(9);
+    expect(MEAL_TUNNEL_STEPS).toBe(13);
     expect(mealTunnelStepIds).not.toContain("snacking-after");
     expect(snackMealTunnelStepIds).not.toContain("snacking-after");
+    expect(mealTunnelStepIds).not.toContain("tags");
   });
 
   it("utilise un tunnel grignotage séparé et plus court", () => {
-    expect(SNACK_MEAL_TUNNEL_STEPS).toBe(6);
+    expect(SNACK_MEAL_TUNNEL_STEPS).toBe(9);
     expect(getMealTunnelStepIds("grignotage")).toEqual([
       "kind",
+      "time",
       "snack-text",
+      "clarifications",
+      "quantity",
       "snack-trigger",
       "snack-context",
       "snack-fullness",
@@ -29,14 +33,15 @@ describe("meal tunnel", () => {
   });
 
   it("retire entrée et dessert du petit déjeuner", () => {
-    expect(BREAKFAST_MEAL_TUNNEL_STEPS).toBe(7);
+    expect(BREAKFAST_MEAL_TUNNEL_STEPS).toBe(8);
     expect(getMealTunnelStepIds("petit-dejeuner")).toEqual([
       "kind",
-      "text",
-      "serving",
+      "time",
       "hunger",
+      "text",
+      "clarifications",
+      "quantity",
       "fullness",
-      "tags",
       "finding",
     ]);
     expect(breakfastMealTunnelStepIds).not.toContain("starter");

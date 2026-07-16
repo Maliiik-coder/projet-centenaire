@@ -49,6 +49,7 @@ create table if not exists public.meal_observations (
   snack_trigger text,
   snack_context text,
   clarifications jsonb default '[]'::jsonb,
+  meal_structure jsonb,
   questionnaire_version text,
   main_signal text,
   immediate_constat text,
