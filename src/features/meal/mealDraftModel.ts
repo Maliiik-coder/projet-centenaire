@@ -5,6 +5,9 @@ import {
 } from "@/lib/foodDetection";
 import {
   activeFoodSegment,
+  appendFoodInputText,
+  cleanFoodInputText,
+  removeActiveFoodSegment,
   type FoodAutocompleteSuggestion,
 } from "@/lib/nutrition/autocompleteFood";
 import {
@@ -47,10 +50,13 @@ export interface MealQuantityDraft {
 export interface MealDraftFoodSelection {
   id: string;
   rawText: string;
+  rawTexts: string[];
   canonicalName: string;
   ciqualCode: string | null;
   confidence: number;
   source: string;
+  count: number;
+  defaultUnit: MealQuantityUnit;
 }
 
 export interface MealDraft {
@@ -393,23 +399,48 @@ export function addMealFoodSelection(
   draft: MealDraft,
   suggestion: FoodAutocompleteSuggestion,
 ): MealDraft {
-  if (draft.selectedFoods.some((item) => item.id === suggestion.id)) {
-    return draft;
-  }
+  const rawSegment =
+    activeFoodSegment(draft.freeText).raw ||
+    suggestion.matchedText ||
+    suggestion.label;
+  const nextFreeText = removeActiveFoodSegment(draft.freeText);
+  const existingSelection = draft.selectedFoods.find(
+    (item) => item.id === suggestion.id,
+  );
 
-  const rawSegment = activeFoodSegment(draft.freeText).raw;
+  if (existingSelection) {
+    return {
+      ...draft,
+      freeText: nextFreeText,
+      selectedFoods: draft.selectedFoods.map((item) => {
+        if (item.id !== suggestion.id) return item;
+        const rawTexts = [...item.rawTexts, rawSegment];
+
+        return {
+          ...item,
+          rawText: joinedSelectionRawText(rawTexts),
+          rawTexts,
+          count: item.count + 1,
+        };
+      }),
+    };
+  }
 
   return {
     ...draft,
+    freeText: nextFreeText,
     selectedFoods: [
       ...draft.selectedFoods,
       {
         id: suggestion.id,
         rawText: rawSegment || suggestion.matchedText || suggestion.label,
+        rawTexts: [rawSegment || suggestion.matchedText || suggestion.label],
         canonicalName: suggestion.label,
         ciqualCode: suggestion.ciqualCode,
         confidence: 1,
         source: suggestion.source,
+        count: 1,
+        defaultUnit: suggestion.defaultUnit,
       },
     ],
   };
@@ -419,8 +450,33 @@ export function removeMealFoodSelection(
   draft: MealDraft,
   foodId: string,
 ): MealDraft {
+  const selection = draft.selectedFoods.find((item) => item.id === foodId);
+  if (!selection) return draft;
+
+  const restoredRawText = selection.rawTexts.at(-1) ?? selection.rawText;
+  const freeText = appendFoodInputText(draft.freeText, restoredRawText);
+  const remainingRawTexts = selection.rawTexts.slice(0, -1);
+
+  if (selection.count > 1) {
+    return {
+      ...draft,
+      freeText,
+      selectedFoods: draft.selectedFoods.map((item) =>
+        item.id === foodId
+          ? {
+              ...item,
+              rawText: joinedSelectionRawText(remainingRawTexts),
+              rawTexts: remainingRawTexts,
+              count: item.count - 1,
+            }
+          : item,
+      ),
+    };
+  }
+
   return {
     ...draft,
+    freeText,
     selectedFoods: draft.selectedFoods.filter((item) => item.id !== foodId),
   };
 }
@@ -452,7 +508,7 @@ export function getMealStepError(
 
   if (
     (stepId === "text" || stepId === "snack-text") &&
-    draft.freeText.trim().length < 2
+    !hasMealContent(draft)
   ) {
     return "Ajoute une observation courte avant de continuer.";
   }
@@ -646,7 +702,7 @@ export function mealEntryFromDraft(
 }
 
 export function getMealSubmitError(draft: MealDraft): string | null {
-  if (draft.freeText.trim().length < 2) {
+  if (!hasMealContent(draft)) {
     return "Ajoute une observation courte avant de continuer.";
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) {
@@ -762,12 +818,17 @@ function createMealItem(
 function createSelectedMealItem(selection: MealDraftFoodSelection): MealItemV2 {
   return {
     id: selection.id,
-    rawText: selection.rawText,
+    rawText: joinedSelectionRawText(selection.rawTexts),
     recognitionStatus: "confirmed",
     canonicalName: selection.canonicalName,
     ciqualCode: selection.ciqualCode,
     confidence: selection.confidence,
-    quantity: null,
+    quantity: {
+      amount: selection.count,
+      unit: selection.defaultUnit,
+      text: null,
+      confidence: "medium",
+    },
   };
 }
 
@@ -823,12 +884,45 @@ function selectedFoodsFromEntry(meal: MealEntry): MealDraftFoodSelection[] {
       .map((item) => ({
         id: item.ciqualCode ?? item.id,
         rawText: item.rawText,
+        rawTexts: rawTextsFromMealItem(item),
         canonicalName: item.canonicalName ?? item.rawText,
         ciqualCode: item.ciqualCode,
         confidence: item.confidence ?? 1,
         source: item.ciqualCode ? "ciqual_2025" : "meal_structure",
+        count: mealItemCount(item),
+        defaultUnit: item.quantity?.unit ?? "portion",
       })) ?? []
   );
+}
+
+function hasMealContent(draft: MealDraft): boolean {
+  return draft.freeText.trim().length >= 2 || draft.selectedFoods.length > 0;
+}
+
+function joinedSelectionRawText(rawTexts: string[]): string {
+  return rawTexts.map(cleanFoodInputText).filter(Boolean).join(", ");
+}
+
+function mealItemCount(item: MealItemV2): number {
+  const amount = item.quantity?.amount;
+  return amount && amount > 0 ? amount : 1;
+}
+
+function rawTextsFromMealItem(item: MealItemV2): string[] {
+  const count = mealItemCount(item);
+  const rawTexts = item.rawText
+    .split(",")
+    .map(cleanFoodInputText)
+    .filter(Boolean);
+
+  if (rawTexts.length >= count) return rawTexts.slice(0, count);
+  if (rawTexts.length > 0) {
+    return [
+      ...rawTexts,
+      ...Array.from({ length: count - rawTexts.length }, () => rawTexts.at(-1)!),
+    ];
+  }
+  return Array.from({ length: count }, () => item.rawText);
 }
 
 function createMealId(prefix: string): string {

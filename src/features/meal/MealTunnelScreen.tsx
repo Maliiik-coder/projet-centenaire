@@ -66,10 +66,7 @@ export function MealTunnelScreen({
   const stepId = stepIds[step] ?? stepIds[0];
   const foodSuggestions =
     stepId === "text" || stepId === "snack-text"
-      ? searchFoodAutocomplete(
-          draft.freeText,
-          draft.selectedFoods.map((food) => food.id),
-        )
+      ? searchFoodAutocomplete(draft.freeText)
       : [];
   const finding = buildImmediateFinding({
     kind: draft.kind,

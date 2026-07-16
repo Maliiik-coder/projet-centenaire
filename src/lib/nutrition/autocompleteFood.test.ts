@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   activeFoodSegment,
+  appendFoodInputText,
+  removeActiveFoodSegment,
   searchFoodAutocomplete,
 } from "@/lib/nutrition/autocompleteFood";
 
@@ -31,7 +33,23 @@ describe("autocompleteFood", () => {
     expect(searchFoodAutocomplete("riz, pou")[0]?.label).toBe("Poulet");
   });
 
-  it("masque les aliments déjà sélectionnés", () => {
-    expect(searchFoodAutocomplete("riz", ["rice"])).toEqual([]);
+  it("continue de proposer un aliment déjà confirmé pour permettre x2", () => {
+    expect(searchFoodAutocomplete("riz", 1)).toHaveLength(1);
+    expect(searchFoodAutocomplete("riz", 1)[0]?.id).toBe("rice");
+  });
+
+  it("retire uniquement le segment actif de la saisie libre", () => {
+    expect(removeActiveFoodSegment("steak")).toBe("");
+    expect(removeActiveFoodSegment("sauce maison, steak")).toBe(
+      "sauce maison",
+    );
+    expect(removeActiveFoodSegment("riz ;  staik")).toBe("riz");
+  });
+
+  it("restaure un texte alimentaire sans abîmer la ponctuation", () => {
+    expect(appendFoodInputText("", "steak")).toBe("steak");
+    expect(appendFoodInputText("sauce maison", "steak")).toBe(
+      "sauce maison, steak",
+    );
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { X } from "lucide-react";
 import { getClarificationChoices } from "@/lib/foodDetection";
 import type { FoodAutocompleteSuggestion } from "@/lib/nutrition/autocompleteFood";
@@ -157,9 +158,15 @@ export function SelectedFoodChips({
           className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-text)]"
           key={food.id}
         >
-          {food.canonicalName}
+          {food.count > 1
+            ? `${food.canonicalName} x${food.count}`
+            : food.canonicalName}
           <button
-            aria-label={`Retirer ${food.canonicalName}`}
+            aria-label={
+              food.count > 1
+                ? `Retirer une portion de ${food.canonicalName}`
+                : `Retirer ${food.canonicalName}`
+            }
             className="inline-flex size-5 items-center justify-center rounded-full text-[var(--pc-color-text-muted)] transition hover:bg-[var(--pc-color-primary-muted)] hover:text-[var(--pc-color-text)]"
             type="button"
             onClick={() => onRemove(food.id)}
@@ -192,15 +199,19 @@ export function FoodSuggestionPicker({
             type="button"
             onClick={() => onPick(suggestion)}
           >
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-xs font-bold text-[var(--pc-color-primary)]">
-              {suggestion.label.slice(0, 1)}
-            </span>
+            <Image
+              alt=""
+              className="size-8 shrink-0 rounded-full object-cover"
+              height={32}
+              src={suggestion.imageSrc}
+              width={32}
+              onError={(event) => {
+                event.currentTarget.src = "/food-autocomplete/fallback.png";
+              }}
+            />
             <span className="min-w-0">
               <span className="block whitespace-nowrap text-sm font-semibold">
                 {suggestion.label}
-              </span>
-              <span className="block whitespace-nowrap text-[11px] font-semibold text-[var(--pc-color-text-muted)]">
-                {categoryLabels[suggestion.category]}
               </span>
             </span>
           </button>
@@ -264,17 +275,6 @@ export function ClarificationQuestion({
     </div>
   );
 }
-
-const categoryLabels: Record<FoodAutocompleteSuggestion["category"], string> = {
-  dairy: "Produit laitier",
-  dessert: "Dessert",
-  drink: "Boisson",
-  fruit: "Fruit",
-  prepared: "Préparation",
-  protein: "Protéine",
-  starch: "Féculent",
-  vegetable: "Végétal",
-};
 
 export function FindingPart({
   title,

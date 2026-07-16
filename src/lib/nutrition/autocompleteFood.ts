@@ -19,6 +19,7 @@ export interface FoodAutocompleteEntry {
   aliases: string[];
   category: FoodAutocompleteCategory;
   defaultUnit: MealQuantityUnit;
+  imageSrc: string;
   ciqualCode: null;
   source: typeof FOOD_AUTOCOMPLETE_SOURCE;
 }
@@ -28,6 +29,7 @@ export interface FoodAutocompleteSuggestion {
   label: string;
   category: FoodAutocompleteCategory;
   defaultUnit: MealQuantityUnit;
+  imageSrc: string;
   ciqualCode: null;
   source: typeof FOOD_AUTOCOMPLETE_SOURCE;
   matchedText: string;
@@ -67,16 +69,12 @@ export const foodAutocompleteSeed: FoodAutocompleteEntry[] = [
 
 export function searchFoodAutocomplete(
   text: string,
-  selectedIds: string[] = [],
   limit = 4,
 ): FoodAutocompleteSuggestion[] {
   const query = foodAutocompleteQuery(text);
   if (query.normalized.length < 2) return [];
 
-  const selected = new Set(selectedIds);
-
   return foodAutocompleteSeed
-    .filter((entry) => !selected.has(entry.id))
     .map((entry) => ({
       entry,
       match: bestMatch(entry, query.normalized),
@@ -89,6 +87,7 @@ export function searchFoodAutocomplete(
       label: entry.label,
       category: entry.category,
       defaultUnit: entry.defaultUnit,
+      imageSrc: entry.imageSrc,
       ciqualCode: entry.ciqualCode,
       source: entry.source,
       matchedText: match.alias,
@@ -115,6 +114,32 @@ export function activeFoodSegment(text: string): {
   };
 }
 
+export function removeActiveFoodSegment(text: string): string {
+  const segment = activeFoodSegment(text);
+  if (!segment.raw) return cleanFoodInputText(text);
+
+  return cleanFoodInputText(`${text.slice(0, segment.start)}${text.slice(segment.end)}`);
+}
+
+export function appendFoodInputText(text: string, rawText: string): string {
+  const cleanText = cleanFoodInputText(text);
+  const cleanRawText = cleanFoodInputText(rawText);
+
+  if (!cleanRawText) return cleanText;
+  if (!cleanText) return cleanRawText;
+  return `${cleanText}, ${cleanRawText}`;
+}
+
+export function cleanFoodInputText(text: string): string {
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/\s*([,;+])\s*/g, "$1 ")
+    .replace(/(?:[,;+]\s*){2,}/g, ", ")
+    .replace(/^[,;+\s]+/, "")
+    .replace(/[,;+\s]+$/, "")
+    .trim();
+}
+
 function food(
   id: string,
   label: string,
@@ -128,6 +153,7 @@ function food(
     aliases,
     category,
     defaultUnit,
+    imageSrc: `/food-autocomplete/${id}.png`,
     ciqualCode: null,
     source: FOOD_AUTOCOMPLETE_SOURCE,
   };

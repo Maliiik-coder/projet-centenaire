@@ -109,63 +109,157 @@ describe("mealDraftModel", () => {
     ]);
   });
 
-  it("ajoute une suggestion alimentaire sans modifier le texte libre", () => {
+  it("transfère le segment actif vers une pastille alimentaire", () => {
     const draft = {
       ...createEmptyMealDraft("2026-07-16", "12:30"),
-      freeText: "riz",
+      freeText: "sauce maison, steak",
     };
     const suggestion = searchFoodAutocomplete(draft.freeText)[0]!;
     const nextDraft = addMealFoodSelection(draft, suggestion);
 
-    expect(nextDraft.freeText).toBe("riz");
+    expect(nextDraft.freeText).toBe("sauce maison");
     expect(nextDraft.selectedFoods).toEqual([
       {
-        id: "rice",
-        rawText: "riz",
-        canonicalName: "Riz",
+        id: "steak",
+        rawText: "steak",
+        rawTexts: ["steak"],
+        canonicalName: "Steak",
         ciqualCode: null,
         confidence: 1,
         source: "haru-food-seed-v0",
+        count: 1,
+        defaultUnit: "piece",
       },
     ]);
-    expect(addMealFoodSelection(nextDraft, suggestion)).toBe(nextDraft);
   });
 
-  it("persiste les aliments sélectionnés comme items confirmés sans code Ciqual", () => {
+  it("vide le champ quand tout le segment actif est confirmé", () => {
+    const draft = {
+      ...createEmptyMealDraft("2026-07-16", "12:30"),
+      freeText: "steak",
+    };
+    const nextDraft = addMealFoodSelection(
+      draft,
+      searchFoodAutocomplete("steak")[0]!,
+    );
+
+    expect(nextDraft.freeText).toBe("");
+    expect(nextDraft.selectedFoods[0]?.canonicalName).toBe("Steak");
+  });
+
+  it("incrémente le même aliment plutôt que de créer deux pastilles", () => {
+    const firstDraft = addMealFoodSelection(
+      {
+        ...createEmptyMealDraft("2026-07-16", "12:30"),
+        freeText: "steak",
+      },
+      searchFoodAutocomplete("steak")[0]!,
+    );
+    const secondDraft = addMealFoodSelection(
+      {
+        ...firstDraft,
+        freeText: "steak",
+      },
+      searchFoodAutocomplete("steak")[0]!,
+    );
+
+    expect(secondDraft.freeText).toBe("");
+    expect(secondDraft.selectedFoods).toHaveLength(1);
+    expect(secondDraft.selectedFoods[0]).toMatchObject({
+      id: "steak",
+      canonicalName: "Steak",
+      rawText: "steak, steak",
+      rawTexts: ["steak", "steak"],
+      count: 2,
+      defaultUnit: "piece",
+    });
+  });
+
+  it("restaure le texte d’origine quand une pastille est retirée", () => {
     const draft = addMealFoodSelection(
       {
         ...createEmptyMealDraft("2026-07-16", "12:30"),
         freeText: "riz",
       },
       searchFoodAutocomplete("riz")[0]!,
+    );
+
+    const nextDraft = removeMealFoodSelection(draft, "rice");
+
+    expect(nextDraft.freeText).toBe("riz");
+    expect(nextDraft.selectedFoods).toEqual([]);
+  });
+
+  it("diminue une pastille x2 avant de la supprimer", () => {
+    const firstDraft = addMealFoodSelection(
+      {
+        ...createEmptyMealDraft("2026-07-16", "12:30"),
+        freeText: "steak",
+      },
+      searchFoodAutocomplete("steak")[0]!,
+    );
+    const secondDraft = addMealFoodSelection(
+      {
+        ...firstDraft,
+        freeText: "steak",
+      },
+      searchFoodAutocomplete("steak")[0]!,
+    );
+    const decrementedDraft = removeMealFoodSelection(secondDraft, "steak");
+    const removedDraft = removeMealFoodSelection(decrementedDraft, "steak");
+
+    expect(decrementedDraft.freeText).toBe("steak");
+    expect(decrementedDraft.selectedFoods[0]).toMatchObject({
+      count: 1,
+      rawText: "steak",
+      rawTexts: ["steak"],
+    });
+    expect(removedDraft.freeText).toBe("steak, steak");
+    expect(removedDraft.selectedFoods).toEqual([]);
+  });
+
+  it("persiste les aliments sélectionnés comme items confirmés sans code Ciqual", () => {
+    const firstDraft = addMealFoodSelection(
+      {
+        ...createEmptyMealDraft("2026-07-16", "12:30"),
+        freeText: "steak",
+      },
+      searchFoodAutocomplete("steak")[0]!,
+    );
+    const draft = addMealFoodSelection(
+      {
+        ...firstDraft,
+        freeText: "steak",
+      },
+      searchFoodAutocomplete("steak")[0]!,
     );
     const meal = mealEntryFromDraft(draft, null);
     const firstItem = meal.mealStructure?.sections
       .find((section) => section.kind === "main")
       ?.passages[0]?.items[0];
 
-    expect(meal.freeText).toBe("riz");
+    expect(meal.freeText).toBe("");
     expect(firstItem).toMatchObject({
-      id: "rice",
-      rawText: "riz",
+      id: "steak",
+      rawText: "steak, steak",
       recognitionStatus: "confirmed",
-      canonicalName: "Riz",
+      canonicalName: "Steak",
       ciqualCode: null,
       confidence: 1,
+      quantity: {
+        amount: 2,
+        unit: "piece",
+        text: null,
+        confidence: "medium",
+      },
     });
 
-    expect(mealDraftFromEntry(meal).selectedFoods[0]?.id).toBe("rice");
-  });
-
-  it("retire une suggestion alimentaire du brouillon", () => {
-    const draft = addMealFoodSelection(
-      {
-        ...createEmptyMealDraft("2026-07-16", "12:30"),
-        freeText: "riz",
-      },
-      searchFoodAutocomplete("riz")[0]!,
-    );
-
-    expect(removeMealFoodSelection(draft, "rice").selectedFoods).toEqual([]);
+    expect(mealDraftFromEntry(meal).selectedFoods[0]).toMatchObject({
+      id: "steak",
+      rawText: "steak, steak",
+      rawTexts: ["steak", "steak"],
+      count: 2,
+      defaultUnit: "piece",
+    });
   });
 });
