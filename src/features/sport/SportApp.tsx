@@ -1042,9 +1042,6 @@ function AssessmentView({
             <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
               {variant?.name ?? test.title}
             </h3>
-            <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
-              {variant?.guidance ?? test.instruction}
-            </p>
           </div>
           <AssessmentPoseStrip
             exerciseId={test.exerciseId}
@@ -1053,12 +1050,6 @@ function AssessmentView({
           />
           {phase === "intro" ? (
             <div className="grid gap-3">
-              <Surface className="p-3" variant="subtle">
-                <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
-                  {test.instruction} Tu vas tenir 20 secondes. Si le mouvement
-                  devient inconfortable ou se degrade, reponds Non a la fin.
-                </p>
-              </Surface>
               <Button fullWidth onClick={() => resetTimer("countdown")}>
                 Je suis pret
               </Button>
@@ -1073,7 +1064,11 @@ function AssessmentView({
           {phase === "effort" ? (
             <div className="grid gap-3">
               <TimerPanel label="Effort" value={effortRemaining} />
-              <Button fullWidth variant="secondary" onClick={handleNotHeld}>
+              <Button
+                className="border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-hover)] text-[var(--pc-color-on-primary)] hover:bg-[var(--pc-color-primary)]"
+                fullWidth
+                onClick={handleNotHeld}
+              >
                 {"J'arrete ce test"}
               </Button>
             </div>
@@ -1145,9 +1140,6 @@ function AssessmentPoseStrip({
             src={guide.src}
           />
         </div>
-        <figcaption className="text-center text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
-          {title}
-        </figcaption>
       </figure>
     );
   }
