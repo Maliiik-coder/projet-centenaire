@@ -545,16 +545,30 @@ function SportHeader({
   view: SportView;
   onNavigate: (view: SportView) => void;
 }) {
+  const shouldReturnToDashboard =
+    view === "history" || view === "settings" || view === "preview";
+
   return (
     <header className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <Link
-          aria-label="Retour a l'accueil"
-          className="pc-focus-ring mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
-          href="/"
-        >
-          <ArrowLeft aria-hidden="true" size={18} />
-        </Link>
+        {shouldReturnToDashboard ? (
+          <button
+            aria-label="Retour au tableau de bord Sport"
+            className="pc-focus-ring mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
+            type="button"
+            onClick={() => onNavigate("home")}
+          >
+            <ArrowLeft aria-hidden="true" size={18} />
+          </button>
+        ) : (
+          <Link
+            aria-label="Retour a l'accueil"
+            className="pc-focus-ring mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
+            href="/"
+          >
+            <ArrowLeft aria-hidden="true" size={18} />
+          </Link>
+        )}
         <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
           Sport
         </h1>
