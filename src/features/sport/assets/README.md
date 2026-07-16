@@ -12,5 +12,7 @@ Images de guides de mouvement fournies par l'utilisateur dans Codex pour la tran
 - `plank-wall-guide.png` : gainage face au mur.
 - `plank-knees-guide.png` : gainage sur les genoux.
 - `plank-full-guide.png` : gainage classique.
+- `warmup-march-easy-guide.png` : marche lente sur place.
+- `warmup-march-active-guide.png` : marche active sur place.
 
-Ces assets remplacent les illustrations schematiques internes uniquement pour les variantes correspondantes. Les marches de l'evaluation gardent le fallback SVG local tant que leurs guides dedies ne sont pas fournis. Avant publication hors MVP, confirmer le statut de licence et de validation finale des images.
+Ces assets remplacent les illustrations schematiques internes pour toutes les variantes de l'evaluation guidee actuelle. Les autres mouvements hors evaluation gardent le fallback SVG local tant que leurs guides dedies ne sont pas fournis. Avant publication hors MVP, confirmer le statut de licence et de validation finale des images.

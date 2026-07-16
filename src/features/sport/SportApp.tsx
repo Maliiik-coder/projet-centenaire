@@ -29,6 +29,8 @@ import pushFeetElevatedGuide from "@/features/sport/assets/push-feet-elevated-gu
 import pushKneesGuide from "@/features/sport/assets/push-knees-guide.png";
 import pushStandardGuide from "@/features/sport/assets/push-standard-guide.png";
 import pushWallGuide from "@/features/sport/assets/push-wall-guide.png";
+import warmupMarchActiveGuide from "@/features/sport/assets/warmup-march-active-guide.png";
+import warmupMarchEasyGuide from "@/features/sport/assets/warmup-march-easy-guide.png";
 import { generateWorkout } from "@/lib/sport/workoutGenerator";
 import {
   cancelTimer,
@@ -819,6 +821,14 @@ const assessmentGuideImages: Partial<
   plank_full: {
     alt: "Guide illustre du gainage classique, avec position et consignes.",
     src: plankFullGuide,
+  },
+  warmup_march_easy: {
+    alt: "Guide illustre de la marche lente sur place, avec position de depart, mouvement et consignes.",
+    src: warmupMarchEasyGuide,
+  },
+  warmup_march_active: {
+    alt: "Guide illustre de la marche active sur place, avec position de depart, mouvement et consignes.",
+    src: warmupMarchActiveGuide,
   },
 };
 
