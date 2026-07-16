@@ -56,6 +56,11 @@ import {
 } from "@/lib/foodDetection";
 import { shouldShowActiveMission } from "@/lib/mission";
 import {
+  isLocalEntryModeSelected,
+  onboardingEntryPath,
+  ONBOARDING_START_PARAM,
+} from "@/lib/entryMode";
+import {
   behaviorHypothesisText,
   buildInitialBehaviorAssessment,
   calculateBmi,
@@ -85,6 +90,10 @@ import { WeightTrendChart } from "@/components/WeightTrendChart";
 import { AppHeader } from "@/components/centenaire/AppHeader";
 import { BottomNav } from "@/components/centenaire/BottomNav";
 import {
+  LaunchScreen,
+  type LaunchStage,
+} from "@/components/centenaire/LaunchScreen";
+import {
   OnboardingLayout,
   OnboardingQuestion,
 } from "@/components/centenaire/OnboardingLayout";
@@ -96,6 +105,7 @@ import {
   DateWheelPicker,
   ErrorState,
   FormField,
+  holdChoiceInstanceKey,
   HoldChoiceCard,
   IconButton as UIIconButton,
   Surface,
@@ -1082,6 +1092,8 @@ export function ProjetCentenaireApp() {
   const [connectedResetStatus, setConnectedResetStatus] = useState<
     "idle" | "running" | "reload-required"
   >("idle");
+  const [launchStage, setLaunchStage] = useState<LaunchStage>("loading");
+  const [launchAcknowledged, setLaunchAcknowledged] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraft>({
     firstName: "",
@@ -1124,6 +1136,20 @@ export function ProjetCentenaireApp() {
   const cloudGenerationRef = useRef(0);
   const localEditGenerationRef = useRef(0);
   const activeCloudUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const sloganTimer = window.setTimeout(() => {
+      setLaunchStage("slogan");
+    }, 2000);
+    const readyTimer = window.setTimeout(() => {
+      setLaunchStage("ready");
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(sloganTimer);
+      window.clearTimeout(readyTimer);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1613,6 +1639,67 @@ export function ProjetCentenaireApp() {
     [data, currentDate],
   );
 
+  const entrySearchParams =
+    !data || typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search);
+  const onboardingPreview =
+    process.env.NODE_ENV === "development" &&
+    Boolean(entrySearchParams?.has("onboarding-preview"));
+  const onboardingEntryRequested = Boolean(
+    entrySearchParams?.has(ONBOARDING_START_PARAM),
+  );
+
+  useEffect(() => {
+    if (!data?.profile || typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(ONBOARDING_START_PARAM)) return;
+
+    const cleanupTimer = window.setTimeout(() => {
+      url.searchParams.delete(ONBOARDING_START_PARAM);
+      setLaunchAcknowledged(true);
+      window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    }, 0);
+
+    return () => window.clearTimeout(cleanupTimer);
+  }, [data?.profile]);
+
+  if (!onboardingEntryRequested && !launchAcknowledged) {
+    return (
+      <LaunchScreen
+        dataReady={Boolean(data)}
+        stage={launchStage}
+        onStart={() => {
+          if (!data) return;
+
+          if (onboardingPreview) {
+            const nextPath = onboardingEntryPath(true);
+            window.location.assign(
+              `/login?next=${encodeURIComponent(nextPath)}`,
+            );
+            return;
+          }
+
+          if (
+            data.profile ||
+            cloudUserId ||
+            isLocalEntryModeSelected()
+          ) {
+            setLaunchAcknowledged(true);
+            if (!data.profile) {
+              setOnboardingStep(onboardingNameStep);
+            }
+            return;
+          }
+
+          const nextPath = onboardingEntryPath(false);
+          window.location.assign(`/login?next=${encodeURIComponent(nextPath)}`);
+        }}
+      />
+    );
+  }
+
   if (connectedResetStatus !== "idle") {
     return (
       <ConnectedResetScreen
@@ -2091,22 +2178,32 @@ export function ProjetCentenaireApp() {
   }
 
   const profile = data.profile;
-  const onboardingPreview =
-    process.env.NODE_ENV === "development" &&
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("onboarding-preview");
+  const activeOnboardingStep =
+    onboardingStep === onboardingWelcomeStep &&
+    (onboardingEntryRequested || cloudUserId || isLocalEntryModeSelected())
+      ? onboardingNameStep
+      : onboardingStep;
 
   if (!profile || onboardingPreview) {
     return (
       <Onboarding
         draft={onboardingDraft}
         error={error}
-        step={onboardingStep}
-        onBack={() =>
-          setOnboardingStep((step) =>
-            getPreviousOnboardingStep(step, onboardingDraft),
-          )
-        }
+        step={activeOnboardingStep}
+        onBack={() => {
+          if (activeOnboardingStep === onboardingNameStep) {
+            window.location.assign(
+              onboardingPreview ? "/?onboarding-preview=1" : "/",
+            );
+            return;
+          }
+          setOnboardingStep(
+            getPreviousOnboardingStep(
+              activeOnboardingStep,
+              onboardingDraft,
+            ),
+          );
+        }}
         onAnswer={(nextDraft, nextStep) => {
           setOnboardingDraft(nextDraft);
           setError(null);
@@ -2119,7 +2216,7 @@ export function ProjetCentenaireApp() {
         onNext={() => {
           const stepError = getOnboardingStepError(
             onboardingDraft,
-            onboardingStep,
+            activeOnboardingStep,
           );
 
           if (stepError) {
@@ -2127,17 +2224,20 @@ export function ProjetCentenaireApp() {
             return;
           }
 
-          if (onboardingStep < onboardingFinalStep) {
+          if (activeOnboardingStep < onboardingFinalStep) {
             setError(null);
-            setOnboardingStep((step) =>
-              getNextOnboardingStep(step, onboardingDraft),
+            setOnboardingStep(
+              getNextOnboardingStep(
+                activeOnboardingStep,
+                onboardingDraft,
+              ),
             );
             return;
           }
 
           if (onboardingPreview) {
             setError(null);
-            setOnboardingStep(0);
+            setOnboardingStep(onboardingNameStep);
             return;
           }
 
@@ -3215,7 +3315,6 @@ function Onboarding({
   }, [visibleStep]);
 
   const showPrimaryAction = [
-    onboardingWelcomeStep,
     onboardingNameStep,
     onboardingBirthDateStep,
     onboardingHeightStep,
@@ -3228,13 +3327,11 @@ function Onboarding({
     onboardingFinalStep,
   ].includes(visibleStep);
   const primaryLabel =
-    visibleStep === onboardingWelcomeStep
-      ? "Commencer"
-      : visibleStep === onboardingFinalStep
-        ? "Ouvrir la page du jour"
-        : visibleStep === onboardingProfessionalSupportStep &&
-            draft.professionalSupport === undefined
-          ? "Passer"
+    visibleStep === onboardingFinalStep
+      ? "Ouvrir la page du jour"
+      : visibleStep === onboardingProfessionalSupportStep &&
+          draft.professionalSupport === undefined
+        ? "Passer"
         : "Continuer";
   const progressStep = Math.min(visibleStep, onboardingFinalStep - 1);
   const bmi = calculateBmi(
@@ -3272,21 +3369,6 @@ function Onboarding({
       showProgress={visibleStep > 0 && visibleStep < onboardingFinalStep}
       totalSteps={onboardingFinalStep - 1}
     >
-      {visibleStep === onboardingWelcomeStep ? (
-        <section className="space-y-5" aria-labelledby="onboarding-welcome">
-          <h1
-            className="max-w-[15ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)] min-[390px]:text-[2.25rem]"
-            id="onboarding-welcome"
-          >
-            Comprends tes habitudes.
-          </h1>
-          <p className="text-xl leading-7 text-[var(--pc-color-text-muted)]">
-            Ici, on ne compte pas les calories. On s’intéresse à ce qui compte
-            vraiment.
-          </p>
-        </section>
-      ) : null}
-
       {visibleStep === onboardingNameStep ? (
         <OnboardingQuestion
           description="Le carnet utilise ce prénom uniquement dans l’application."
@@ -3405,6 +3487,7 @@ function Onboarding({
       {behaviorQuestion ? (
         <BehaviorFrequencyQuestion
           answer={draft.behaviorAnswers[behaviorQuestion.key]}
+          questionId={behaviorQuestion.key}
           title={behaviorQuestion.title}
           onSelect={(answer) => {
             const nextDraft = {
@@ -3654,10 +3737,12 @@ const behaviorQuestions: Record<
 function BehaviorFrequencyQuestion({
   answer,
   onSelect,
+  questionId,
   title,
 }: {
   answer: BehaviorFrequency | undefined;
   onSelect: (answer: BehaviorFrequency) => void;
+  questionId: string;
   title: string;
 }) {
   return (
@@ -3666,7 +3751,7 @@ function BehaviorFrequencyQuestion({
         {behaviorFrequencyChoices.map((choice) => (
           <HoldChoiceCard
             checked={answer === choice.value}
-            key={choice.value ?? "unknown"}
+            key={holdChoiceInstanceKey(questionId, choice.value)}
             label={choice.label}
             onConfirm={() => onSelect(choice.value)}
           />
@@ -3785,6 +3870,7 @@ function BehaviorProfileEditor({
       {question ? (
         <BehaviorFrequencyQuestion
           answer={draft.behaviorAnswers[question.key]}
+          questionId={question.key}
           title={question.title}
           onSelect={(answer) => {
             setDraft((current) => ({

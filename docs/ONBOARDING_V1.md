@@ -129,19 +129,34 @@ Le parcours moyen doit rester inférieur à trois minutes. Les écrans de choix
 simples avancent après sélection ; les multisélections demandent une validation
 explicite.
 
-### Bloc A - Accueil et identité
+### Bloc A - Ouverture, accès et identité
 
-#### A0 - Accueil
+#### A0 - Démarrage
 
-Titre : `Comprends tes habitudes.`
+À chaque ouverture normale de l'application :
 
-Texte :
+- le mot-symbole Haru apparaît immédiatement ;
+- une barre de chargement progresse pendant deux secondes ;
+- le slogan `Un jour à la fois.` apparaît ensuite avec une transition d'une
+  seconde ;
+- le bouton `Commencer` apparaît à la fin de cette transition.
 
-> Ici, on ne compte pas les calories. On s'intéresse à ce qui compte vraiment.
+Le retour d'une authentification et la reprise explicite d'un onboarding passent
+ce sas afin de ne pas le montrer deux fois de suite.
 
-Action : `Commencer`
+#### A1 - Choix d'accès
 
-#### A1 - Prénom
+Après `Commencer`, un nouvel utilisateur choisit entre :
+
+- Google ;
+- une adresse email avec lien magique, qui crée le compte si nécessaire ;
+- `Continuer uniquement sur ce téléphone`.
+
+Le dernier choix n'utilise aucun compte Supabase. Les données restent dans le
+scope invité de l'appareil et ne sont pas synchronisées ailleurs. Le choix est
+mémorisé localement pour permettre la reprise d'un onboarding interrompu.
+
+#### A2 - Prénom
 
 Question : `Comment tu veux qu'on t'appelle ?`
 
@@ -149,7 +164,7 @@ Contrôle : champ texte.
 
 Validation : une valeur non vide.
 
-#### A2 - Date de naissance
+#### A3 - Date de naissance
 
 Question : `Quelle est ta date de naissance ?`
 

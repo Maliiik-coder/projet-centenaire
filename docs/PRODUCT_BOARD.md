@@ -346,7 +346,14 @@ Décisions :
 - échelle comportementale simplifiée à quatre réponses : Jamais, Parfois,
   Souvent, Je ne sais pas encore ;
 - questions reformulées sans répéter « parfois » dans leur intitulé ;
-- validation des choix à avancement automatique par appui maintenu de 500 ms.
+- validation des choix à avancement automatique par appui maintenu de 500 ms ;
+- correction du blocage qui conservait l'état bleu d'une réponse sur les
+  questions suivantes ;
+- démarrage séquencé : logo et chargement 2 s, apparition du slogan pendant
+  1 s, puis bouton Commencer ;
+- choix d'accès avant l'onboarding : Google, lien email ou mode local limité à
+  l'appareil ;
+- retour d'authentification directement sur la première question du profil.
 
 ## 8. Backlog
 

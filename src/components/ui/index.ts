@@ -12,6 +12,7 @@ export { FormField } from "@/components/ui/FormField";
 export type { FormFieldProps } from "@/components/ui/FormField";
 export {
   DEFAULT_HOLD_DURATION_MS,
+  holdChoiceInstanceKey,
   HoldChoiceCard,
 } from "@/components/ui/HoldChoiceCard";
 export type { HoldChoiceCardProps } from "@/components/ui/HoldChoiceCard";

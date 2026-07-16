@@ -12,6 +12,11 @@ import {
   TopBar,
 } from "@/components/ui";
 import { buildAuthCallbackUrl, safeAuthNext } from "@/lib/authRedirect";
+import {
+  clearLocalEntryMode,
+  onboardingEntryPath,
+  selectLocalEntryMode,
+} from "@/lib/entryMode";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export function LoginForm() {
@@ -26,7 +31,10 @@ export function LoginForm() {
       return "/";
     }
 
-    return safeAuthNext(new URLSearchParams(window.location.search).get("next"));
+    const requestedNext = new URLSearchParams(window.location.search).get("next");
+    return requestedNext
+      ? safeAuthNext(requestedNext)
+      : onboardingEntryPath(false);
   }, []);
 
   const redirectTo = () =>
@@ -41,6 +49,7 @@ export function LoginForm() {
     }
 
     setError(null);
+    clearLocalEntryMode();
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: redirectTo() },
@@ -64,6 +73,7 @@ export function LoginForm() {
     }
 
     setError(null);
+    clearLocalEntryMode();
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "apple",
       options: { redirectTo: redirectTo() },
@@ -92,10 +102,14 @@ export function LoginForm() {
     setIsSending(true);
     setError(null);
     setMessage(null);
+    clearLocalEntryMode();
 
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: redirectTo() },
+      options: {
+        emailRedirectTo: redirectTo(),
+        shouldCreateUser: true,
+      },
     });
 
     setIsSending(false);
@@ -120,14 +134,13 @@ export function LoginForm() {
               href="/"
             >
               <ChevronLeft aria-hidden="true" size={17} />
-              Retour au carnet
+              Retour
             </Link>
             <h1 className="max-w-sm text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
-              Retrouver son carnet.
+              Ouvrir Haru.
             </h1>
             <p className="max-w-md text-[length:var(--pc-font-size-body)] leading-[var(--pc-line-height-relaxed)] text-[var(--pc-color-text-muted)]">
-              La sauvegarde cloud sert uniquement à garder tes observations entre
-              appareils.
+              Choisis comment retrouver ton carnet aujourd’hui.
             </p>
           </div>
 
@@ -143,22 +156,28 @@ export function LoginForm() {
             >
               Continuer avec Google
             </Button>
-            <Button
-              disabled={!configured || !appleEnabled}
-              fullWidth
-              onClick={signInWithApple}
-              variant="secondary"
-            >
-              <span className="text-[length:var(--pc-font-size-meta)]">
-                {appleEnabled
-                  ? "Continuer avec Apple"
-                  : "Connexion Apple bientôt disponible"}
-              </span>
-            </Button>
+            {appleEnabled ? (
+              <Button
+                disabled={!configured}
+                fullWidth
+                onClick={signInWithApple}
+                variant="secondary"
+              >
+                Continuer avec Apple
+              </Button>
+            ) : null}
           </div>
 
           <Surface as="section" className="p-4 sm:p-5" variant="default">
             <form className="space-y-3" onSubmit={sendMagicLink}>
+              <div className="space-y-1">
+                <h2 className="font-semibold text-[var(--pc-color-text)]">
+                  Continuer avec une adresse email
+                </h2>
+                <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
+                  Un compte sera créé automatiquement si cette adresse est nouvelle.
+                </p>
+              </div>
               <FormField id="login-email" label="Email">
                 <TextInput
                   autoComplete="email"
@@ -177,10 +196,26 @@ export function LoginForm() {
                 type="submit"
                 variant="secondary"
               >
-                Recevoir un lien de connexion
+                Recevoir mon lien
               </Button>
             </form>
           </Surface>
+
+          <div className="space-y-3 border-t border-[var(--pc-color-border)] pt-5">
+            <Button
+              fullWidth
+              variant="secondary"
+              onClick={() => {
+                selectLocalEntryMode();
+                window.location.assign(nextPath);
+              }}
+            >
+              Continuer uniquement sur ce téléphone
+            </Button>
+            <p className="text-center text-sm leading-5 text-[var(--pc-color-text-muted)]">
+              Sans compte et sans sauvegarde entre plusieurs appareils.
+            </p>
+          </div>
 
           {message ? (
             <div

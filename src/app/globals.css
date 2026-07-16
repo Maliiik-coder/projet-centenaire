@@ -465,6 +465,20 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
+.launch-progress {
+  animation: launch-progress 2s linear both;
+}
+
+@keyframes launch-progress {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
 @keyframes toast-enter {
   from {
     opacity: 0;

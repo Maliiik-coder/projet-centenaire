@@ -13,6 +13,13 @@ import { cx } from "@/components/ui/styles";
 
 export const DEFAULT_HOLD_DURATION_MS = 500;
 
+export function holdChoiceInstanceKey(
+  questionId: string,
+  value: string | number | null,
+): string {
+  return `${questionId}-${value ?? "unknown"}`;
+}
+
 export type HoldChoiceCardProps = {
   checked: boolean;
   disabled?: boolean;
@@ -57,6 +64,7 @@ export function HoldChoiceCard({
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
       confirmedRef.current = true;
+      setHolding(false);
       onConfirm();
     }, holdDurationMs);
   };

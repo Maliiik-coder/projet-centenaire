@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_HOLD_DURATION_MS,
+  holdChoiceInstanceKey,
   HoldChoiceCard,
 } from "@/components/ui/HoldChoiceCard";
 
@@ -19,5 +20,11 @@ describe("HoldChoiceCard", () => {
     expect(html).toContain('aria-checked="false"');
     expect(html).toContain("Maintenir une demi-seconde pour valider.");
     expect(html).toContain("clip-path:inset(0 100% 0 0)");
+  });
+
+  it("isole l’état interne entre deux questions successives", () => {
+    expect(holdChoiceInstanceKey("rhythm", 2)).not.toBe(
+      holdChoiceInstanceKey("hunger", 2),
+    );
   });
 });
