@@ -2,10 +2,10 @@
 
 ## Principe
 
-`ProjetCentenaireApp.tsx` reste temporairement le shell historique. Il possède
-la session, l’état applicatif, les mutations, les files hors ligne et les
-transitions entre les grands modes. Il ne doit plus porter le rendu détaillé de
-chaque onglet.
+`ProjetCentenaireApp.tsx` est désormais un shell d’interface. Il conserve la
+navigation, les panneaux transversaux et la traduction des intentions métier,
+mais ne possède plus directement le cycle de session, les caches locaux ou les
+files cloud.
 
 Les modules de `src/features/` suivent une frontière simple :
 
@@ -41,16 +41,18 @@ Les modules de `src/features/` suivent une frontière simple :
   le brouillon et l’historique navigateur de la roue Poids ;
 - `src/features/startup/StartupScreens.tsx` : chargement, réinitialisation locale
   et décision explicite de migration ;
+- `src/features/session/useAppDataSession.ts` : sélection du scope invité ou
+  utilisateur, chargement cloud, miroir hors ligne, reprise réseau, mutations
+  pending, migration explicite, déconnexion et réinitialisation ;
 - `src/app/sport/` et `src/features/sport/` : module Sport isolé par route.
 
 ## Ordre d’extraction suivant
 
-1. Isoler l’orchestration de session et de persistance dans des hooks dédiés.
-2. Extraire les gestionnaires de repas et de suivi quotidien dans des
+1. Extraire les gestionnaires de repas et de suivi quotidien dans des
    contrôleurs dédiés si leur taille augmente de nouveau.
-3. Déplacer les fonctions de formatage transversales vers leurs domaines.
-4. Réduire `ProjetCentenaireApp.tsx` à un shell de session, navigation et
-   orchestration.
+2. Déplacer les fonctions de formatage transversales vers leurs domaines.
+3. Réduire encore `ProjetCentenaireApp.tsx` à la navigation et à la composition
+   des contrôleurs déjà isolés.
 
 Chaque étape doit compiler et passer les tests avant la suppression de son
 ancienne implémentation. Une refonte produit ne doit pas être mélangée à une
