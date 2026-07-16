@@ -5,7 +5,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   Archive,
   BookOpen,
-  ChevronLeft,
   Download,
   Dumbbell,
   LineChart,
@@ -18,12 +17,7 @@ import {
   isSmokingTrackingEnabled,
   roundOne,
 } from "@/lib/analytics";
-import {
-  calculateAgeOnDate,
-  daysBetween,
-  shouldUpdateCurrentDate,
-  todayISO,
-} from "@/lib/dates";
+import { daysBetween, shouldUpdateCurrentDate, todayISO } from "@/lib/dates";
 import {
   upsertDailyWeightEntry,
   upsertSmokingEntry,
@@ -48,15 +42,7 @@ import {
   onboardingEntryPath,
   ONBOARDING_START_PARAM,
 } from "@/lib/entryMode";
-import {
-  behaviorHypothesisText,
-  buildInitialBehaviorAssessment,
-  calculateBmi,
-  calculateReferenceGoalWeight,
-  classifyAdultBmi,
-  legacyFrictionFromAssessment,
-  toggleExclusiveSelection,
-} from "@/lib/onboarding";
+import { legacyFrictionFromAssessment } from "@/lib/onboarding";
 import {
   buildProfilePatch,
   createProfileMutationDraft,
@@ -83,14 +69,6 @@ import {
   LaunchScreen,
   type LaunchStage,
 } from "@/components/centenaire/LaunchScreen";
-import {
-  OnboardingLayout,
-  OnboardingQuestion,
-} from "@/components/centenaire/OnboardingLayout";
-import {
-  ONBOARDING_PREPARATION_DURATION_MS,
-  OnboardingPreparationScreen,
-} from "@/components/centenaire/OnboardingPreparationScreen";
 import { StartupStateLayout } from "@/components/centenaire/StartupStateLayout";
 import { TodayScreen } from "@/components/centenaire/TodayScreen";
 import { InsightsScreen } from "@/features/insights/InsightsScreen";
@@ -115,18 +93,16 @@ import {
   type MealDraft,
 } from "@/features/meal/mealDraftModel";
 import { ProfileScreen } from "@/features/profile/ProfileScreen";
+import { BehaviorProfileEditor } from "@/features/onboarding/BehaviorProfileEditor";
+import { OnboardingFlow } from "@/features/onboarding/OnboardingFlow";
+import {
+  onboardingNameStep,
+  onboardingWelcomeStep,
+} from "@/features/onboarding/onboardingModel";
 import {
   Button as UIButton,
-  ChoiceCard,
-  DateWheelPicker,
   ErrorState,
-  FormField,
-  holdChoiceInstanceKey,
-  HoldChoiceCard,
-  IconButton as UIIconButton,
   Surface,
-  TextInput as UITextInput,
-  WheelPicker,
 } from "@/components/ui";
 import { loadCloudData } from "@/services/cloudDataService";
 import { resetConnectedLocalData } from "@/services/connectedResetService";
@@ -162,22 +138,14 @@ import {
 } from "@/services/offlineSyncService";
 import type {
   AppData,
-  BehaviorContext,
-  BehaviorFrequency,
   FrictionChoice,
-  InitialBehaviorAnswers,
-  InitialBehaviorAssessment,
   ISODate,
   MealEntry,
   MealMutation,
   NonMealMutationDraft,
   Profile,
-  PerceivedFriction,
-  ProfessionalSupportStatus,
   SmokingEntry,
   SmokingDayState,
-  SmokingGoal,
-  SmokingStatus,
   WeightEntry,
 } from "@/lib/types";
 
@@ -191,24 +159,6 @@ interface TabDefinition {
   icon: LucideIcon;
 }
 
-interface OnboardingDraft {
-  firstName: string;
-  birthDate: string;
-  heightCm: string;
-  startWeightKg: string;
-  goalWeightKg: string;
-  goalWeightIsCustom: boolean;
-  startDate: string;
-  behaviorAnswers: {
-    [Key in keyof InitialBehaviorAnswers]: BehaviorFrequency | undefined;
-  };
-  contexts: BehaviorContext[];
-  perceivedFrictions: PerceivedFriction[];
-  professionalSupport?: ProfessionalSupportStatus;
-  smokingStatus: SmokingStatus;
-  smokingGoal?: SmokingGoal;
-}
-
 const tabs: TabDefinition[] = [
   { id: "today", label: "Jour", accessibleLabel: "Page du jour", icon: PenLine },
   { id: "journal", label: "Carnet", icon: BookOpen },
@@ -217,59 +167,7 @@ const tabs: TabDefinition[] = [
   { id: "profile", label: "Profil", icon: Settings2 },
 ];
 
-const onboardingSmokingLabels: Partial<Record<SmokingStatus, string>> = {
-  non: "Non",
-  occasionnellement: "Occasionnellement",
-  "tous-les-jours": "Tous les jours",
-  arrete: "Je viens d’arrêter",
-};
-
-const onboardingSmokingGoalLabels: Partial<Record<SmokingGoal, string>> = {
-  arreter: "Arrêter",
-  reduire: "Réduire",
-  observer: "Observer d’abord",
-  "pas-maintenant": "Pas maintenant",
-};
-
-const behaviorFrequencyChoices: Array<{
-  label: string;
-  value: BehaviorFrequency;
-}> = [
-  { label: "Jamais", value: 0 },
-  { label: "Parfois", value: 2 },
-  { label: "Souvent", value: 3 },
-  { label: "Je ne sais pas encore", value: null },
-];
-
-const behaviorContextLabels: Record<BehaviorContext, string> = {
-  "evening-night": "Le soir ou la nuit",
-  screen: "Devant un écran",
-  work: "Au travail",
-  "car-travel": "En voiture ou en déplacement",
-  hotel: "À l’hôtel",
-  "restaurant-social": "Au restaurant ou avec d’autres personnes",
-  "alone-home": "Seul à la maison",
-  "no-specific-context": "Aucune situation précise",
-  unknown: "Je ne sais pas encore",
-};
-
-const perceivedFrictionLabels: Record<PerceivedFriction, string> = {
-  "large-portions": "Des portions trop importantes",
-  "snacking-without-hunger": "Manger ou grignoter sans faim",
-  "habit-meals": "Des repas pris par habitude",
-  irregularity: "Un rythme irrégulier",
-  emotional: "Le stress ou les émotions",
-  stopping: "La difficulté à m’arrêter",
-  unknown: "Je ne sais pas encore",
-};
-
-const professionalSupportLabels: Record<ProfessionalSupportStatus, string> = {
-  yes: "Oui",
-  no: "Non",
-  "prefer-not-to-say": "Je préfère ne pas répondre",
-};
-
- const smokingDayLabels: Record<SmokingDayState, string> = {
+const smokingDayLabels: Record<SmokingDayState, string> = {
   aucun: "Aucun",
   envie: "Envie forte",
   cigarette: "Cigarette",
@@ -442,222 +340,6 @@ function initialPriorityText(friction: FrictionChoice): string {
   }
 
   return "Note les repas et les sensations qui reviennent cette semaine.";
-}
-
-function needsSmokingGoal(status: SmokingStatus): boolean {
-  return status !== "non" && status !== "non-renseigne";
-}
-
-const onboardingWelcomeStep = 0;
-const onboardingNameStep = 1;
-const onboardingBirthDateStep = 2;
-const onboardingHeightStep = 3;
-const onboardingWeightStep = 4;
-const onboardingBmiStep = 5;
-const onboardingGoalStep = 6;
-const onboardingBehaviorStartStep = 7;
-const onboardingContextsStep = 14;
-const onboardingPerceivedFrictionsStep = 15;
-const onboardingProfessionalSupportStep = 16;
-const onboardingSmokingStep = 17;
-const onboardingSmokingGoalStep = 18;
-const onboardingFinalStep = 19;
-
-const behaviorAnswerStepKeys: Partial<
-  Record<number, keyof InitialBehaviorAnswers>
-> = {
-  7: "rhythm",
-  8: "hunger",
-  9: "satietyControl",
-  10: "emotional",
-  11: "externalCues",
-  12: "habitContext",
-  13: "restrictionRebound",
-};
-
-function completeBehaviorAnswers(
-  answers: OnboardingDraft["behaviorAnswers"],
-): InitialBehaviorAnswers {
-  return {
-    rhythm: answers.rhythm ?? null,
-    hunger: answers.hunger ?? null,
-    satietyControl: answers.satietyControl ?? null,
-    emotional: answers.emotional ?? null,
-    externalCues: answers.externalCues ?? null,
-    habitContext: answers.habitContext ?? null,
-    restrictionRebound: answers.restrictionRebound ?? null,
-  };
-}
-
-function hasCompleteBehaviorAnswers(
-  answers: OnboardingDraft["behaviorAnswers"],
-): boolean {
-  return Object.values(answers).every((answer) => answer !== undefined);
-}
-
-function buildBehaviorAssessmentFromDraft(
-  draft: Pick<
-    OnboardingDraft,
-    | "behaviorAnswers"
-    | "contexts"
-    | "perceivedFrictions"
-    | "professionalSupport"
-  >,
-  completedAt: string,
-): InitialBehaviorAssessment {
-  return buildInitialBehaviorAssessment({
-    answers: completeBehaviorAnswers(draft.behaviorAnswers),
-    completedAt,
-    contexts: draft.contexts,
-    perceivedFrictions: draft.perceivedFrictions,
-    professionalSupport: draft.professionalSupport,
-  });
-}
-
-function buildProfile(draft: OnboardingDraft): Profile {
-  const createdAt = new Date().toISOString();
-  const initialBehaviorAssessment = buildBehaviorAssessmentFromDraft(
-    draft,
-    createdAt,
-  );
-
-  return {
-    firstName: draft.firstName.trim(),
-    age: calculateAgeOnDate(draft.birthDate, draft.startDate),
-    heightCm: Number(draft.heightCm),
-    startWeightKg: roundOne(Number(draft.startWeightKg)),
-    goalWeightKg: roundOne(Number(draft.goalWeightKg)),
-    startDate: draft.startDate,
-    initialFriction: legacyFrictionFromAssessment(initialBehaviorAssessment),
-    initialBehaviorAssessment,
-    smokingStatus: draft.smokingStatus,
-    smokingGoal: needsSmokingGoal(draft.smokingStatus) ? draft.smokingGoal : undefined,
-    showActiveMission: true,
-    darkMode: false,
-    weeklyActivityGoal: 5,
-    createdAt,
-  };
-}
-
-function isValidProfileDraft(draft: OnboardingDraft): boolean {
-  return (
-    draft.firstName.trim().length > 0 &&
-    hasValidOnboardingBirthDate(draft.birthDate, draft.startDate) &&
-    hasNumberInRange(draft.heightCm, 100, 220) &&
-    hasNumberInRange(draft.startWeightKg, 30, 250) &&
-    hasNumberInRange(draft.goalWeightKg, 30, 250) &&
-    draft.startDate.length > 0 &&
-    hasCompleteBehaviorAnswers(draft.behaviorAnswers) &&
-    draft.contexts.length > 0 &&
-    draft.perceivedFrictions.length > 0 &&
-    draft.smokingStatus !== "non-renseigne" &&
-    (!needsSmokingGoal(draft.smokingStatus) || draft.smokingGoal !== undefined)
-  );
-}
-
-function hasNumberInRange(value: string, min: number, max: number): boolean {
-  const number = Number(value);
-  return value.trim().length > 0 && number >= min && number <= max;
-}
-
-function hasValidOnboardingBirthDate(
-  birthDate: string,
-  referenceDate: string,
-): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) {
-    return false;
-  }
-
-  const age = calculateAgeOnDate(birthDate, referenceDate);
-  return age >= 18 && age <= 100;
-}
-
-function getNextOnboardingStep(
-  step: number,
-  draft: OnboardingDraft,
-): number {
-  if (step === onboardingSmokingStep && !needsSmokingGoal(draft.smokingStatus)) {
-    return onboardingFinalStep;
-  }
-
-  return Math.min(onboardingFinalStep, step + 1);
-}
-
-function getPreviousOnboardingStep(
-  step: number,
-  draft: OnboardingDraft,
-): number {
-  if (step === onboardingFinalStep && !needsSmokingGoal(draft.smokingStatus)) {
-    return onboardingSmokingStep;
-  }
-
-  return Math.max(0, step - 1);
-}
-
-function getOnboardingStepError(
-  draft: OnboardingDraft,
-  step: number,
-): string | null {
-  if (step === onboardingNameStep && draft.firstName.trim().length === 0) {
-    return "Indique ton prénom pour ouvrir le carnet.";
-  }
-
-  if (
-    step === onboardingBirthDateStep &&
-    !hasValidOnboardingBirthDate(draft.birthDate, draft.startDate)
-  ) {
-    return "Choisis ta date de naissance.";
-  }
-
-  if (step === onboardingHeightStep && !hasNumberInRange(draft.heightCm, 100, 220)) {
-    return "Choisis ta taille.";
-  }
-
-  if (step === onboardingWeightStep && !hasNumberInRange(draft.startWeightKg, 30, 250)) {
-    return "Choisis ton poids actuel.";
-  }
-
-  if (step === onboardingGoalStep && !hasNumberInRange(draft.goalWeightKg, 30, 250)) {
-    return "Choisis ton objectif.";
-  }
-
-  const behaviorAnswerKey = behaviorAnswerStepKeys[step];
-  if (
-    step >= onboardingBehaviorStartStep &&
-    behaviorAnswerKey &&
-    draft.behaviorAnswers[behaviorAnswerKey] === undefined
-  ) {
-    return "Choisis la réponse qui se rapproche le plus de ton quotidien.";
-  }
-
-  if (step === onboardingContextsStep && draft.contexts.length === 0) {
-    return "Choisis au moins une situation, ou indique que tu ne sais pas encore.";
-  }
-
-  if (
-    step === onboardingPerceivedFrictionsStep &&
-    draft.perceivedFrictions.length === 0
-  ) {
-    return "Choisis au moins un point, ou indique que tu ne sais pas encore.";
-  }
-
-  if (step === onboardingSmokingStep && draft.smokingStatus === "non-renseigne") {
-    return "Réponds à la question tabac pour continuer.";
-  }
-
-  if (
-    step === onboardingSmokingGoalStep &&
-    needsSmokingGoal(draft.smokingStatus) &&
-    draft.smokingGoal === undefined
-  ) {
-    return "Choisis ce que tu souhaites faire concernant le tabac.";
-  }
-
-  if (step === onboardingFinalStep && !isValidProfileDraft(draft)) {
-    return "Complète les réponses précédentes pour ouvrir le carnet.";
-  }
-
-  return null;
 }
 
 function Button({
@@ -862,30 +544,6 @@ export function ProjetCentenaireApp() {
   >("idle");
   const [launchStage, setLaunchStage] = useState<LaunchStage>("loading");
   const [launchAcknowledged, setLaunchAcknowledged] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(0);
-  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraft>({
-    firstName: "",
-    birthDate: "",
-    heightCm: "",
-    startWeightKg: "",
-    goalWeightKg: "",
-    goalWeightIsCustom: false,
-    startDate: today,
-    behaviorAnswers: {
-      rhythm: undefined,
-      hunger: undefined,
-      satietyControl: undefined,
-      emotional: undefined,
-      externalCues: undefined,
-      habitContext: undefined,
-      restrictionRebound: undefined,
-    },
-    contexts: [],
-    perceivedFrictions: [],
-    professionalSupport: undefined,
-    smokingStatus: "non-renseigne",
-    smokingGoal: undefined,
-  });
   const [mealOpen, setMealOpen] = useState(false);
   const [mealDraft, setMealDraft] = useState<MealDraft>(() =>
     createEmptyMealDraft(currentDate),
@@ -1530,9 +1188,6 @@ export function ProjetCentenaireApp() {
             isLocalEntryModeSelected()
           ) {
             setLaunchAcknowledged(true);
-            if (!data.profile) {
-              setOnboardingStep(onboardingNameStep);
-            }
             return;
           }
 
@@ -2021,87 +1676,21 @@ export function ProjetCentenaireApp() {
   }
 
   const profile = data.profile;
-  const activeOnboardingStep =
-    onboardingStep === onboardingWelcomeStep &&
-    (onboardingEntryRequested || cloudUserId || isLocalEntryModeSelected())
-      ? onboardingNameStep
-      : onboardingStep;
 
   if (!profile || onboardingPreview) {
     return (
-      <Onboarding
-        draft={onboardingDraft}
+      <OnboardingFlow
         error={error}
-        step={activeOnboardingStep}
-        onBack={() => {
-          if (activeOnboardingStep === onboardingNameStep) {
-            window.location.assign(
-              onboardingPreview ? "/?onboarding-preview=1" : "/",
-            );
-            return;
-          }
-          setOnboardingStep(
-            getPreviousOnboardingStep(
-              activeOnboardingStep,
-              onboardingDraft,
-            ),
-          );
-        }}
-        onAnswer={(nextDraft, nextStep) => {
-          setOnboardingDraft(nextDraft);
-          setError(null);
-          setOnboardingStep(nextStep);
-        }}
-        onChange={(nextDraft) => {
-          setOnboardingDraft(nextDraft);
-          setError(null);
-        }}
-        onNext={() => {
-          const stepError = getOnboardingStepError(
-            onboardingDraft,
-            activeOnboardingStep,
-          );
-
-          if (stepError) {
-            setError(stepError);
-            return;
-          }
-
-          if (activeOnboardingStep < onboardingFinalStep) {
-            const referenceGoalWeight = calculateReferenceGoalWeight(
-              Number(onboardingDraft.startWeightKg),
-              Number(onboardingDraft.heightCm),
-            );
-            const nextDraft =
-              activeOnboardingStep === onboardingBmiStep &&
-              !onboardingDraft.goalWeightIsCustom &&
-              referenceGoalWeight !== null
-                ? {
-                    ...onboardingDraft,
-                    goalWeightKg: String(referenceGoalWeight),
-                  }
-                : onboardingDraft;
-
-            if (nextDraft !== onboardingDraft) {
-              setOnboardingDraft(nextDraft);
-            }
-            setError(null);
-            setOnboardingStep(
-              getNextOnboardingStep(
-                activeOnboardingStep,
-                nextDraft,
-              ),
-            );
-            return;
-          }
-
-          if (onboardingPreview) {
-            setError(null);
-            setOnboardingStep(onboardingNameStep);
-            return;
-          }
-
-          const nextProfile = buildProfile(onboardingDraft);
+        initialStep={
+          onboardingEntryRequested ||
+          cloudUserId ||
+          isLocalEntryModeSelected()
+            ? onboardingNameStep
+            : onboardingWelcomeStep
+        }
+        preview={onboardingPreview}
+        startDate={today}
+        onComplete={(nextProfile) => {
           const initialWeight: WeightEntry = {
             id: createId("weight"),
             date: nextProfile.startDate,
@@ -2121,6 +1710,12 @@ export function ProjetCentenaireApp() {
               createProfileMutationDraft(nextProfile),
               createWeightMutationDraft(initialWeight),
             ],
+          );
+        }}
+        onError={setError}
+        onExit={() => {
+          window.location.assign(
+            onboardingPreview ? "/?onboarding-preview=1" : "/",
           );
         }}
       />
@@ -2357,7 +1952,6 @@ export function ProjetCentenaireApp() {
     setPendingSync(false);
     setData(guestData);
     setProfileDraft(guestData.profile);
-    setOnboardingStep(0);
     window.location.assign("/login");
   };
 
@@ -2504,7 +2098,6 @@ export function ProjetCentenaireApp() {
     const reset = localDataStore.reset(guestStorageScope);
     setData(reset);
     setProfileDraft(null);
-    setOnboardingStep(0);
     setMigrationSources((current) => ({
       ...current,
       guest: null,
@@ -2617,807 +2210,6 @@ export function ProjetCentenaireApp() {
         }}
       />
     </main>
-  );
-}
-
-function Onboarding({
-  draft,
-  error,
-  step,
-  onBack,
-  onAnswer,
-  onChange,
-  onNext,
-}: {
-  draft: OnboardingDraft;
-  error: string | null;
-  step: number;
-  onBack: () => void;
-  onAnswer: (draft: OnboardingDraft, nextStep: number) => void;
-  onChange: (draft: OnboardingDraft) => void;
-  onNext: () => void;
-}) {
-  const visibleStep = step;
-  const [finalPreparationComplete, setFinalPreparationComplete] =
-    useState(false);
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, [visibleStep]);
-
-  useEffect(() => {
-    if (
-      visibleStep !== onboardingFinalStep ||
-      finalPreparationComplete
-    ) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setFinalPreparationComplete(true);
-    }, ONBOARDING_PREPARATION_DURATION_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [finalPreparationComplete, visibleStep]);
-
-  if (visibleStep === onboardingFinalStep && !finalPreparationComplete) {
-    return <OnboardingPreparationScreen />;
-  }
-
-  const showPrimaryAction = [
-    onboardingNameStep,
-    onboardingBirthDateStep,
-    onboardingHeightStep,
-    onboardingWeightStep,
-    onboardingBmiStep,
-    onboardingGoalStep,
-    onboardingContextsStep,
-    onboardingPerceivedFrictionsStep,
-    onboardingProfessionalSupportStep,
-    onboardingFinalStep,
-  ].includes(visibleStep);
-  const primaryLabel =
-    visibleStep === onboardingFinalStep
-      ? "Commencer les 7 jours"
-      : visibleStep === onboardingProfessionalSupportStep &&
-          draft.professionalSupport === undefined
-        ? "Passer"
-        : "Continuer";
-  const progressStep = Math.min(visibleStep, onboardingFinalStep - 1);
-  const bmi = calculateBmi(
-    Number(draft.startWeightKg),
-    Number(draft.heightCm),
-  );
-  const bmiClassification = bmi === null ? null : classifyAdultBmi(bmi);
-  const referenceGoalWeight = calculateReferenceGoalWeight(
-    Number(draft.startWeightKg),
-    Number(draft.heightCm),
-  );
-  const assessmentPreview = buildBehaviorAssessmentFromDraft(
-    draft,
-    new Date().toISOString(),
-  );
-  const behaviorQuestion = behaviorQuestions[visibleStep];
-  const actions = showPrimaryAction ? (
-    <UIButton fullWidth onClick={onNext}>
-      {primaryLabel}
-    </UIButton>
-  ) : null;
-  const backAction =
-    visibleStep > onboardingWelcomeStep ? (
-      <UIIconButton
-        className="rounded-full border-transparent"
-        label="Retour"
-        onClick={onBack}
-      >
-        <ChevronLeft aria-hidden="true" size={24} />
-      </UIIconButton>
-    ) : undefined;
-
-  return (
-    <OnboardingLayout
-      actions={actions}
-      backAction={backAction}
-      currentStep={progressStep}
-      error={error ? <ErrorState message={error} /> : undefined}
-      showProgress={visibleStep > 0 && visibleStep < onboardingFinalStep}
-      totalSteps={onboardingFinalStep - 1}
-    >
-      {visibleStep === onboardingNameStep ? (
-        <OnboardingQuestion
-          description="Le carnet utilise ce prénom uniquement dans l’application."
-          title="Comment tu veux qu’on t’appelle ?"
-        >
-          <FormField id="onboarding-first-name" label="Prénom">
-            <UITextInput
-              autoComplete="given-name"
-              value={draft.firstName}
-              onChange={(event) =>
-                onChange({ ...draft, firstName: event.target.value })
-              }
-            />
-          </FormField>
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingBirthDateStep ? (
-        <OnboardingQuestion title="Quelle est ta date de naissance ?">
-          <DateWheelPicker
-            onChange={(value) => onChange({ ...draft, birthDate: value })}
-            referenceDate={draft.startDate}
-            value={draft.birthDate}
-          />
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingHeightStep ? (
-        <OnboardingQuestion title="Quelle est ta taille ?">
-          <WheelPicker
-            ariaLabel="Taille"
-            max={220}
-            min={100}
-            onChange={(value) => onChange({ ...draft, heightCm: value })}
-            suggestedValue={170}
-            unit="cm"
-            value={draft.heightCm}
-          />
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingWeightStep ? (
-        <OnboardingQuestion title="Quel est ton poids actuel ?">
-          <WheelPicker
-            ariaLabel="Poids actuel"
-            max={250}
-            min={30}
-            onChange={(value) => onChange({ ...draft, startWeightKg: value })}
-            suggestedValue={100}
-            unit="kg"
-            value={draft.startWeightKg}
-          />
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingBmiStep && bmi !== null && bmiClassification ? (
-        <section className="space-y-6" aria-labelledby="onboarding-bmi-title">
-          <div className="space-y-3">
-            <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-              État des lieux
-            </p>
-            <h1
-              className="max-w-[18ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]"
-              id="onboarding-bmi-title"
-            >
-              Ton point de départ
-            </h1>
-          </div>
-          <Surface className="space-y-4 p-5 min-[390px]:p-6">
-            <div>
-              <p className="text-sm font-semibold text-[var(--pc-color-text-muted)]">
-                IMC estimé
-              </p>
-              <p className="mt-1 text-4xl leading-none font-bold text-[var(--pc-color-text)]">
-                {bmi.toLocaleString("fr-FR", {
-                  maximumFractionDigits: 1,
-                  minimumFractionDigits: 1,
-                })}
-              </p>
-            </div>
-            <p className="text-base leading-6 text-[var(--pc-color-text)]">
-              Selon les repères adultes, cette valeur se situe {bmiClassification.visibleLabel}.
-            </p>
-            <p className="text-sm leading-6 text-[var(--pc-color-text-muted)]">
-              C’est un indicateur de santé, pas un jugement. Il ne résume ni ta
-              santé, ni ta valeur, ni les raisons de ta situation.
-            </p>
-            <p className="text-xs leading-5 text-[var(--pc-color-text-muted)]">
-              Repère médical · {bmiClassification.medicalLabel}
-            </p>
-          </Surface>
-          <p className="text-base leading-6 text-[var(--pc-color-text-muted)]">
-            Haru va maintenant chercher les situations et les habitudes qui
-            méritent d’être observées.
-          </p>
-        </section>
-      ) : null}
-
-      {visibleStep === onboardingGoalStep ? (
-        <OnboardingQuestion
-          description={
-            referenceGoalWeight === null
-              ? "C’est un repère. Il pourra évoluer plus tard."
-              : `Le « poids idéal » n’est pas une valeur absolue. Haru a placé la roue sur ${referenceGoalWeight} kg, un repère calculé à partir de ta taille et de la zone d’IMC de référence. Tu peux le modifier.`
-          }
-          title="Quel poids veux-tu viser pour commencer ?"
-        >
-          <WheelPicker
-            ariaLabel="Objectif de poids"
-            max={250}
-            min={30}
-            onChange={(value) =>
-              onChange({
-                ...draft,
-                goalWeightKg: value,
-                goalWeightIsCustom: true,
-              })
-            }
-            suggestedValue={
-              referenceGoalWeight ?? (Number(draft.startWeightKg) || 80)
-            }
-            unit="kg"
-            value={draft.goalWeightKg}
-          />
-        </OnboardingQuestion>
-      ) : null}
-
-      {behaviorQuestion ? (
-        <BehaviorFrequencyQuestion
-          answer={draft.behaviorAnswers[behaviorQuestion.key]}
-          questionId={behaviorQuestion.key}
-          title={behaviorQuestion.title}
-          onSelect={(answer) => {
-            const nextDraft = {
-              ...draft,
-              behaviorAnswers: {
-                ...draft.behaviorAnswers,
-                [behaviorQuestion.key]: answer,
-              },
-            };
-            onAnswer(nextDraft, Math.min(onboardingContextsStep, visibleStep + 1));
-          }}
-        />
-      ) : null}
-
-      {visibleStep === onboardingContextsStep ? (
-        <OnboardingQuestion
-          description="Tu peux en choisir plusieurs. Les deux dernières réponses sont exclusives."
-          title="Dans quelles situations cela arrive-t-il le plus souvent ?"
-        >
-          <div className="grid gap-2">
-            {Object.entries(behaviorContextLabels).map(([key, label]) => (
-              <ChoiceCard
-                checked={draft.contexts.includes(key as BehaviorContext)}
-                key={key}
-                label={label}
-                name="behavior-context"
-                type="checkbox"
-                value={key}
-                onChange={(event) => {
-                  const context = key as BehaviorContext;
-                  const contexts = toggleExclusiveSelection(
-                    draft.contexts,
-                    context,
-                    event.target.checked,
-                    ["no-specific-context", "unknown"],
-                  );
-                  onChange({ ...draft, contexts });
-                }}
-              />
-            ))}
-          </div>
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingPerceivedFrictionsStep ? (
-        <OnboardingQuestion
-          description="Tu peux en choisir plusieurs. Le carnet vérifiera ensuite cette première impression."
-          title="Qu’est-ce qui semble le plus te freiner aujourd’hui ?"
-        >
-          <div className="grid gap-2">
-            {Object.entries(perceivedFrictionLabels).map(([key, label]) => (
-              <ChoiceCard
-                checked={draft.perceivedFrictions.includes(
-                  key as PerceivedFriction,
-                )}
-                key={key}
-                label={label}
-                name="perceived-friction"
-                type="checkbox"
-                value={key}
-                onChange={(event) => {
-                  const friction = key as PerceivedFriction;
-                  const perceivedFrictions = toggleExclusiveSelection(
-                    draft.perceivedFrictions,
-                    friction,
-                    event.target.checked,
-                    ["unknown"],
-                  );
-                  onChange({ ...draft, perceivedFrictions });
-                }}
-              />
-            ))}
-          </div>
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingProfessionalSupportStep ? (
-        <OnboardingQuestion
-          description="Cette question est facultative. Haru reste un outil d’observation et ne remplace pas cet accompagnement."
-          title="Es-tu actuellement accompagné par un professionnel pour ton poids, ton alimentation ou un trouble alimentaire ?"
-        >
-          <div className="grid gap-2">
-            {Object.entries(professionalSupportLabels).map(([key, label]) => (
-              <ChoiceCard
-                checked={draft.professionalSupport === key}
-                key={key}
-                label={label}
-                name="professional-support"
-                value={key}
-                onChange={() =>
-                  onChange({
-                    ...draft,
-                    professionalSupport: key as ProfessionalSupportStatus,
-                  })
-                }
-              />
-            ))}
-          </div>
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingSmokingStep ? (
-        <OnboardingQuestion
-          description="Le tabac sera suivi séparément de l’alimentation."
-          title="Tu fumes actuellement ?"
-        >
-          <div aria-label="Statut tabac" className="grid gap-2" role="radiogroup">
-            {Object.entries(onboardingSmokingLabels).map(([key, label]) => (
-              <HoldChoiceCard
-                checked={draft.smokingStatus === key}
-                key={key}
-                label={label}
-                onConfirm={() => {
-                  const nextDraft = {
-                    ...draft,
-                    smokingStatus: key as SmokingStatus,
-                    smokingGoal: undefined,
-                  };
-                  onAnswer(
-                    nextDraft,
-                    getNextOnboardingStep(visibleStep, nextDraft),
-                  );
-                }}
-              />
-            ))}
-          </div>
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingSmokingGoalStep ? (
-        <OnboardingQuestion
-          description="Cette réponse sert seulement à adapter le suivi tabac."
-          title="Qu’aimerais-tu faire concernant le tabac ?"
-        >
-          <div aria-label="Objectif tabac" className="grid gap-2" role="radiogroup">
-            {Object.entries(onboardingSmokingGoalLabels).map(([key, label]) => (
-              <HoldChoiceCard
-                checked={draft.smokingGoal === key}
-                key={key}
-                label={label}
-                onConfirm={() => {
-                  const nextDraft = {
-                    ...draft,
-                    smokingGoal: key as SmokingGoal,
-                  };
-                  onAnswer(nextDraft, onboardingFinalStep);
-                }}
-              />
-            ))}
-          </div>
-        </OnboardingQuestion>
-      ) : null}
-
-      {visibleStep === onboardingFinalStep ? (
-        <section className="space-y-5" aria-labelledby="onboarding-priority">
-          <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-            Ton bilan
-          </p>
-          <h1
-            className="max-w-[19ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]"
-            id="onboarding-priority"
-          >
-            Voilà ce que nous allons observer.
-          </h1>
-          <dl className="grid grid-cols-2 gap-3">
-            {bmi !== null ? (
-              <div className="rounded-[var(--pc-radius-card)] bg-[var(--pc-color-primary-soft)] p-4">
-                <dt className="text-xs font-semibold text-[var(--pc-color-text-muted)]">
-                  IMC estimé
-                </dt>
-                <dd className="mt-1 text-2xl font-bold text-[var(--pc-color-text)]">
-                  {bmi.toLocaleString("fr-FR", {
-                    maximumFractionDigits: 1,
-                    minimumFractionDigits: 1,
-                  })}
-                </dd>
-              </div>
-            ) : null}
-            <div className="rounded-[var(--pc-radius-card)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]">
-              <dt className="text-xs font-semibold text-[var(--pc-color-text-muted)]">
-                Poids visé
-              </dt>
-              <dd className="mt-1 text-2xl font-bold text-[var(--pc-color-text)]">
-                {draft.goalWeightKg} kg
-              </dd>
-            </div>
-          </dl>
-          <Surface className="space-y-3 p-5" variant="subtle">
-            <p className="text-sm font-semibold text-[var(--pc-color-text)]">
-              {assessmentPreview.hypotheses.length > 0
-                ? assessmentPreview.hypotheses.length === 1
-                  ? "Une piste mérite d’être observée"
-                  : "Deux pistes méritent d’être observées"
-                : "Aucune tendance nette pour le moment"}
-            </p>
-            {assessmentPreview.hypotheses.length > 0 ? (
-              <ul className="space-y-3">
-                {assessmentPreview.hypotheses.map((hypothesis) => (
-                  <li
-                    className="flex gap-3 text-sm leading-6 text-[var(--pc-color-text-muted)]"
-                    key={hypothesis.axis}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]"
-                    />
-                    {behaviorHypothesisText(hypothesis.axis)}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm leading-6 text-[var(--pc-color-text-muted)]">
-                Tes réponses ne dessinent pas de piste dominante. C’est aussi
-                une information utile.
-              </p>
-            )}
-          </Surface>
-          <Surface className="space-y-4 p-5">
-            <div className="space-y-2">
-              <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-                Les 7 prochains jours
-              </p>
-              <h2 className="text-xl leading-7 font-bold text-[var(--pc-color-text)]">
-                Vis comme d’habitude.
-              </h2>
-            </div>
-            <p className="text-sm leading-6 text-[var(--pc-color-text-muted)]">
-              Avant de commencer à changer tes habitudes, j’ai besoin de
-              comprendre comment tu fonctionnes vraiment. Pendant sept jours,
-              mange et organise tes journées comme tu le fais habituellement.
-              Ne change rien exprès pour l’application.
-            </p>
-            <ul className="space-y-3 text-sm leading-6 text-[var(--pc-color-text-muted)]">
-              <li className="flex gap-3">
-                <span aria-hidden="true" className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]" />
-                Renseigne chaque repas avec soin : contenu, quantités, faim et
-                sensations.
-              </li>
-              <li className="flex gap-3">
-                <span aria-hidden="true" className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]" />
-                Sois honnête, même lorsque la journée ne se déroule pas comme
-                prévu.
-              </li>
-            </ul>
-            <p className="text-sm leading-6 font-semibold text-[var(--pc-color-text)]">
-              Il n’y a rien à réussir ni à rater. Plus les faits seront fidèles
-              à ton quotidien, plus je pourrai t’aider justement.
-            </p>
-          </Surface>
-        </section>
-      ) : null}
-    </OnboardingLayout>
-  );
-}
-
-const behaviorQuestions: Record<
-  number,
-  { key: keyof InitialBehaviorAnswers; title: string }
-> = {
-  7: {
-    key: "rhythm",
-    title: "Sur une semaine habituelle, t’arrive-t-il de sauter un repas ou de manger beaucoup plus tard que prévu ?",
-  },
-  8: {
-    key: "hunger",
-    title: "T’arrive-t-il de commencer un repas avec une faim difficile à calmer ?",
-  },
-  9: {
-    key: "satietyControl",
-    title: "T’arrive-t-il de continuer à manger alors que tu n’as plus vraiment faim ?",
-  },
-  10: {
-    key: "emotional",
-    title: "Le stress, la fatigue, l’ennui ou une contrariété te donnent-ils envie de manger ?",
-  },
-  11: {
-    key: "externalCues",
-    title: "La vue, l’odeur ou la présence d’un aliment te donnent-elles envie de manger sans faim ?",
-  },
-  12: {
-    key: "habitContext",
-    title: "T’arrive-t-il de manger uniquement parce que c’est l’heure ou parce que les autres mangent ?",
-  },
-  13: {
-    key: "restrictionRebound",
-    title: "Après t’être beaucoup privé, t’arrive-t-il de manger nettement plus ensuite ?",
-  },
-};
-
-function BehaviorFrequencyQuestion({
-  answer,
-  onSelect,
-  questionId,
-  title,
-}: {
-  answer: BehaviorFrequency | undefined;
-  onSelect: (answer: BehaviorFrequency) => void;
-  questionId: string;
-  title: string;
-}) {
-  return (
-    <OnboardingQuestion title={title}>
-      <div aria-label={title} className="grid gap-2" role="radiogroup">
-        {behaviorFrequencyChoices.map((choice) => (
-          <HoldChoiceCard
-            checked={answer === choice.value}
-            key={holdChoiceInstanceKey(questionId, choice.value)}
-            label={choice.label}
-            onConfirm={() => onSelect(choice.value)}
-          />
-        ))}
-      </div>
-    </OnboardingQuestion>
-  );
-}
-
-type BehaviorAssessmentDraft = Pick<
-  OnboardingDraft,
-  | "behaviorAnswers"
-  | "contexts"
-  | "perceivedFrictions"
-  | "professionalSupport"
->;
-
-const behaviorEditorFinalStep = 10;
-
-function BehaviorProfileEditor({
-  initialAssessment,
-  onCancel,
-  onSave,
-}: {
-  initialAssessment?: InitialBehaviorAssessment;
-  onCancel: () => void;
-  onSave: (assessment: InitialBehaviorAssessment) => void;
-}) {
-  const [step, setStep] = useState(0);
-  const [editorError, setEditorError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<BehaviorAssessmentDraft>(() => ({
-    behaviorAnswers: initialAssessment
-      ? { ...initialAssessment.answers }
-      : {
-          rhythm: undefined,
-          hunger: undefined,
-          satietyControl: undefined,
-          emotional: undefined,
-          externalCues: undefined,
-          habitContext: undefined,
-          restrictionRebound: undefined,
-        },
-    contexts: initialAssessment?.contexts ?? [],
-    perceivedFrictions: initialAssessment?.perceivedFrictions ?? [],
-    professionalSupport: initialAssessment?.professionalSupport,
-  }));
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, [step]);
-
-  const question = behaviorQuestions[onboardingBehaviorStartStep + step];
-  const assessmentPreview = buildBehaviorAssessmentFromDraft(
-    draft,
-    new Date().toISOString(),
-  );
-
-  const goForward = () => {
-    if (step === 7 && draft.contexts.length === 0) {
-      setEditorError("Choisis au moins une situation.");
-      return;
-    }
-    if (step === 8 && draft.perceivedFrictions.length === 0) {
-      setEditorError("Choisis au moins un point.");
-      return;
-    }
-    if (step === behaviorEditorFinalStep) {
-      if (!hasCompleteBehaviorAnswers(draft.behaviorAnswers)) {
-        setEditorError("Complète les réponses précédentes.");
-        return;
-      }
-      onSave(
-        buildBehaviorAssessmentFromDraft(draft, new Date().toISOString()),
-      );
-      return;
-    }
-
-    setEditorError(null);
-    setStep((current) => Math.min(behaviorEditorFinalStep, current + 1));
-  };
-
-  const actions =
-    step >= 7 ? (
-      <UIButton fullWidth onClick={goForward}>
-        {step === behaviorEditorFinalStep
-          ? "Enregistrer le portrait"
-          : step === 9 && draft.professionalSupport === undefined
-            ? "Passer"
-            : "Continuer"}
-      </UIButton>
-    ) : null;
-
-  return (
-    <OnboardingLayout
-      actions={actions}
-      backAction={
-        <UIIconButton
-          className="rounded-full border-transparent"
-          label={step === 0 ? "Fermer" : "Retour"}
-          onClick={() => {
-            if (step === 0) {
-              onCancel();
-              return;
-            }
-            setEditorError(null);
-            setStep((current) => Math.max(0, current - 1));
-          }}
-        >
-          <ChevronLeft aria-hidden="true" size={24} />
-        </UIIconButton>
-      }
-      currentStep={Math.min(step + 1, behaviorEditorFinalStep)}
-      error={editorError ? <ErrorState message={editorError} /> : undefined}
-      showProgress={step < behaviorEditorFinalStep}
-      totalSteps={behaviorEditorFinalStep}
-    >
-      {question ? (
-        <BehaviorFrequencyQuestion
-          answer={draft.behaviorAnswers[question.key]}
-          questionId={question.key}
-          title={question.title}
-          onSelect={(answer) => {
-            setDraft((current) => ({
-              ...current,
-              behaviorAnswers: {
-                ...current.behaviorAnswers,
-                [question.key]: answer,
-              },
-            }));
-            setEditorError(null);
-            setStep((current) => current + 1);
-          }}
-        />
-      ) : null}
-
-      {step === 7 ? (
-        <OnboardingQuestion title="Dans quelles situations cela arrive-t-il le plus souvent ?">
-          <div className="grid gap-2">
-            {Object.entries(behaviorContextLabels).map(([key, label]) => (
-              <ChoiceCard
-                checked={draft.contexts.includes(key as BehaviorContext)}
-                key={key}
-                label={label}
-                name="profile-behavior-context"
-                type="checkbox"
-                value={key}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    contexts: toggleExclusiveSelection(
-                      current.contexts,
-                      key as BehaviorContext,
-                      event.target.checked,
-                      ["no-specific-context", "unknown"],
-                    ),
-                  }))
-                }
-              />
-            ))}
-          </div>
-        </OnboardingQuestion>
-      ) : null}
-
-      {step === 8 ? (
-        <OnboardingQuestion title="Qu’est-ce qui semble le plus te freiner aujourd’hui ?">
-          <div className="grid gap-2">
-            {Object.entries(perceivedFrictionLabels).map(([key, label]) => (
-              <ChoiceCard
-                checked={draft.perceivedFrictions.includes(
-                  key as PerceivedFriction,
-                )}
-                key={key}
-                label={label}
-                name="profile-perceived-friction"
-                type="checkbox"
-                value={key}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    perceivedFrictions: toggleExclusiveSelection(
-                      current.perceivedFrictions,
-                      key as PerceivedFriction,
-                      event.target.checked,
-                      ["unknown"],
-                    ),
-                  }))
-                }
-              />
-            ))}
-          </div>
-        </OnboardingQuestion>
-      ) : null}
-
-      {step === 9 ? (
-        <OnboardingQuestion
-          description="Cette question est facultative."
-          title="Es-tu actuellement accompagné par un professionnel pour ton poids, ton alimentation ou un trouble alimentaire ?"
-        >
-          <div className="grid gap-2">
-            {Object.entries(professionalSupportLabels).map(([key, label]) => (
-              <ChoiceCard
-                checked={draft.professionalSupport === key}
-                key={key}
-                label={label}
-                name="profile-professional-support"
-                value={key}
-                onChange={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    professionalSupport: key as ProfessionalSupportStatus,
-                  }))
-                }
-              />
-            ))}
-          </div>
-        </OnboardingQuestion>
-      ) : null}
-
-      {step === behaviorEditorFinalStep ? (
-        <section className="space-y-5" aria-labelledby="behavior-editor-summary">
-          <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-            Portrait initial
-          </p>
-          <h1
-            className="max-w-[19ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]"
-            id="behavior-editor-summary"
-          >
-            Tes pistes à observer
-          </h1>
-          <Surface className="space-y-3 p-5" variant="subtle">
-            {assessmentPreview.hypotheses.length > 0 ? (
-              <ul className="space-y-3">
-                {assessmentPreview.hypotheses.map((hypothesis) => (
-                  <li
-                    className="flex gap-3 text-sm leading-6 text-[var(--pc-color-text-muted)]"
-                    key={hypothesis.axis}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]"
-                    />
-                    {behaviorHypothesisText(hypothesis.axis)}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm leading-6 text-[var(--pc-color-text-muted)]">
-                Aucune tendance nette ne ressort pour le moment.
-              </p>
-            )}
-          </Surface>
-          <p className="text-sm leading-6 text-[var(--pc-color-text-muted)]">
-            Cette mise à jour remplace tes réponses déclarées. Les notes déjà
-            présentes dans le carnet restent intactes.
-          </p>
-        </section>
-      ) : null}
-    </OnboardingLayout>
   );
 }
 

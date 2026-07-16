@@ -443,12 +443,14 @@ Objectif : sortir progressivement les écrans et contrôleurs métier de
 `ProjetCentenaireApp.tsx`, sans recréer une seconde application ni réécrire la
 tuyauterie fiable.
 
-Statut au 16 juillet 2026 : deux tranches réalisées. Les écrans Aujourd’hui,
+Statut au 16 juillet 2026 : trois tranches réalisées. Les écrans Aujourd’hui,
 Carnet, Constats et Profil possèdent désormais des frontières dédiées. Le tunnel
 Repas possède également son écran, son modèle de brouillon et ses règles de
-progression testables. Le shell conserve les mutations, la session et la
-synchronisation ; les écrans émettent des intentions par callbacks et n’accèdent
-pas directement au stockage ou à Supabase. Voir
+progression testables. L’onboarding et l’éditeur du portrait comportemental
+possèdent désormais leur état et leur modèle dans `src/features/onboarding/`.
+Le shell conserve les mutations, la session et la synchronisation ; les écrans
+émettent des intentions par callbacks et n’accèdent pas directement au stockage
+ou à Supabase. Voir
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Ordre recommandé :
@@ -458,7 +460,8 @@ Ordre recommandé :
 - ajouter Recettes et les futurs modules dans des frontières indépendantes ;
 - couvrir chaque extraction avant de supprimer l'ancien code.
 
-Prochaines extractions : onboarding, puis panneaux Poids et Tabac.
+Prochaines extractions : panneaux Poids et Tabac, puis écrans de démarrage et de
+migration locale.
 
 ### V0.8 — Bilan quotidien
 

@@ -27,13 +27,19 @@ Les modules de `src/features/` suivent une frontière simple :
   Repas ;
 - `src/features/meal/mealDraftModel.ts` : brouillon, validation, navigation,
   reconstruction et création d’une observation repas ;
+- `src/features/onboarding/OnboardingFlow.tsx` : progression complète du
+  premier onboarding et bilan final ;
+- `src/features/onboarding/BehaviorProfileEditor.tsx` : révision du portrait
+  comportemental depuis le Profil ;
+- `src/features/onboarding/onboardingModel.ts` : brouillons, validations,
+  navigation conditionnelle et création du profil ;
 - `src/app/sport/` et `src/features/sport/` : module Sport isolé par route.
 
 ## Ordre d’extraction suivant
 
-1. Déplacer l’onboarding et son brouillon dans `src/features/onboarding/`.
-2. Extraire les panneaux Poids et Tabac.
-3. Extraire les écrans de démarrage et de migration locale.
+1. Extraire les panneaux Poids et Tabac.
+2. Extraire les écrans de démarrage et de migration locale.
+3. Isoler l’orchestration de session et de persistance dans des hooks dédiés.
 4. Réduire `ProjetCentenaireApp.tsx` à un shell de session, navigation et
    orchestration.
 
