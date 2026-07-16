@@ -46,6 +46,21 @@ export function daysBetween(start: ISODate, end: ISODate): number {
   return Math.round((endDate.getTime() - startDate.getTime()) / msPerDay);
 }
 
+export function calculateAgeOnDate(
+  birthDate: ISODate,
+  referenceDate: ISODate,
+): number {
+  const [birthYear, birthMonth, birthDay] = birthDate.split("-").map(Number);
+  const [referenceYear, referenceMonth, referenceDay] = referenceDate
+    .split("-")
+    .map(Number);
+  const birthdayHasPassed =
+    referenceMonth > birthMonth ||
+    (referenceMonth === birthMonth && referenceDay >= birthDay);
+
+  return referenceYear - birthYear - (birthdayHasPassed ? 0 : 1);
+}
+
 export function getWeekday(value: ISODate): Weekday {
   return WEEKDAYS[parseISODate(value).getDay()];
 }

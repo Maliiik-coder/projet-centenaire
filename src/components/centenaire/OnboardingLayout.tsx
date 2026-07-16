@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { LogoHorizontal } from "@/components/Logo";
 import { AppHeader } from "@/components/centenaire/AppHeader";
 import { ProgressIndicator } from "@/components/ui";
 
@@ -25,20 +26,25 @@ export function OnboardingLayout({
     <main className="pc-screen pc-motion-safe bg-[var(--pc-color-surface-subtle)]">
       <div className="pc-screen-inner mx-auto flex flex-col">
         {backAction || showProgress ? (
-          <header className="grid min-h-16 grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-center gap-4">
-            <div>{backAction}</div>
-            {showProgress ? (
-              <ProgressIndicator
-                className="w-full"
-                compact
-                current={currentStep}
-                label="Progression du profil initial"
-                total={totalSteps}
-              />
-            ) : (
-              <span />
-            )}
-            <span aria-hidden="true" />
+          <header className="pt-1">
+            <div className="flex min-h-10 items-center justify-center">
+              <LogoHorizontal className="h-7 w-auto max-w-[44vw] shrink-0" priority />
+            </div>
+            <div className="grid min-h-14 grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-center gap-4">
+              <div>{backAction}</div>
+              {showProgress ? (
+                <ProgressIndicator
+                  className="w-full"
+                  compact
+                  current={currentStep}
+                  label="Progression du profil initial"
+                  total={totalSteps}
+                />
+              ) : (
+                <span />
+              )}
+              <span aria-hidden="true" />
+            </div>
           </header>
         ) : (
           <AppHeader variant="signature" />

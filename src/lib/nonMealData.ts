@@ -27,6 +27,9 @@ export function profileToPatch(profile: Profile): ProfilePatch {
     goalWeightKg: profile.goalWeightKg,
     startDate: profile.startDate,
     initialFriction: profile.initialFriction,
+    ...(profile.initialBehaviorAssessment
+      ? { initialBehaviorAssessment: profile.initialBehaviorAssessment }
+      : {}),
     smokingStatus: profile.smokingStatus,
     smokingGoal: profile.smokingGoal ?? null,
     showActiveMission: profile.showActiveMission,
@@ -54,6 +57,12 @@ export function buildProfilePatch(
   if (previous.startDate !== next.startDate) patch.startDate = next.startDate;
   if (previous.initialFriction !== next.initialFriction) {
     patch.initialFriction = next.initialFriction;
+  }
+  if (
+    JSON.stringify(previous.initialBehaviorAssessment) !==
+    JSON.stringify(next.initialBehaviorAssessment)
+  ) {
+    patch.initialBehaviorAssessment = next.initialBehaviorAssessment;
   }
   if (previous.smokingStatus !== next.smokingStatus) {
     patch.smokingStatus = next.smokingStatus;
@@ -112,6 +121,15 @@ export function normalizeProfilePatch(value: unknown): ProfilePatch | null {
   }
   if (hasOwn(value, "initialFriction")) {
     assign("initialFriction", normalized.initialFriction);
+  }
+  if (
+    hasOwn(value, "initialBehaviorAssessment") &&
+    normalized.initialBehaviorAssessment
+  ) {
+    assign(
+      "initialBehaviorAssessment",
+      normalized.initialBehaviorAssessment,
+    );
   }
   if (hasOwn(value, "smokingStatus")) {
     assign("smokingStatus", normalized.smokingStatus);

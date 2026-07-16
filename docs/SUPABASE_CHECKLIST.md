@@ -19,6 +19,7 @@ Ordre attendu :
 4. `20260714100000_v061_dark_mode_preference.sql`
 5. `20260714110000_v07_meal_tunnel.sql`
 6. `20260715133410_v071_meal_boolean_defaults.sql`
+7. `20260716090000_initial_behavior_assessment.sql`
 
 ## Contrôle avec Supabase CLI
 
@@ -73,6 +74,7 @@ Colonnes de préférences attendues dans `profiles` :
 
 - `show_active_mission boolean default true`
 - `dark_mode boolean default false`
+- `initial_behavior_assessment jsonb`
 
 Colonnes stabilisées ou ajoutées dans `meal_observations` :
 

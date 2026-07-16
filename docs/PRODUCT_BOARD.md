@@ -325,6 +325,26 @@ quatre politiques `auth.uid()` par table. Les six index d'unicité attendus sont
 - mise à jour Next.js à traiter dans un commit séparé dès publication d'une
   version stable intégrant PostCSS 8.5.10 ou ultérieur.
 
+### Onboarding V1 — finalisation en cours
+
+Contrat produit validé : `docs/ONBOARDING_V1.md`.
+
+Décisions :
+
+- Haru V1 s'adresse aux personnes de 18 ans et plus ;
+- date de naissance exacte utilisée uniquement pour calculer l'âge, puis jetée ;
+- IMC dérivé de la taille et du poids, présenté comme un repère limité ;
+- sept questions de fréquence pour produire zéro, une ou deux hypothèses ;
+- hypothèses déclarées, non diagnostiques, à confirmer par sept jours de carnet ;
+- contextes et freins perçus conservés séparément ;
+- accompagnement professionnel demandé de manière facultative et non bloquante ;
+- tabac conservé dans une branche indépendante du portrait alimentaire ;
+- mini-test de Fagerström et SCOFF exclus de cette version ;
+- portrait initial modifiable depuis Profil sans altérer les notes du carnet ;
+- migration locale `20260716090000_initial_behavior_assessment.sql` ajoutée,
+  mais non déclarée appliquée à distance tant que le contrôle Supabase n'a pas
+  été rejoué.
+
 ## 8. Backlog
 
 ### Chantier parallèle — Sport
@@ -407,10 +427,17 @@ Pistes :
 
 Ne pas implémenter maintenant.
 
-### V1+ — Onboarding diagnostic
+### V1+ — Onboarding et profil comportemental
 
 Objectif :
-Repenser l’inscription comme un vrai diagnostic initial.
+Repenser l’inscription comme une première lecture comportementale, progressive et
+révisable. Elle ne doit ni poser de diagnostic psychologique, ni enfermer
+l’utilisateur dans une catégorie fixe.
+
+Spécification de travail : [ONBOARDING_V1.md](ONBOARDING_V1.md).
+
+Statut : contrat produit rédigé le 16 juillet 2026, en attente de validation
+humaine écran par écran avant implémentation.
 
 Pistes :
 - expliquer que la première semaine sert à observer sans corriger brutalement ;
@@ -426,7 +453,19 @@ Pistes :
   - grignotage ;
   - quantités ;
 - dresser un premier profil comportemental ;
+- explorer séparément les déclencheurs, le contexte, les émotions, l’automatisme,
+  la faim, la satiété, la recherche de réconfort et la disposition au changement ;
+- permettre plusieurs réponses lorsque plusieurs facteurs coexistent ;
+- distinguer les réponses déclarées des faits ensuite observés dans le carnet ;
+- rendre ces hypothèses modifiables et explicables à l’utilisateur ;
 - ne pas donner trop de conseils avant d’avoir observé les faits.
+
+Décision intermédiaire validée : la date de naissance se choisit avec trois
+molettes tactiles ; sa valeur exacte n’est pas persistée et sert uniquement à
+calculer l’âge actuel. La taille, le poids et l’objectif utilisent une molette
+simple, et l’écran des freins accepte plusieurs sélections. Le modèle V0.7.1
+conserve encore un frein principal pour la mission initiale ; la persistance du
+profil multidimensionnel doit être conçue avant son exploitation métier ou cloud.
 
 ## 9. Idées parking
 
@@ -453,7 +492,8 @@ Ne pas ajouter pour l’instant :
 - Quelle place exacte donner au tabac ?
 - Le bilan quotidien doit-il remplacer ou compléter le bilan hebdomadaire ?
 - Comment rendre les constats directs sans paraître froids ou scientifiques ?
-- Comment faire un onboarding qui explique l’IMC sans juger ?
+- Valider la proposition 18+, la formulation de l'IMC et les six décisions
+  ouvertes de `docs/ONBOARDING_V1.md`.
 - Faut-il une semaine d’observation obligatoire avant recommandations ?
 - Quelle quantité de données nutritionnelles afficher hors des fiches recettes ?
 - Comment relier une recette au tunnel repas sans transformer la saisie en formulaire nutritionnel ?

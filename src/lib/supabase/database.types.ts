@@ -23,6 +23,7 @@ export interface Database {
           smoking_status: string | null;
           smoking_goal: string | null;
           initial_friction: string | null;
+          initial_behavior_assessment: Json | null;
           show_active_mission: boolean;
           dark_mode: boolean;
           created_at: string;
@@ -41,6 +42,7 @@ export interface Database {
           smoking_status?: string | null;
           smoking_goal?: string | null;
           initial_friction?: string | null;
+          initial_behavior_assessment?: Json | null;
           show_active_mission?: boolean;
           dark_mode?: boolean;
           created_at?: string;
@@ -57,6 +59,7 @@ export interface Database {
           smoking_status?: string | null;
           smoking_goal?: string | null;
           initial_friction?: string | null;
+          initial_behavior_assessment?: Json | null;
           show_active_mission?: boolean;
           dark_mode?: boolean;
           updated_at?: string;

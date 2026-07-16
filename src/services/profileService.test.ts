@@ -20,6 +20,33 @@ describe("buildProfileUpdatePayload", () => {
       smoking_goal: null,
     });
   });
+
+  it("envoie le portrait comportemental dans le JSONB du profil", () => {
+    const assessment = {
+      version: 1 as const,
+      completedAt: "2026-07-16T08:00:00.000Z",
+      answers: {
+        rhythm: 2 as const,
+        hunger: 2 as const,
+        satietyControl: 1 as const,
+        emotional: 3 as const,
+        externalCues: 1 as const,
+        habitContext: 2 as const,
+        restrictionRebound: 0 as const,
+      },
+      contexts: ["work" as const],
+      perceivedFrictions: ["emotional" as const],
+      professionalSupport: "yes" as const,
+      hypotheses: [{ axis: "emotional" as const, level: 3 as const }],
+      evidence: "self-reported" as const,
+    };
+
+    expect(
+      buildProfileUpdatePayload({ initialBehaviorAssessment: assessment }),
+    ).toMatchObject({
+      initial_behavior_assessment: assessment,
+    });
+  });
 });
 
 describe("patchProfile", () => {

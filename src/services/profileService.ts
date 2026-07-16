@@ -5,7 +5,8 @@ import type {
   SmokingGoal,
   SmokingStatus,
 } from "@/lib/types";
-import type { Database } from "@/lib/supabase/database.types";
+import { normalizeInitialBehaviorAssessment } from "@/lib/onboarding";
+import type { Database, Json } from "@/lib/supabase/database.types";
 import type { AppSupabaseClient } from "@/services/serviceTypes";
 import { throwIfSupabaseError } from "@/services/serviceTypes";
 
@@ -56,6 +57,9 @@ function fromProfileRow(row: ProfileRow): Profile {
     goalWeightKg: Number(row.goal_weight_kg ?? 0),
     startDate: row.start_date ?? "",
     initialFriction: normalizeFriction(row.initial_friction),
+    initialBehaviorAssessment: normalizeInitialBehaviorAssessment(
+      row.initial_behavior_assessment,
+    ),
     smokingStatus: normalizeSmokingStatus(row.smoking_status),
     smokingGoal: normalizeSmokingGoal(row.smoking_goal),
     showActiveMission: row.show_active_mission ?? true,
@@ -84,6 +88,8 @@ function toProfileInsert(userId: string, profile: Profile): ProfileInsert {
     smoking_status: profile.smokingStatus,
     smoking_goal: profile.smokingGoal ?? null,
     initial_friction: profile.initialFriction,
+    initial_behavior_assessment:
+      (profile.initialBehaviorAssessment as unknown as Json | undefined) ?? null,
     show_active_mission: profile.showActiveMission,
     dark_mode: profile.darkMode,
     created_at: profile.createdAt,
@@ -113,6 +119,10 @@ export function buildProfileUpdatePayload(patch: ProfilePatch): ProfileUpdate {
   if (hasOwn(patch, "initialFriction")) {
     payload.initial_friction = patch.initialFriction;
   }
+  if (hasOwn(patch, "initialBehaviorAssessment")) {
+    payload.initial_behavior_assessment =
+      (patch.initialBehaviorAssessment as unknown as Json | undefined) ?? null;
+  }
   if (hasOwn(patch, "showActiveMission")) {
     payload.show_active_mission = patch.showActiveMission;
   }
@@ -137,6 +147,7 @@ function toProfileCreateInsert(
     smoking_status: update.smoking_status,
     smoking_goal: update.smoking_goal,
     initial_friction: update.initial_friction,
+    initial_behavior_assessment: update.initial_behavior_assessment,
     show_active_mission: update.show_active_mission,
     dark_mode: update.dark_mode,
     created_at: patch.createdAt,

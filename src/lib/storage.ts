@@ -29,6 +29,7 @@ import {
   stabilizeSmokingEntries,
 } from "@/lib/dataStabilization";
 import { normalizeMealKind } from "@/lib/mealKinds";
+import { normalizeInitialBehaviorAssessment } from "@/lib/onboarding";
 import { tryCanonicalizeTimestamp } from "@/lib/timestamps";
 
 const LEGACY_STORAGE_KEY = "projet-centenaire-fieldbook-v0";
@@ -169,6 +170,9 @@ function normalizeProfile(value: unknown): Profile | null {
     goalWeightKg: asNumber(value.goalWeightKg, 0),
     startDate: asString(value.startDate, ""),
     initialFriction: normalizeFriction(value.initialFriction),
+    initialBehaviorAssessment: normalizeInitialBehaviorAssessment(
+      value.initialBehaviorAssessment,
+    ),
     smokingStatus: normalizeSmokingStatus(value.smokingStatus),
     smokingGoal: normalizeSmokingGoal(value.smokingGoal),
     showActiveMission:

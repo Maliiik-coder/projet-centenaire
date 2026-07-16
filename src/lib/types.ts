@@ -17,6 +17,67 @@ export type SmokingStatus =
 
 export type SmokingGoal = "arreter" | "reduire" | "observer" | "pas-maintenant";
 
+export type BehaviorFrequency = 0 | 1 | 2 | 3 | null;
+
+export type BehavioralAxis =
+  | "rhythm_hunger"
+  | "satiety_control"
+  | "emotional"
+  | "external_cues"
+  | "habit_context"
+  | "restriction_rebound";
+
+export type BehaviorContext =
+  | "evening-night"
+  | "screen"
+  | "work"
+  | "car-travel"
+  | "hotel"
+  | "restaurant-social"
+  | "alone-home"
+  | "no-specific-context"
+  | "unknown";
+
+export type PerceivedFriction =
+  | "large-portions"
+  | "snacking-without-hunger"
+  | "habit-meals"
+  | "irregularity"
+  | "emotional"
+  | "stopping"
+  | "unknown";
+
+export type ProfessionalSupportStatus =
+  | "yes"
+  | "no"
+  | "prefer-not-to-say";
+
+export interface InitialBehaviorAnswers {
+  rhythm: BehaviorFrequency;
+  hunger: BehaviorFrequency;
+  satietyControl: BehaviorFrequency;
+  emotional: BehaviorFrequency;
+  externalCues: BehaviorFrequency;
+  habitContext: BehaviorFrequency;
+  restrictionRebound: BehaviorFrequency;
+}
+
+export interface BehaviorHypothesis {
+  axis: BehavioralAxis;
+  level: 2 | 3;
+}
+
+export interface InitialBehaviorAssessment {
+  version: 1;
+  completedAt: string;
+  answers: InitialBehaviorAnswers;
+  contexts: BehaviorContext[];
+  perceivedFrictions: PerceivedFriction[];
+  professionalSupport?: ProfessionalSupportStatus;
+  hypotheses: BehaviorHypothesis[];
+  evidence: "self-reported";
+}
+
 export interface Profile {
   firstName: string;
   age: number;
@@ -25,6 +86,7 @@ export interface Profile {
   goalWeightKg: number;
   startDate: ISODate;
   initialFriction: FrictionChoice;
+  initialBehaviorAssessment?: InitialBehaviorAssessment;
   smokingStatus: SmokingStatus;
   smokingGoal?: SmokingGoal;
   showActiveMission: boolean;
