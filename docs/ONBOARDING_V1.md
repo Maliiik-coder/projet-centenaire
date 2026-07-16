@@ -136,9 +136,9 @@ explicite.
 À chaque ouverture normale de l'application :
 
 - le mot-symbole Haru apparaît immédiatement ;
-- une barre de chargement progresse pendant deux secondes ;
-- le slogan `Un jour à la fois.` apparaît ensuite avec une transition d'une
-  seconde ;
+- une barre de chargement progresse pendant trois secondes ;
+- le slogan `Un jour à la fois.` apparaît ensuite avec une transition de deux
+  secondes ;
 - le bouton `Commencer` apparaît à la fin de cette transition.
 
 Le retour d'une authentification et la reprise explicite d'un onboarding passent
@@ -201,6 +201,12 @@ Question : `Quel poids veux-tu viser pour commencer ?`
 Description : `C'est un repère. Il pourra évoluer plus tard.`
 
 Contrôle : molette de 30 à 250 kg.
+
+La molette est présélectionnée sur le poids entier le plus proche de la zone
+d'IMC adulte de référence : limite basse si le poids actuel est inférieur à
+cette zone, limite haute s'il est supérieur, poids actuel s'il s'y trouve déjà.
+L'écran précise qu'il s'agit d'un repère mathématique modifiable, et non d'un
+« poids idéal » universel ou d'une prescription.
 
 L'application n'affiche pas de délai automatique ni de rythme de perte de poids.
 

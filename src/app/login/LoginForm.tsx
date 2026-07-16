@@ -11,7 +11,11 @@ import {
   TextInput,
   TopBar,
 } from "@/components/ui";
-import { buildAuthCallbackUrl, safeAuthNext } from "@/lib/authRedirect";
+import {
+  buildAuthCallbackUrl,
+  buildGoogleOAuthOptions,
+  safeAuthNext,
+} from "@/lib/authRedirect";
 import {
   clearLocalEntryMode,
   onboardingEntryPath,
@@ -52,7 +56,7 @@ export function LoginForm() {
     clearLocalEntryMode();
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: redirectTo() },
+      options: buildGoogleOAuthOptions(redirectTo()),
     });
 
     if (signInError) {

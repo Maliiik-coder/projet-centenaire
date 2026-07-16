@@ -56,6 +56,7 @@ import {
 } from "@/lib/foodDetection";
 import { shouldShowActiveMission } from "@/lib/mission";
 import {
+  clearLocalEntryMode,
   isLocalEntryModeSelected,
   onboardingEntryPath,
   ONBOARDING_START_PARAM,
@@ -64,6 +65,7 @@ import {
   behaviorHypothesisText,
   buildInitialBehaviorAssessment,
   calculateBmi,
+  calculateReferenceGoalWeight,
   classifyAdultBmi,
   legacyFrictionFromAssessment,
   toggleExclusiveSelection,
@@ -196,6 +198,7 @@ interface OnboardingDraft {
   heightCm: string;
   startWeightKg: string;
   goalWeightKg: string;
+  goalWeightIsCustom: boolean;
   startDate: string;
   behaviorAnswers: {
     [Key in keyof InitialBehaviorAnswers]: BehaviorFrequency | undefined;
@@ -1103,6 +1106,7 @@ export function ProjetCentenaireApp() {
     heightCm: "",
     startWeightKg: "",
     goalWeightKg: "",
+    goalWeightIsCustom: false,
     startDate: today,
     behaviorAnswers: {
       rhythm: undefined,
@@ -2227,11 +2231,28 @@ export function ProjetCentenaireApp() {
           }
 
           if (activeOnboardingStep < onboardingFinalStep) {
+            const referenceGoalWeight = calculateReferenceGoalWeight(
+              Number(onboardingDraft.startWeightKg),
+              Number(onboardingDraft.heightCm),
+            );
+            const nextDraft =
+              activeOnboardingStep === onboardingBmiStep &&
+              !onboardingDraft.goalWeightIsCustom &&
+              referenceGoalWeight !== null
+                ? {
+                    ...onboardingDraft,
+                    goalWeightKg: String(referenceGoalWeight),
+                  }
+                : onboardingDraft;
+
+            if (nextDraft !== onboardingDraft) {
+              setOnboardingDraft(nextDraft);
+            }
             setError(null);
             setOnboardingStep(
               getNextOnboardingStep(
                 activeOnboardingStep,
-                onboardingDraft,
+                nextDraft,
               ),
             );
             return;
@@ -2590,6 +2611,7 @@ export function ProjetCentenaireApp() {
       localDataStore.save(userStorageScope(cloudUserId), data);
     }
     await supabase?.auth.signOut();
+    clearLocalEntryMode();
     const guestData = localDataStore.load(guestStorageScope);
     setCloudUserId(null);
     setCloudEmail(null);
@@ -2601,7 +2623,7 @@ export function ProjetCentenaireApp() {
     setData(guestData);
     setProfileDraft(guestData.profile);
     setOnboardingStep(0);
-    setNotice("Déconnecté du compte cloud.");
+    window.location.assign("/login");
   };
 
   const renderToday = () => (
@@ -3341,6 +3363,10 @@ function Onboarding({
     Number(draft.heightCm),
   );
   const bmiClassification = bmi === null ? null : classifyAdultBmi(bmi);
+  const referenceGoalWeight = calculateReferenceGoalWeight(
+    Number(draft.startWeightKg),
+    Number(draft.heightCm),
+  );
   const assessmentPreview = buildBehaviorAssessmentFromDraft(
     draft,
     new Date().toISOString(),
@@ -3471,15 +3497,27 @@ function Onboarding({
 
       {visibleStep === onboardingGoalStep ? (
         <OnboardingQuestion
-          description="C’est un repère. Il pourra évoluer plus tard."
+          description={
+            referenceGoalWeight === null
+              ? "C’est un repère. Il pourra évoluer plus tard."
+              : `Le « poids idéal » n’est pas une valeur absolue. Haru a placé la roue sur ${referenceGoalWeight} kg, un repère calculé à partir de ta taille et de la zone d’IMC de référence. Tu peux le modifier.`
+          }
           title="Quel poids veux-tu viser pour commencer ?"
         >
           <WheelPicker
             ariaLabel="Objectif de poids"
             max={250}
             min={30}
-            onChange={(value) => onChange({ ...draft, goalWeightKg: value })}
-            suggestedValue={Number(draft.startWeightKg) || 80}
+            onChange={(value) =>
+              onChange({
+                ...draft,
+                goalWeightKg: value,
+                goalWeightIsCustom: true,
+              })
+            }
+            suggestedValue={
+              referenceGoalWeight ?? (Number(draft.startWeightKg) || 80)
+            }
             unit="kg"
             value={draft.goalWeightKg}
           />

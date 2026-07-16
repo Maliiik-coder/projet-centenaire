@@ -11,6 +11,7 @@ import {
   TextInput,
   TopBar,
 } from "@/components/ui";
+import { clearLocalEntryMode } from "@/lib/entryMode";
 import { localDataStore, userStorageScope } from "@/lib/storage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { exportCloudData } from "@/services/cloudDataService";
@@ -64,7 +65,8 @@ export function AccountClient({
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient();
     await supabase?.auth.signOut();
-    window.location.href = "/";
+    clearLocalEntryMode();
+    window.location.href = "/login";
   };
 
   const deleteAccount = async () => {
@@ -111,6 +113,7 @@ export function AccountClient({
     }
 
     await supabase?.auth.signOut();
+    clearLocalEntryMode();
     window.location.href = result.authDeleted ? "/login?deleted=1" : "/";
   };
 

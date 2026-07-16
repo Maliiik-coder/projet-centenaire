@@ -35,3 +35,15 @@ export function buildAuthCallbackUrl(
 
   return url.toString();
 }
+
+export function buildGoogleOAuthOptions(redirectTo: string): {
+  queryParams: Record<string, string>;
+  redirectTo: string;
+} {
+  return {
+    redirectTo,
+    queryParams: {
+      prompt: "select_account",
+    },
+  };
+}

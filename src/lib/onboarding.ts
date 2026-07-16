@@ -24,6 +24,11 @@ export type BmiClassification = {
   visibleLabel: string;
 };
 
+const ADULT_BMI_REFERENCE_MIN = 18.5;
+const ADULT_BMI_REFERENCE_MAX = 24.9;
+const ONBOARDING_WEIGHT_MIN_KG = 30;
+const ONBOARDING_WEIGHT_MAX_KG = 250;
+
 const BEHAVIOR_AXIS_PRIORITY: BehavioralAxis[] = [
   "rhythm_hunger",
   "satiety_control",
@@ -95,6 +100,33 @@ export function calculateBmi(
 
   const heightMeters = heightCm / 100;
   return Math.round((weightKg / heightMeters ** 2) * 10) / 10;
+}
+
+export function calculateReferenceGoalWeight(
+  currentWeightKg: number,
+  heightCm: number,
+): number | null {
+  if (!Number.isFinite(currentWeightKg) || !Number.isFinite(heightCm)) {
+    return null;
+  }
+  if (currentWeightKg <= 0 || heightCm <= 0) {
+    return null;
+  }
+
+  const heightSquared = (heightCm / 100) ** 2;
+  const lowerReferenceWeight = ADULT_BMI_REFERENCE_MIN * heightSquared;
+  const upperReferenceWeight = ADULT_BMI_REFERENCE_MAX * heightSquared;
+  const referenceWeight =
+    currentWeightKg < lowerReferenceWeight
+      ? Math.ceil(lowerReferenceWeight)
+      : currentWeightKg > upperReferenceWeight
+        ? Math.floor(upperReferenceWeight)
+        : Math.round(currentWeightKg);
+
+  return Math.min(
+    ONBOARDING_WEIGHT_MAX_KG,
+    Math.max(ONBOARDING_WEIGHT_MIN_KG, referenceWeight),
+  );
 }
 
 export function classifyAdultBmi(bmi: number): BmiClassification | null {

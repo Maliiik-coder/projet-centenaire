@@ -3,6 +3,7 @@ import {
   buildInitialBehaviorAssessment,
   buildBehaviorHypotheses,
   calculateBmi,
+  calculateReferenceGoalWeight,
   classifyAdultBmi,
   getPrimaryFriction,
   legacyFrictionFromAssessment,
@@ -60,6 +61,13 @@ describe("état des lieux IMC", () => {
     [40, "obesity-3"],
   ] as const)("classe correctement la frontière %s", (bmi, expected) => {
     expect(classifyAdultBmi(bmi)?.id).toBe(expected);
+  });
+
+  it("propose le poids le plus proche de la zone de référence", () => {
+    expect(calculateReferenceGoalWeight(150, 180)).toBe(80);
+    expect(calculateReferenceGoalWeight(50, 180)).toBe(60);
+    expect(calculateReferenceGoalWeight(72, 180)).toBe(72);
+    expect(calculateReferenceGoalWeight(0, 180)).toBeNull();
   });
 });
 

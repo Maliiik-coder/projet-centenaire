@@ -70,6 +70,12 @@ Commit de référence :
 - Le tabac est intégré mais doit devenir un vrai module plus tard.
 - Le profil par défaut personnel a été supprimé.
 - La page du jour mobile est validée dans son principe.
+- L'objectif de poids de l'onboarding est présélectionné à partir de la zone
+  d'IMC adulte de référence, présenté comme un repère modifiable et jamais comme
+  une prescription ou un poids idéal universel.
+- Google OAuth doit toujours proposer le choix du compte avec
+  `prompt=select_account`.
+- Une déconnexion réussie ramène explicitement à l'écran de connexion.
 - Les types de repas doivent être : Petit déjeuner, Déjeuner, Dîner, Grignotage.
 - “Collation” et “Autre” ne doivent plus être proposés comme choix actifs.
 - Les anciennes données “Collation” restent lisibles et sont traitées comme “Grignotage”.

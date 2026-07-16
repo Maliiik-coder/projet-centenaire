@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { buildAuthCallbackUrl, safeAuthNext } from "@/lib/authRedirect";
+import {
+  buildAuthCallbackUrl,
+  buildGoogleOAuthOptions,
+  safeAuthNext,
+} from "@/lib/authRedirect";
 import {
   stabilizeSmokingEntries,
   upsertDailyWeightEntry,
@@ -116,5 +120,14 @@ describe("safeAuthNext", () => {
     expect(buildAuthCallbackUrl("//evil.example", "http://localhost:3000")).toBe(
       "http://localhost:3000/auth/callback?next=%2F",
     );
+  });
+
+  it("demande à Google de proposer le choix du compte", () => {
+    expect(
+      buildGoogleOAuthOptions("https://centenaire.example.com/auth/callback"),
+    ).toEqual({
+      redirectTo: "https://centenaire.example.com/auth/callback",
+      queryParams: { prompt: "select_account" },
+    });
   });
 });
