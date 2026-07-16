@@ -1,6 +1,6 @@
 export type ISODateTime = string;
 
-export type SportActivity = "strength" | "walk" | "run" | "swim";
+export type SportActivity = "strength" | "walk_run" | "swim";
 
 export type SportGoal =
   | "restart_activity"
@@ -116,7 +116,7 @@ export type ReasonSeverity = "info" | "caution";
 export interface SportProfile {
   id: string;
   userId: string;
-  goal: SportGoal;
+  goals: SportGoal[];
   preferredActivities: SportActivity[];
   desiredFrequency: SportFrequency;
   usualDurationMinutes: number;
@@ -339,10 +339,10 @@ export interface OwnedSportResource {
 }
 
 export interface SportOnboardingDraft {
-  goal: SportGoal;
+  goals: SportGoal[];
   preferredActivities: SportActivity[];
-  usualDurationMinutes: number;
-  desiredFrequency: SportFrequency;
+  usualDurationMinutes: number | null;
+  desiredFrequency: SportFrequency | null;
   availableLocations: SportLocation[];
   equipment: EquipmentType[];
   limitationKind: LimitationKind;
@@ -352,6 +352,19 @@ export interface SportOnboardingDraft {
   pullCapability: CapabilityLevel | null;
   legsCapability: CapabilityLevel;
   coreCapability: CapabilityLevel;
+}
+
+export type AssessmentFeeling =
+  | "too_easy"
+  | "right"
+  | "too_hard"
+  | "discomfort";
+
+export interface SportAssessmentResults {
+  upperPush: AssessmentFeeling;
+  legs: AssessmentFeeling;
+  core: AssessmentFeeling;
+  cardio: AssessmentFeeling;
 }
 
 export type TimerStatus =

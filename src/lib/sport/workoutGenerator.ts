@@ -569,7 +569,7 @@ export function generateStrengthWorkout(
         {
           code: "no_compatible_exercise",
           message:
-            "Aucun exercice de renforcement compatible avec le materiel et les limitations declares.",
+            "Aucun exercice de renforcement musculaire compatible avec les contraintes connues.",
           severity: "caution",
         },
       ],
@@ -719,7 +719,7 @@ export function generateStrengthWorkout(
       scheduledAt: input.now,
       generationEngineVersion: SPORT_ENGINE_VERSION,
       plannedDifficulty: plannedDifficulty(fitted.selected),
-      generalReason: `${requestedDurationMinutes} min de renforcement adaptees au materiel et aux capacites declares.`,
+      generalReason: `${requestedDurationMinutes} min de renforcement musculaire adaptees a l'evaluation et aux retours connus.`,
       reasons,
       generationInputSnapshot,
       steps,

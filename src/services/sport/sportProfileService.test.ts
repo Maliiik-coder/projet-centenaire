@@ -18,20 +18,32 @@ describe("sportProfileService", () => {
     const profile = createSportProfile(
       {
         ...createDefaultSportOnboardingDraft(),
-        preferredActivities: ["strength", "walk", "swim"],
+        goals: ["restart_activity", "build_strength"],
+        preferredActivities: ["strength", "walk_run", "swim"],
         availableLocations: ["home", "pool"],
         usualDurationMinutes: 20,
+        desiredFrequency: "twice_weekly",
       },
       NOW,
       USER_ID,
     );
 
     expect(profile.userId).toBe(USER_ID);
+    expect(profile.goals).toEqual(["restart_activity", "build_strength"]);
     expect(profile.questionnaireCompleted).toBe(true);
     expect(profile.walkRunReadiness).toMatchObject({
       canRunShortBursts: false,
     });
     expect(profile.swimReadiness).toMatchObject({ hasPoolAccess: true });
+  });
+
+  it("ne preselectionne aucun choix visible dans le questionnaire", () => {
+    const draft = createDefaultSportOnboardingDraft();
+
+    expect(draft.goals).toEqual([]);
+    expect(draft.preferredActivities).toEqual([]);
+    expect(draft.usualDurationMinutes).toBeNull();
+    expect(draft.desiredFrequency).toBeNull();
   });
 
   it("met a jour le profil sans recréer l'identifiant", () => {

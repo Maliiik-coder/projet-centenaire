@@ -29,10 +29,10 @@ export function createEmptySportData(): SportLocalData {
 
 export function createDefaultSportOnboardingDraft(): SportOnboardingDraft {
   return {
-    goal: "restart_activity",
-    preferredActivities: ["strength"],
-    usualDurationMinutes: 15,
-    desiredFrequency: "twice_weekly",
+    goals: [],
+    preferredActivities: [],
+    usualDurationMinutes: null,
+    desiredFrequency: null,
     availableLocations: ["home"],
     equipment: ["none"],
     limitationKind: "none",
@@ -53,10 +53,10 @@ export function createSportProfile(
   return {
     id: idFor("sport-profile", userId, "profile"),
     userId,
-    goal: draft.goal,
+    goals: [...draft.goals],
     preferredActivities: [...draft.preferredActivities],
-    desiredFrequency: draft.desiredFrequency,
-    usualDurationMinutes: draft.usualDurationMinutes,
+    desiredFrequency: draft.desiredFrequency ?? "undefined",
+    usualDurationMinutes: draft.usualDurationMinutes ?? 15,
     availableLocations: [...draft.availableLocations],
     questionnaireCompleted: true,
     createdAt: now,
@@ -65,8 +65,7 @@ export function createSportProfile(
       comfortableWalkMinutes: null,
       canRunShortBursts: false,
       runsRegularly: false,
-      prefersWalkOnly: draft.preferredActivities.includes("walk") &&
-        !draft.preferredActivities.includes("run"),
+      prefersWalkOnly: false,
     },
     swimReadiness: {
       hasPoolAccess: draft.availableLocations.includes("pool"),
@@ -84,7 +83,7 @@ export function updateSportProfile(
   patch: Partial<
     Pick<
       SportProfile,
-      | "goal"
+      | "goals"
       | "preferredActivities"
       | "desiredFrequency"
       | "usualDurationMinutes"
@@ -97,8 +96,7 @@ export function updateSportProfile(
   return {
     ...profile,
     ...patch,
-    preferredActivities:
-      patch.preferredActivities ?? profile.preferredActivities,
+    preferredActivities: patch.preferredActivities ?? profile.preferredActivities,
     availableLocations: patch.availableLocations ?? profile.availableLocations,
     updatedAt: now,
   };

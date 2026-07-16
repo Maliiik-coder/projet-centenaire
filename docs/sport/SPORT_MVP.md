@@ -4,15 +4,17 @@
 
 Cette tranche expose une route isolee `/sport`, sans integration dans le shell principal. Elle couvre :
 
-- questionnaire de premiere ouverture Sport ;
-- profil sportif local, materiel, limitations et capacites multidimensionnelles ;
+- questionnaire de premiere ouverture Sport volontairement court ;
+- objectifs multiples, activite marche/course unifiee et choix renforcement musculaire ;
+- profil sportif local et capacites multidimensionnelles calibrees apres creation ;
+- seance d'evaluation proposee juste apres la creation du profil ;
 - bibliotheque initiale de mouvements de renforcement dans `src/lib/sport/exerciseLibrary.ts` ;
 - moteur deterministe et versionne dans `src/lib/sport/workoutGenerator.ts` ;
 - aperçu de seance, chronometre, pause, reprise, passage d'etape et fin ;
 - retour de seance neutre, historique basique et adaptation d'une seule variable ;
 - migration Supabase locale `20260715165000_v08_sport_foundation.sql` avec RLS explicites.
 
-Marche/course et natation sont representees dans les types du profil, mais leur generation autonome n'est pas implementee dans cette tranche.
+Marche/course et natation sont representees dans les types du profil, mais leur generation autonome n'est pas implementee dans cette tranche. La marche/course est une seule progression : une personne visant la course peut commencer par marcher, et une preference "marche seulement" pourra etre ajoutee dans l'arbre dedie.
 
 ## Architecture
 
@@ -35,12 +37,15 @@ Quand la conversation principale integrera l'onglet :
 3. Brancher l'utilisateur authentifie a la place de `SPORT_LOCAL_USER_ID`.
 4. Remplacer `sportLocalStore` par un miroir local officiel dans `AppData`.
 5. Conserver le moteur pur : il doit recevoir ses donnees par props/services et ne pas lire directement Supabase.
+6. Ajouter plus tard l'arbre marche/course : marche seulement, marche avant course, reprise course.
 
 Aucun fichier de navigation partage n'a ete modifie dans cette branche.
 
 ## Contrat Supabase
 
 Tables utilisateur : `sport_profiles`, `sport_user_equipment`, `sport_user_limitations`, `sport_user_capabilities`, `sport_workout_sessions`, `sport_workout_steps`, `sport_workout_feedback`.
+
+`sport_profiles.goals` est un tableau, car les objectifs peuvent se cumuler. L'onboarding isole ne demande plus le materiel ni les limitations ; les tables restent prevues pour une integration future plus fine et pour les retours sensibles post-seance.
 
 Chaque table utilisateur porte `user_id` et quatre politiques RLS `select/insert/update/delete` basees sur `auth.uid()`.
 

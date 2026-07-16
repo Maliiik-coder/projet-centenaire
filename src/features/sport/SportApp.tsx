@@ -31,14 +31,13 @@ import {
   syncTimer,
 } from "@/lib/sport/workoutTimer";
 import type {
+  AssessmentFeeling,
   BodyZone,
-  CapabilityLevel,
-  EquipmentType,
   FeedbackBodySignal,
   FeedbackCompletion,
   FeedbackDifficulty,
   GeneratedWorkoutSession,
-  LimitationKind,
+  SportAssessmentResults,
   SportActivity,
   SportFrequency,
   SportGoal,
@@ -68,10 +67,15 @@ import {
   saveProposedSession,
   updateSessionStatus,
 } from "@/services/sport/workoutHistoryService";
+import {
+  applyAssessmentResults,
+  hasCompletedSportAssessment,
+} from "@/services/sport/sportAssessmentService";
 
 type SportView =
   | "home"
   | "onboarding"
+  | "assessment"
   | "preview"
   | "active"
   | "feedback"
@@ -87,9 +91,8 @@ const goalLabels: Record<SportGoal, string> = {
 };
 
 const activityLabels: Record<SportActivity, string> = {
-  strength: "Renforcement",
-  walk: "Marche",
-  run: "Course",
+  strength: "Renforcement musculaire",
+  walk_run: "Marche/course",
   swim: "Natation",
 };
 
@@ -99,34 +102,6 @@ const frequencyLabels: Record<SportFrequency, string> = {
   three_weekly: "Trois fois",
   four_plus_weekly: "Quatre fois ou plus",
   undefined: "Aucune frequence definie",
-};
-
-const locationLabels: Record<SportLocation, string> = {
-  home: "A domicile",
-  outdoor: "Dehors",
-  gym: "En salle",
-  pool: "Piscine",
-};
-
-const equipmentLabels: Record<EquipmentType, string> = {
-  none: "Aucun materiel",
-  mat: "Tapis",
-  stable_chair: "Chaise stable",
-  resistance_band: "Elastiques",
-  dumbbells: "Halteres",
-  pull_up_bar: "Barre de traction",
-  gym_equipment: "Materiel de salle",
-  kickboard: "Planche de natation",
-  pull_buoy: "Pull-buoy",
-  fins: "Palmes",
-};
-
-const limitationLabels: Record<LimitationKind, string> = {
-  pain: "Douleur",
-  injury: "Blessure",
-  discomfort: "Gene particuliere",
-  movement_limitation: "Limitation de mouvement",
-  none: "Aucune limitation connue",
 };
 
 const zoneLabels: Record<BodyZone, string> = {
@@ -140,20 +115,7 @@ const zoneLabels: Record<BodyZone, string> = {
 };
 
 const durationChoices = [8, 15, 20, 30, 45];
-const activityChoices: SportActivity[] = ["strength", "walk", "run", "swim"];
-const equipmentChoices: EquipmentType[] = [
-  "none",
-  "mat",
-  "stable_chair",
-  "resistance_band",
-  "dumbbells",
-  "pull_up_bar",
-  "gym_equipment",
-  "kickboard",
-  "pull_buoy",
-  "fins",
-];
-const locationChoices: SportLocation[] = ["home", "outdoor", "gym", "pool"];
+const activityChoices: SportActivity[] = ["strength", "walk_run", "swim"];
 const zoneChoices: BodyZone[] = [
   "shoulders",
   "back",
@@ -184,14 +146,6 @@ function toggleValue<T>(values: T[], value: T): T[] {
     : [...values, value];
 }
 
-function hasEquipmentForPull(draft: SportOnboardingDraft): boolean {
-  return (
-    draft.equipment.includes("pull_up_bar") ||
-    draft.equipment.includes("gym_equipment") ||
-    draft.equipment.includes("resistance_band")
-  );
-}
-
 function primaryLocation(profile: NonNullable<SportLocalData["profile"]>): SportLocation {
   return profile.availableLocations[0] ?? "home";
 }
@@ -218,13 +172,22 @@ export function SportApp() {
     useState<FeedbackBodySignal>("none");
   const [feedbackZone, setFeedbackZone] = useState<BodyZone | "">("");
   const [feedbackComment, setFeedbackComment] = useState("");
+  const [assessmentResults, setAssessmentResults] = useState<
+    Partial<Record<keyof SportAssessmentResults, AssessmentFeeling>>
+  >({});
 
   useEffect(() => {
     const id = window.setTimeout(() => {
       const stored = loadSportLocalData();
       setData(stored);
       setSelectedDuration(stored.profile?.usualDurationMinutes ?? 15);
-      setView(stored.profile?.questionnaireCompleted ? "home" : "onboarding");
+      setView(
+        stored.profile?.questionnaireCompleted
+          ? hasCompletedSportAssessment(stored.capabilities)
+            ? "home"
+            : "assessment"
+          : "onboarding",
+      );
       setLoaded(true);
     }, 0);
 
@@ -283,16 +246,39 @@ export function SportApp() {
   function completeOnboarding(): void {
     const safeDraft: SportOnboardingDraft = {
       ...draft,
+      goals: draft.goals,
       preferredActivities:
         draft.preferredActivities.length > 0 ? draft.preferredActivities : ["strength"],
-      availableLocations:
-        draft.availableLocations.length > 0 ? draft.availableLocations : ["home"],
-      equipment: draft.equipment.length > 0 ? draft.equipment : ["none"],
-      pullCapability: hasEquipmentForPull(draft) ? draft.pullCapability ?? 0 : null,
+      availableLocations: ["home"],
+      equipment: ["none"],
+      limitationKind: "none",
+      limitationZone: null,
+      limitationDescription: "",
+      pullCapability: null,
     };
     const nextData = createSportDataFromDraft(safeDraft, nowIso());
     persist(nextData);
     setSelectedDuration(nextData.profile?.usualDurationMinutes ?? 15);
+    setAssessmentResults({});
+    setView("assessment");
+  }
+
+  function completeAssessment(): void {
+    const profile = data.profile;
+    const results = normalizeAssessmentResults(assessmentResults);
+    if (!profile || !results) {
+      return;
+    }
+
+    persist({
+      ...data,
+      capabilities: applyAssessmentResults(
+        data.capabilities,
+        profile.userId,
+        results,
+        nowIso(),
+      ),
+    });
     setView("home");
   }
 
@@ -422,7 +408,15 @@ export function SportApp() {
             onBack={() => setOnboardingStep((step) => Math.max(0, step - 1))}
             onChange={setDraft}
             onComplete={completeOnboarding}
-            onNext={() => setOnboardingStep((step) => Math.min(5, step + 1))}
+            onNext={() => setOnboardingStep((step) => Math.min(2, step + 1))}
+          />
+        ) : null}
+        {view === "assessment" && data.profile ? (
+          <AssessmentView
+            results={assessmentResults}
+            onChange={setAssessmentResults}
+            onComplete={completeAssessment}
+            onSkip={() => setView("home")}
           />
         ) : null}
         {view === "home" && data.profile ? (
@@ -430,8 +424,10 @@ export function SportApp() {
             data={data}
             duration={selectedDuration}
             generationError={generationError}
+            hasAssessment={hasCompletedSportAssessment(data.capabilities)}
             latestSession={latestSession}
             onDurationChange={setSelectedDuration}
+            onAssessment={() => setView("assessment")}
             onGenerate={generateSession}
             onHistory={() => setView("history")}
             onSettings={() => setView("settings")}
@@ -575,16 +571,14 @@ function OnboardingView({
   onComplete: () => void;
   onNext: () => void;
 }) {
-  const stepTitles = [
-    "Objectif",
-    "Activites",
-    "Rythme",
-    "Lieu et materiel",
-    "Limitations",
-    "Capacites",
-  ];
+  const stepTitles = ["Objectifs", "Activites", "Rythme"];
   const canContinue =
-    draft.preferredActivities.length > 0 && draft.availableLocations.length > 0;
+    step === 0
+      ? draft.goals.length > 0
+      : step === 1
+        ? draft.preferredActivities.length > 0
+        : draft.usualDurationMinutes !== null &&
+          draft.desiredFrequency !== null;
 
   return (
     <section className="flex flex-1 flex-col gap-4">
@@ -600,12 +594,18 @@ function OnboardingView({
         <div className="grid gap-3">
           {(Object.keys(goalLabels) as SportGoal[]).map((goal) => (
             <ChoiceCard
-              checked={draft.goal === goal}
+              checked={draft.goals.includes(goal)}
               key={goal}
               label={goalLabels[goal]}
-              name="sport-goal"
+              name="sport-goals"
+              type="checkbox"
               value={goal}
-              onChange={() => onChange({ ...draft, goal })}
+              onChange={() =>
+                onChange({
+                  ...draft,
+                  goals: toggleValue(draft.goals, goal),
+                })
+              }
             />
           ))}
         </div>
@@ -615,11 +615,6 @@ function OnboardingView({
           {activityChoices.map((activity) => (
             <ChoiceCard
               checked={draft.preferredActivities.includes(activity)}
-              description={
-                activity === "strength"
-                  ? "Disponible dans cette premiere tranche."
-                  : "Modele prevu, generation autonome a venir."
-              }
               key={activity}
               label={activityLabels[activity]}
               name="sport-activities"
@@ -681,167 +676,6 @@ function OnboardingView({
           </ChoiceSection>
         </div>
       ) : null}
-      {step === 3 ? (
-        <div className="grid gap-4">
-          <ChoiceSection title="Lieu">
-            <div className="grid gap-2">
-              {locationChoices.map((location) => (
-                <ChoiceCard
-                  checked={draft.availableLocations.includes(location)}
-                  key={location}
-                  label={locationLabels[location]}
-                  name="sport-locations"
-                  type="checkbox"
-                  value={location}
-                  onChange={() =>
-                    onChange({
-                      ...draft,
-                      availableLocations: toggleValue(
-                        draft.availableLocations,
-                        location,
-                      ),
-                    })
-                  }
-                />
-              ))}
-            </div>
-          </ChoiceSection>
-          <ChoiceSection title="Materiel disponible">
-            <div className="grid gap-2">
-              {equipmentChoices.map((equipment) => (
-                <ChoiceCard
-                  checked={draft.equipment.includes(equipment)}
-                  key={equipment}
-                  label={equipmentLabels[equipment]}
-                  name="sport-equipment"
-                  type="checkbox"
-                  value={equipment}
-                  onChange={() =>
-                    onChange({
-                      ...draft,
-                      equipment: toggleValue(draft.equipment, equipment),
-                    })
-                  }
-                />
-              ))}
-            </div>
-          </ChoiceSection>
-        </div>
-      ) : null}
-      {step === 4 ? (
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            {(Object.keys(limitationLabels) as LimitationKind[]).map((kind) => (
-              <ChoiceCard
-                checked={draft.limitationKind === kind}
-                description={
-                  kind === "none"
-                    ? "Aucune exclusion automatique liee a une zone."
-                    : "Utilise uniquement pour eviter certains mouvements, sans diagnostic."
-                }
-                key={kind}
-                label={limitationLabels[kind]}
-                name="sport-limitation-kind"
-                value={kind}
-                onChange={() =>
-                  onChange({
-                    ...draft,
-                    limitationKind: kind,
-                    limitationZone: kind === "none" ? null : draft.limitationZone,
-                  })
-                }
-              />
-            ))}
-          </div>
-          {draft.limitationKind !== "none" ? (
-            <ChoiceSection title="Zone concernee">
-              <div className="grid grid-cols-2 gap-2">
-                {zoneChoices.map((zone) => (
-                  <button
-                    className={cx(
-                      "pc-focus-ring min-h-12 rounded-[var(--pc-radius-card)] border px-3 text-sm font-semibold",
-                      draft.limitationZone === zone
-                        ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]"
-                        : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)]",
-                    )}
-                    key={zone}
-                    type="button"
-                    onClick={() => onChange({ ...draft, limitationZone: zone })}
-                  >
-                    {zoneLabels[zone]}
-                  </button>
-                ))}
-              </div>
-              <TextInput
-                placeholder="Precision facultative"
-                value={draft.limitationDescription}
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    limitationDescription: event.target.value,
-                  })
-                }
-              />
-            </ChoiceSection>
-          ) : null}
-        </div>
-      ) : null}
-      {step === 5 ? (
-        <div className="grid gap-4">
-          <CapabilityScale
-            label="Pompes"
-            options={[
-              ["0", "Pas encore de pompe"],
-              ["0", "Pompes contre un mur"],
-              ["1", "Pompes inclinees"],
-              ["2", "Pompes sur les genoux"],
-              ["2", "1 a 5 pompes classiques"],
-              ["3", "6 a 15"],
-              ["4", "Plus de 15"],
-            ]}
-            value={draft.pushCapability}
-            onChange={(value) => onChange({ ...draft, pushCapability: value })}
-          />
-          {hasEquipmentForPull(draft) ? (
-            <CapabilityScale
-              label="Tirage"
-              options={[
-                ["0", "Aucune traction"],
-                ["0", "Suspension uniquement"],
-                ["1", "Tirage assiste ou elastique"],
-                ["2", "1 a 3 tractions"],
-                ["3", "4 a 8"],
-                ["4", "Plus de 8"],
-              ]}
-              value={draft.pullCapability ?? 0}
-              onChange={(value) => onChange({ ...draft, pullCapability: value })}
-            />
-          ) : null}
-          <CapabilityScale
-            label="Jambes"
-            options={[
-              ["0", "Assis-debout difficile"],
-              ["1", "Possible avec appui"],
-              ["2", "Confortable"],
-              ["3", "Tres facile"],
-            ]}
-            value={draft.legsCapability}
-            onChange={(value) => onChange({ ...draft, legsCapability: value })}
-          />
-          <CapabilityScale
-            label="Sangle abdominale"
-            options={[
-              ["0", "Je ne sais pas"],
-              ["0", "Moins de 15 secondes"],
-              ["1", "15 a 30 secondes"],
-              ["2", "30 a 60 secondes"],
-              ["3", "Plus de 60 secondes"],
-            ]}
-            value={draft.coreCapability}
-            onChange={(value) => onChange({ ...draft, coreCapability: value })}
-          />
-        </div>
-      ) : null}
       <div className="mt-auto grid grid-cols-[auto_1fr] gap-3 pt-2">
         <Button disabled={step === 0} variant="secondary" onClick={onBack}>
           Retour
@@ -874,35 +708,133 @@ function ChoiceSection({
   );
 }
 
-function CapabilityScale({
-  label,
-  options,
-  value,
+const assessmentLabels: Record<AssessmentFeeling, string> = {
+  too_easy: "Trop facile",
+  right: "Adapte",
+  too_hard: "Trop difficile",
+  discomfort: "Gene ou douleur",
+};
+
+const assessmentItems: Array<{
+  key: keyof SportAssessmentResults;
+  title: string;
+  instruction: string;
+}> = [
+  {
+    key: "upperPush",
+    title: "Poussee douce",
+    instruction:
+      "Pompes contre un mur pendant 20 secondes, sans chercher l'echec.",
+  },
+  {
+    key: "legs",
+    title: "Jambes",
+    instruction:
+      "Demi-squats courts pendant 20 secondes, amplitude confortable.",
+  },
+  {
+    key: "core",
+    title: "Centre du corps",
+    instruction:
+      "Gainage debout contre un mur pendant 20 secondes, respiration libre.",
+  },
+  {
+    key: "cardio",
+    title: "Souffle",
+    instruction:
+      "Marche active sur place pendant 45 secondes, capable de ralentir a tout moment.",
+  },
+];
+
+function normalizeAssessmentResults(
+  results: Partial<Record<keyof SportAssessmentResults, AssessmentFeeling>>,
+): SportAssessmentResults | null {
+  if (
+    !results.upperPush ||
+    !results.legs ||
+    !results.core ||
+    !results.cardio
+  ) {
+    return null;
+  }
+
+  return {
+    upperPush: results.upperPush,
+    legs: results.legs,
+    core: results.core,
+    cardio: results.cardio,
+  };
+}
+
+function AssessmentView({
+  results,
   onChange,
+  onComplete,
+  onSkip,
 }: {
-  label: string;
-  options: Array<[string, string]>;
-  value: CapabilityLevel;
-  onChange: (value: CapabilityLevel) => void;
+  results: Partial<Record<keyof SportAssessmentResults, AssessmentFeeling>>;
+  onChange: (
+    results: Partial<Record<keyof SportAssessmentResults, AssessmentFeeling>>,
+  ) => void;
+  onComplete: () => void;
+  onSkip: () => void;
 }) {
+  const complete = normalizeAssessmentResults(results) !== null;
+
   return (
-    <ChoiceSection title={label}>
-      <div className="grid gap-2">
-        {options.map(([level, optionLabel], index) => {
-          const capabilityLevel = Number(level) as CapabilityLevel;
-          return (
-            <ChoiceCard
-              checked={value === capabilityLevel && index === options.findIndex(([item]) => Number(item) === value)}
-              key={`${label}-${level}-${optionLabel}`}
-              label={optionLabel}
-              name={label}
-              value={level}
-              onChange={() => onChange(capabilityLevel)}
-            />
-          );
-        })}
+    <section className="grid gap-4">
+      <Surface className="p-4" variant="selected">
+        <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
+          Evaluation proposee
+        </p>
+        <h2 className="mt-1 text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold">
+          Caler la premiere seance
+        </h2>
+        <p className="mt-2 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+          Quelques mouvements courts permettent de proposer une seance prudente,
+          sans test maximal.
+        </p>
+      </Surface>
+      {assessmentItems.map((item) => (
+        <Surface className="grid gap-3 p-4" key={item.key}>
+          <div>
+            <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+              {item.title}
+            </h3>
+            <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+              {item.instruction}
+            </p>
+          </div>
+          <div className="grid gap-2">
+            {(Object.keys(assessmentLabels) as AssessmentFeeling[]).map(
+              (feeling) => (
+                <ChoiceCard
+                  checked={results[item.key] === feeling}
+                  key={`${item.key}-${feeling}`}
+                  label={assessmentLabels[feeling]}
+                  name={`assessment-${item.key}`}
+                  value={feeling}
+                  onChange={() =>
+                    onChange({
+                      ...results,
+                      [item.key]: feeling,
+                    })
+                  }
+                />
+              ),
+            )}
+          </div>
+        </Surface>
+      ))}
+      <div className="grid grid-cols-[auto_1fr] gap-3">
+        <Button variant="tertiary" onClick={onSkip}>
+          Plus tard
+        </Button>
+        <Button disabled={!complete} onClick={onComplete}>
+          {"Enregistrer l'evaluation"}
+        </Button>
       </div>
-    </ChoiceSection>
+    </section>
   );
 }
 
@@ -910,7 +842,9 @@ function HomeView({
   data,
   duration,
   generationError,
+  hasAssessment,
   latestSession,
+  onAssessment,
   onDurationChange,
   onGenerate,
   onHistory,
@@ -919,7 +853,9 @@ function HomeView({
   data: SportLocalData;
   duration: number;
   generationError: string | null;
+  hasAssessment: boolean;
   latestSession: GeneratedWorkoutSession | null;
+  onAssessment: () => void;
   onDurationChange: (duration: number) => void;
   onGenerate: () => void;
   onHistory: () => void;
@@ -939,14 +875,28 @@ function HomeView({
           </div>
           <div className="min-w-0">
             <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold">
-              Seance de renforcement
+              Seance de renforcement musculaire
             </h2>
             <p className="mt-1 text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
-              Proposee selon le temps, le materiel, les capacites et les limitations declares.
+              {"Proposee selon le temps disponible, l'evaluation et les retours de seance."}
             </p>
           </div>
         </div>
       </Surface>
+      {!hasAssessment ? (
+        <Surface className="grid gap-3 p-4">
+          <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+            Evaluation conseillee
+          </h3>
+          <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
+            Elle prend quelques minutes et aide a choisir des variantes
+            realistes des le depart.
+          </p>
+          <Button variant="secondary" onClick={onAssessment}>
+            {"Faire l'evaluation"}
+          </Button>
+        </Surface>
+      ) : null}
       <Surface className="grid gap-3 p-4">
         <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
           {"Duree aujourd'hui"}
@@ -997,17 +947,14 @@ function HomeView({
         <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
           Activites prevues
         </h3>
-        <div className="grid gap-2">
+        <div className="flex flex-wrap gap-2">
           {profile.preferredActivities.map((activity) => (
-            <div
-              className="flex items-center justify-between gap-3 rounded-[var(--pc-radius-control)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 py-2"
+            <span
+              className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface)] px-3 py-2 text-sm font-semibold"
               key={activity}
             >
-              <span className="font-semibold">{activityLabels[activity]}</span>
-              <span className="text-sm text-[var(--pc-color-text-muted)]">
-                {activity === "strength" ? "Disponible" : "Modele seulement"}
-              </span>
-            </div>
+              {activityLabels[activity]}
+            </span>
           ))}
         </div>
       </Surface>
@@ -1378,9 +1325,6 @@ function SettingsView({
     return null;
   }
 
-  const availableEquipment = data.equipment.filter((item) => item.available);
-  const activeLimitations = data.limitations.filter((item) => item.active);
-
   return (
     <section className="grid gap-4">
       <Surface className="grid gap-3 p-4">
@@ -1388,7 +1332,7 @@ function SettingsView({
           Profil sportif
         </h2>
         <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
-          Objectif : {goalLabels[profile.goal]}
+          Objectifs : {profile.goals.map((goal) => goalLabels[goal]).join(", ")}
         </p>
         <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
           Duree habituelle : {profile.usualDurationMinutes} min
@@ -1396,34 +1340,6 @@ function SettingsView({
         <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
           Frequence : {frequencyLabels[profile.desiredFrequency]}
         </p>
-      </Surface>
-      <Surface className="grid gap-3 p-4">
-        <h3 className="font-semibold">Materiel</h3>
-        <div className="flex flex-wrap gap-2">
-          {availableEquipment.map((item) => (
-            <span
-              className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] px-2 py-1 text-sm font-semibold text-[var(--pc-color-primary)]"
-              key={item.id}
-            >
-              {equipmentLabels[item.type]}
-            </span>
-          ))}
-        </div>
-      </Surface>
-      <Surface className="grid gap-3 p-4">
-        <h3 className="font-semibold">Limitations actives</h3>
-        {activeLimitations.length === 0 ? (
-          <p className="text-sm text-[var(--pc-color-text-muted)]">
-            Aucune limitation connue.
-          </p>
-        ) : (
-          activeLimitations.map((item) => (
-            <p className="text-sm text-[var(--pc-color-text-muted)]" key={item.id}>
-              {limitationLabels[item.kind]} -{" "}
-              {item.zone ? zoneLabels[item.zone] : "Zone non precisee"}
-            </p>
-          ))
-        )}
       </Surface>
       <Button variant="danger" onClick={onReset}>
         <RotateCcw aria-hidden="true" size={18} />

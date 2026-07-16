@@ -89,7 +89,7 @@ create table if not exists public.weekly_reports (
 create table if not exists public.sport_profiles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null unique,
-  goal text not null,
+  goals text[] not null default '{}',
   preferred_activities text[] not null default '{}',
   desired_frequency text not null,
   usual_duration_minutes int not null,

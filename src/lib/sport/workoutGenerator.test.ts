@@ -25,6 +25,10 @@ function draftWith(
 ): SportOnboardingDraft {
   return {
     ...createDefaultSportOnboardingDraft(),
+    goals: ["restart_activity"],
+    preferredActivities: ["strength"],
+    usualDurationMinutes: 15,
+    desiredFrequency: "twice_weekly",
     ...patch,
   };
 }
@@ -37,7 +41,7 @@ function inputFromDraft(
   return {
     userId: USER_ID,
     activity: "strength",
-    requestedDurationMinutes: draft.usualDurationMinutes,
+    requestedDurationMinutes: draft.usualDurationMinutes ?? 15,
     location: "home",
     equipment: data.equipment,
     limitations: data.limitations,
@@ -215,7 +219,9 @@ describe("generateWorkout", () => {
   });
 
   it("renvoie un etat non implemente pour marche, course et natation", () => {
-    const result = generateWorkout(inputFromDraft(draftWith(), { activity: "run" }));
+    const result = generateWorkout(
+      inputFromDraft(draftWith(), { activity: "walk_run" }),
+    );
 
     expect(result.session).toBeNull();
     expect(result.reasons[0]?.code).toBe("activity_not_implemented");

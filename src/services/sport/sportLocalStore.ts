@@ -1,5 +1,5 @@
 import { SPORT_LOCAL_STORAGE_KEY } from "@/lib/sport/config";
-import type { SportLocalData } from "@/lib/sport/types";
+import type { SportGoal, SportLocalData, SportProfile } from "@/lib/sport/types";
 import { createEmptySportData } from "@/services/sport/sportProfileService";
 
 function isBrowser(): boolean {
@@ -16,9 +16,7 @@ function normalizeSportData(value: unknown): SportLocalData {
   }
 
   return {
-    profile: isRecord(value.profile)
-      ? (value.profile as unknown as SportLocalData["profile"])
-      : null,
+    profile: normalizeProfile(value.profile),
     equipment: Array.isArray(value.equipment)
       ? (value.equipment as SportLocalData["equipment"])
       : [],
@@ -34,6 +32,38 @@ function normalizeSportData(value: unknown): SportLocalData {
     feedback: Array.isArray(value.feedback)
       ? (value.feedback as SportLocalData["feedback"])
       : [],
+  };
+}
+
+function normalizeGoals(value: Record<string, unknown>): SportGoal[] {
+  if (Array.isArray(value.goals)) {
+    return value.goals.filter((goal): goal is SportGoal =>
+      goal === "restart_activity" ||
+      goal === "support_weight_loss" ||
+      goal === "improve_endurance" ||
+      goal === "build_strength" ||
+      goal === "general_conditioning",
+    );
+  }
+
+  const legacyGoal = value.goal;
+  return legacyGoal === "restart_activity" ||
+    legacyGoal === "support_weight_loss" ||
+    legacyGoal === "improve_endurance" ||
+    legacyGoal === "build_strength" ||
+    legacyGoal === "general_conditioning"
+    ? [legacyGoal]
+    : [];
+}
+
+function normalizeProfile(value: unknown): SportProfile | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return {
+    ...(value as unknown as SportProfile),
+    goals: normalizeGoals(value),
   };
 }
 
