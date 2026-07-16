@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -18,6 +19,9 @@ import {
 } from "lucide-react";
 import { getExerciseById, getVariantById } from "@/lib/sport/exerciseLibrary";
 import { ExerciseIllustration } from "@/features/sport/ExerciseIllustration";
+import pushKneesGuide from "@/features/sport/assets/push-knees-guide.png";
+import pushStandardGuide from "@/features/sport/assets/push-standard-guide.png";
+import pushWallGuide from "@/features/sport/assets/push-wall-guide.png";
 import { generateWorkout } from "@/lib/sport/workoutGenerator";
 import {
   cancelTimer,
@@ -766,6 +770,23 @@ type AssessmentPhase = "intro" | "countdown" | "effort" | "question";
 const assessmentCountdownSeconds = 3;
 const assessmentEffortSeconds = 20;
 
+const assessmentGuideImages: Partial<
+  Record<string, { alt: string; src: StaticImageData }>
+> = {
+  push_wall: {
+    alt: "Guide illustre des pompes au mur, avec position de depart, fin du mouvement et consignes.",
+    src: pushWallGuide,
+  },
+  push_knees: {
+    alt: "Guide illustre des pompes sur les genoux, avec position de depart, fin du mouvement et consignes.",
+    src: pushKneesGuide,
+  },
+  push_standard: {
+    alt: "Guide illustre des pompes classiques, avec position de depart, fin du mouvement et consignes.",
+    src: pushStandardGuide,
+  },
+};
+
 function normalizeAssessmentLevels(
   results: Partial<Record<keyof SportAssessmentResults, CapabilityLevel>>,
 ): SportAssessmentLevelResults | null {
@@ -905,7 +926,7 @@ function AssessmentView({
 
   return (
     <section className="fixed inset-0 z-50 flex items-end bg-black/35 p-3 sm:items-center sm:justify-center">
-      <Surface className="max-h-[calc(100vh-2rem)] w-full overflow-y-auto p-4 sm:max-w-xl">
+      <Surface className="max-h-[calc(100vh-2rem)] w-full overflow-y-auto p-4 sm:max-w-3xl">
         <div className="grid gap-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -1013,6 +1034,28 @@ function AssessmentPoseStrip({
   title: string;
   variantId: string;
 }) {
+  const guide = assessmentGuideImages[variantId];
+
+  if (guide) {
+    return (
+      <figure className="grid gap-2">
+        <div className="overflow-hidden rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)]">
+          <Image
+            alt={guide.alt}
+            className="h-auto w-full"
+            placeholder="blur"
+            priority={variantId === "push_wall"}
+            sizes="(min-width: 640px) 46rem, calc(100vw - 2rem)"
+            src={guide.src}
+          />
+        </div>
+        <figcaption className="text-center text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
+          {title}
+        </figcaption>
+      </figure>
+    );
+  }
+
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="grid gap-2">

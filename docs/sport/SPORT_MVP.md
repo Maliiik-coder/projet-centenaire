@@ -12,7 +12,7 @@ Cette tranche expose une route isolee `/sport`, sans integration dans le shell p
 - capacites multidimensionnelles calibrees depuis le niveau de variante tenu ;
 - bibliotheque initiale de mouvements de renforcement dans `src/lib/sport/exerciseLibrary.ts` ;
 - tableau de bord `/sport` avec choix d'activite, seances faites et jauges de progression ;
-- illustrations SVG internes pour l'evaluation et l'aperçu de seance ;
+- illustrations fournies pour les premieres variantes de pompes, avec fallback SVG interne pour les autres mouvements ;
 - moteur deterministe et versionne dans `src/lib/sport/workoutGenerator.ts` ;
 - aperçu de seance, chronometre, pause, reprise, passage d'etape et fin ;
 - retour de seance neutre, historique basique et adaptation d'une seule variable ;
@@ -32,6 +32,7 @@ La progression de renforcement privilegie les variantes sans materiel obligatoir
 - `src/lib/sport/workoutTimer.ts` : chronometre pur fonde sur des horodatages.
 - `src/services/sport/*` : profil, stockage local isole, historique et permissions.
 - `src/features/sport/ExerciseIllustration.tsx` : illustrations schematiques locales, sans media externe.
+- `src/features/sport/assets/*` : guides de mouvement fournis par l'utilisateur pour les variantes de pompes.
 - `src/features/sport/SportApp.tsx` : experience client isolee.
 - `src/app/sport/page.tsx` : route App Router.
 
