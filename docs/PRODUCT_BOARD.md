@@ -443,7 +443,7 @@ Objectif : sortir progressivement les écrans et contrôleurs métier de
 `ProjetCentenaireApp.tsx`, sans recréer une seconde application ni réécrire la
 tuyauterie fiable.
 
-Statut au 16 juillet 2026 : sept tranches réalisées. Les écrans Aujourd’hui,
+Statut au 16 juillet 2026 : huit tranches réalisées. Les écrans Aujourd’hui,
 Carnet, Constats et Profil possèdent désormais des frontières dédiées. Le tunnel
 Repas possède également son écran, son modèle de brouillon et ses règles de
 progression testables. L’onboarding et l’éditeur du portrait comportemental
@@ -458,7 +458,10 @@ sont maintenant regroupés dans `src/features/session/useAppDataSession.ts`.
 `ProjetCentenaireApp.tsx` est passé de 1 979 à 364 lignes. Il ne manipule plus
 directement les générations cloud, les scopes de stockage, les brouillons Repas
 ou Profil, les mutations Poids/Tabac, ni le cycle de démarrage. Les écrans
-émettent des intentions par callbacks et n’accèdent pas directement au stockage
+Aujourd’hui sont eux-mêmes séparés entre page, roue Poids et fil de journée ;
+`TodayScreen.tsx` est passé de 900 à 173 lignes. Les contrôles génériques du
+tunnel Repas sont également isolés sans modifier son ordre conditionnel. Ces
+écrans émettent des intentions par callbacks et n’accèdent pas directement au stockage
 ou à Supabase. Voir
 [ARCHITECTURE.md](ARCHITECTURE.md).
 

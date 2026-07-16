@@ -19,12 +19,18 @@ Les modules de `src/features/` suivent une frontière simple :
 ## Frontières actuelles
 
 - `src/components/centenaire/TodayScreen.tsx` : page Aujourd’hui ;
+- `src/features/today/TodayWeightCard.tsx` : interaction complète de la roue
+  Poids, saisie directe et historique navigateur local ;
+- `src/features/today/TodayTimeline.tsx` : tri et rendu des faits de la journée,
+  dont le menu contextuel des repas ;
 - `src/features/journal/JournalScreen.tsx` : vues Jours et Semaines du Carnet ;
 - `src/features/insights/InsightsScreen.tsx` : constats hebdomadaires ;
 - `src/features/profile/ProfileScreen.tsx` : profil, préférences, compte et
   options avancées ;
 - `src/features/meal/MealTunnelScreen.tsx` : progression et rendu du tunnel
   Repas ;
+- `src/features/meal/MealTunnelControls.tsx` : contrôles visuels réutilisables
+  du tunnel, quantités, clarifications et constat final ;
 - `src/features/meal/mealDraftModel.ts` : brouillon, validation, navigation,
   reconstruction et création d’une observation repas ;
 - `src/features/onboarding/OnboardingFlow.tsx` : progression complète du
@@ -37,8 +43,6 @@ Les modules de `src/features/` suivent une frontière simple :
   tabac ;
 - `src/features/tracking/dailyTrackingModel.ts` : validation et création des
   entrées quotidiennes Poids et Tabac ;
-- `src/components/centenaire/TodayScreen.tsx` : possède localement l’ouverture,
-  le brouillon et l’historique navigateur de la roue Poids ;
 - `src/features/startup/StartupScreens.tsx` : chargement, réinitialisation locale
   et décision explicite de migration ;
 - `src/features/session/useAppDataSession.ts` : sélection du scope invité ou
@@ -60,10 +64,10 @@ Les modules de `src/features/` suivent une frontière simple :
 
 ## Ordre d’extraction suivant
 
-1. Découper `TodayScreen.tsx` entre page, roue Poids et fil de journée.
-2. Découper `MealTunnelScreen.tsx` par familles de questions.
-3. Découper `JournalScreen.tsx` entre vues Jours, Semaines et graphique.
-4. Séparer le hook de session en cycle de vie, persistance et migration si ces
+1. Découper `MealTunnelScreen.tsx` par familles de questions lorsque la refonte
+   fonctionnelle du tunnel aura stabilisé leur ordre.
+2. Découper `JournalScreen.tsx` entre vues Jours, Semaines et graphique.
+3. Séparer le hook de session en cycle de vie, persistance et migration si ces
    sous-domaines doivent évoluer indépendamment.
 
 Chaque étape doit compiler et passer les tests avant la suppression de son
