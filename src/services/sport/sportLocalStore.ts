@@ -3,7 +3,19 @@ import type { SportGoal, SportLocalData, SportProfile } from "@/lib/sport/types"
 import { createEmptySportData } from "@/services/sport/sportProfileService";
 
 function isBrowser(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  return typeof window !== "undefined";
+}
+
+function getLocalStorage(): Storage | null {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -68,11 +80,18 @@ function normalizeProfile(value: unknown): SportProfile | null {
 }
 
 export function loadSportLocalData(): SportLocalData {
-  if (!isBrowser()) {
+  const storage = getLocalStorage();
+  if (!storage) {
     return createEmptySportData();
   }
 
-  const raw = window.localStorage.getItem(SPORT_LOCAL_STORAGE_KEY);
+  let raw: string | null = null;
+  try {
+    raw = storage.getItem(SPORT_LOCAL_STORAGE_KEY);
+  } catch {
+    return createEmptySportData();
+  }
+
   if (!raw) {
     return createEmptySportData();
   }
@@ -85,17 +104,27 @@ export function loadSportLocalData(): SportLocalData {
 }
 
 export function saveSportLocalData(data: SportLocalData): void {
-  if (!isBrowser()) {
+  const storage = getLocalStorage();
+  if (!storage) {
     return;
   }
 
-  window.localStorage.setItem(SPORT_LOCAL_STORAGE_KEY, JSON.stringify(data));
+  try {
+    storage.setItem(SPORT_LOCAL_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // The Sport slice remains usable even when browser storage is unavailable.
+  }
 }
 
 export function clearSportLocalData(): void {
-  if (!isBrowser()) {
+  const storage = getLocalStorage();
+  if (!storage) {
     return;
   }
 
-  window.localStorage.removeItem(SPORT_LOCAL_STORAGE_KEY);
+  try {
+    storage.removeItem(SPORT_LOCAL_STORAGE_KEY);
+  } catch {
+    // Clearing is best-effort for the isolated local mirror.
+  }
 }
