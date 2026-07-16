@@ -1,11 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { X } from "lucide-react";
 import { getClarificationChoices } from "@/lib/foodDetection";
+import type { FoodAutocompleteSuggestion } from "@/lib/nutrition/autocompleteFood";
 import type { MealClarification, MealQuantityUnit } from "@/lib/types";
 import {
   quickQuantityUnits,
   quantityUnitLabels,
+  type MealDraftFoodSelection,
   type MealQuantityDraft,
 } from "@/features/meal/mealDraftModel";
 
@@ -138,6 +141,75 @@ export function TunnelChoiceLine<T extends string>({
   );
 }
 
+export function SelectedFoodChips({
+  foods,
+  onRemove,
+}: {
+  foods: MealDraftFoodSelection[];
+  onRemove: (foodId: string) => void;
+}) {
+  if (foods.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {foods.map((food) => (
+        <span
+          className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-text)]"
+          key={food.id}
+        >
+          {food.canonicalName}
+          <button
+            aria-label={`Retirer ${food.canonicalName}`}
+            className="inline-flex size-5 items-center justify-center rounded-full text-[var(--pc-color-text-muted)] transition hover:bg-[var(--pc-color-primary-muted)] hover:text-[var(--pc-color-text)]"
+            type="button"
+            onClick={() => onRemove(food.id)}
+          >
+            <X aria-hidden="true" size={13} strokeWidth={2.5} />
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function FoodSuggestionPicker({
+  suggestions,
+  onPick,
+}: {
+  suggestions: FoodAutocompleteSuggestion[];
+  onPick: (suggestion: FoodAutocompleteSuggestion) => void;
+}) {
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="grid gap-2">
+      <p className={mealAnnotationClass}>Suggestions</p>
+      <div className="grid gap-2">
+        {suggestions.map((suggestion) => (
+          <button
+            className="flex min-h-12 items-center gap-3 rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 text-left text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] transition hover:-translate-y-0.5 hover:border-[var(--pc-color-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_35%,transparent)] active:translate-y-px"
+            key={suggestion.id}
+            type="button"
+            onClick={() => onPick(suggestion)}
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-sm font-bold text-[var(--pc-color-primary)]">
+              {suggestion.label.slice(0, 1)}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-base font-semibold">
+                {suggestion.label}
+              </span>
+              <span className="block text-xs font-semibold text-[var(--pc-color-text-muted)]">
+                {categoryLabels[suggestion.category]}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ClarificationQuestion({
   clarification,
   onChange,
@@ -192,6 +264,17 @@ export function ClarificationQuestion({
     </div>
   );
 }
+
+const categoryLabels: Record<FoodAutocompleteSuggestion["category"], string> = {
+  dairy: "Produit laitier",
+  dessert: "Dessert",
+  drink: "Boisson",
+  fruit: "Fruit",
+  prepared: "Préparation",
+  protein: "Protéine",
+  starch: "Féculent",
+  vegetable: "Végétal",
+};
 
 export function FindingPart({
   title,

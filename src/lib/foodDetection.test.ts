@@ -39,4 +39,18 @@ describe("food detection", () => {
       sugaryDrink: false,
     });
   });
+
+  it("priorise les aliments opaques et limite les clarifications", () => {
+    expect(
+      detectMealClarifications(
+        "salade composée, wrap, sauce, dessert maison et soda",
+      ).map((item) => item.key),
+    ).toEqual(["wrap", "sauce", "boisson"]);
+  });
+
+  it("ne redemande pas une précision déjà donnée dans le texte", () => {
+    expect(
+      detectMealClarifications("wrap poulet, sauce au poivre et coca zéro"),
+    ).toEqual([]);
+  });
 });

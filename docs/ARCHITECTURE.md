@@ -55,6 +55,8 @@ Les modules de `src/features/` suivent une frontière simple :
   reprise de route et changement de journée ;
 - `src/features/meal/useMealJournalController.ts` : ouverture, modification,
   suppression et persistance des repas ;
+- `src/lib/nutrition/` : contrats internes Ciqual, portions usuelles versionnées
+  et estimation nutritionnelle à fourchettes, sans affichage dans le carnet ;
 - `src/features/profile/useProfileController.ts` : brouillon, préférences,
   portrait comportemental et import du profil ;
 - `src/features/tracking/useDailyTrackingController.ts` : mutations quotidiennes

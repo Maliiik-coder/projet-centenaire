@@ -4,11 +4,13 @@ import type {
   AppData,
   EvidenceLevel,
   FullnessAfter,
+  HungerAtReservice,
   HungerBefore,
   MealAfter,
   MealComponents,
   MealKind,
   Priority,
+  ReserviceReason,
   ServedQuantity,
   ServingPattern,
   SnackContext,
@@ -34,6 +36,8 @@ export interface ImmediateFindingInput {
   fullnessAfter: FullnessAfter;
   starterTaken?: boolean;
   dessertTaken?: boolean;
+  hungerAtReservice?: HungerAtReservice | null;
+  reserviceReasons?: ReserviceReason[];
   snackTrigger?: SnackTrigger | null;
   snackContext?: SnackContext | null;
   components?: MealComponents;
@@ -96,6 +100,10 @@ function hasMultiplePassages(value: ServingPattern): boolean {
   return value === "multiple" || value === "buffet";
 }
 
+function hasLowReserviceHunger(value?: HungerAtReservice | null): boolean {
+  return value === "no" || value === "not_really";
+}
+
 function isRichMeal(components?: MealComponents): boolean {
   return Boolean(
     components?.fried ||
@@ -147,6 +155,7 @@ export function buildImmediateFinding(
   const noHunger = hasNoHunger(input.hungerBefore);
   const reservice = hasReservice(input.servingPattern);
   const multiplePassages = hasMultiplePassages(input.servingPattern);
+  const lowReserviceHunger = hasLowReserviceHunger(input.hungerAtReservice);
   const richMeal = isRichMeal(input.components);
   const finding = ({
     fact,
@@ -221,6 +230,47 @@ export function buildImmediateFinding(
         "C’est un comportement important à observer. Répété plusieurs fois, il peut devenir un vrai frein.",
       nextAction: "Une portion, puis 10 à 15 minutes d’attente.",
       frictionPoint: "resservice",
+    });
+  }
+
+  if (
+    reservice &&
+    lowReserviceHunger &&
+    input.reserviceReasons?.includes("food_available")
+  ) {
+    return finding({
+      fact: "Tu t’es resservi sans vraie faim au moment de reprendre.",
+      reading:
+        "Le signal principal n’est pas le plat lui-même : c’est le fait que la nourriture soit restée disponible devant toi.",
+      nextAction:
+        "Au prochain repas comparable, éloigner le plat avant de décider de reprendre.",
+      frictionPoint: "plat disponible",
+    });
+  }
+
+  if (
+    reservice &&
+    lowReserviceHunger &&
+    input.reserviceReasons?.includes("habit")
+  ) {
+    return finding({
+      fact: "Tu t’es resservi sans vraie faim au moment de reprendre.",
+      reading:
+        "Le signal ressemble davantage à un automatisme de repas qu’à une faim encore présente.",
+      nextAction:
+        "Au prochain repas comparable, marquer une pause avant de reprendre.",
+      frictionPoint: "habitude de resservice",
+    });
+  }
+
+  if (reservice && lowReserviceHunger) {
+    return finding({
+      fact: "La reprise arrive avec peu de faim.",
+      reading:
+        "Ce n’est pas un problème automatique, mais c’est une information plus précise que le simple fait de s’être resservi.",
+      nextAction:
+        "La prochaine fois, attendre quelques minutes avant de reprendre pour vérifier le signal de faim.",
+      frictionPoint: "faim au resservice",
     });
   }
 

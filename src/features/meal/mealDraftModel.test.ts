@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  addMealFoodSelection,
   advanceMealTunnel,
   createEmptyMealDraft,
   mealDraftFromEntry,
   mealEntryFromDraft,
+  removeMealFoodSelection,
   sanitizeMealDraftForKind,
+  toggleReserviceReason,
 } from "@/features/meal/mealDraftModel";
+import { searchFoodAutocomplete } from "@/lib/nutrition/autocompleteFood";
 
 describe("mealDraftModel", () => {
   it("saute les clarifications absentes après la description", () => {
@@ -73,5 +77,95 @@ describe("mealDraftModel", () => {
     expect(edited.createdAt).toBe(original.createdAt);
     expect(edited.time).toBe("13:00");
     expect(edited.mealStructure?.sections[0]?.passages).toHaveLength(2);
+  });
+
+  it("ne recopie pas la quantité du plat complet sur une reprise partielle", () => {
+    const meal = mealEntryFromDraft(
+      {
+        ...createEmptyMealDraft("2026-07-16", "12:30"),
+        freeText: "burger frites",
+        servingPattern: "once",
+        hungerAtReservice: "not_really",
+        reserviceRelation: "side_only",
+        reserviceText: "frites",
+        reserviceReasons: ["pleasure"],
+      },
+      null,
+    );
+    const reservice = meal.mealStructure?.sections
+      .find((section) => section.kind === "main")
+      ?.passages.find((passage) => passage.index === 2);
+
+    expect(reservice?.relationToPrevious).toBe("side_only");
+    expect(reservice?.items[0]?.rawText).toBe("frites");
+    expect(reservice?.items[0]?.quantity).toBeNull();
+  });
+
+  it("rend Je ne sais pas exclusif dans les raisons de resservice", () => {
+    expect(toggleReserviceReason(["pleasure"], "unsure")).toEqual(["unsure"]);
+    expect(toggleReserviceReason(["unsure"], "habit")).toEqual(["habit"]);
+    expect(toggleReserviceReason(["pleasure", "habit"], "habit")).toEqual([
+      "pleasure",
+    ]);
+  });
+
+  it("ajoute une suggestion alimentaire sans modifier le texte libre", () => {
+    const draft = {
+      ...createEmptyMealDraft("2026-07-16", "12:30"),
+      freeText: "riz",
+    };
+    const suggestion = searchFoodAutocomplete(draft.freeText)[0]!;
+    const nextDraft = addMealFoodSelection(draft, suggestion);
+
+    expect(nextDraft.freeText).toBe("riz");
+    expect(nextDraft.selectedFoods).toEqual([
+      {
+        id: "rice",
+        rawText: "riz",
+        canonicalName: "Riz",
+        ciqualCode: null,
+        confidence: 1,
+        source: "haru-food-seed-v0",
+      },
+    ]);
+    expect(addMealFoodSelection(nextDraft, suggestion)).toBe(nextDraft);
+  });
+
+  it("persiste les aliments sélectionnés comme items confirmés sans code Ciqual", () => {
+    const draft = addMealFoodSelection(
+      {
+        ...createEmptyMealDraft("2026-07-16", "12:30"),
+        freeText: "riz",
+      },
+      searchFoodAutocomplete("riz")[0]!,
+    );
+    const meal = mealEntryFromDraft(draft, null);
+    const firstItem = meal.mealStructure?.sections
+      .find((section) => section.kind === "main")
+      ?.passages[0]?.items[0];
+
+    expect(meal.freeText).toBe("riz");
+    expect(firstItem).toMatchObject({
+      id: "rice",
+      rawText: "riz",
+      recognitionStatus: "confirmed",
+      canonicalName: "Riz",
+      ciqualCode: null,
+      confidence: 1,
+    });
+
+    expect(mealDraftFromEntry(meal).selectedFoods[0]?.id).toBe("rice");
+  });
+
+  it("retire une suggestion alimentaire du brouillon", () => {
+    const draft = addMealFoodSelection(
+      {
+        ...createEmptyMealDraft("2026-07-16", "12:30"),
+        freeText: "riz",
+      },
+      searchFoodAutocomplete("riz")[0]!,
+    );
+
+    expect(removeMealFoodSelection(draft, "rice").selectedFoods).toEqual([]);
   });
 });

@@ -5,16 +5,19 @@ import { Archive, ChevronLeft, ChevronRight } from "lucide-react";
 import { buildImmediateFinding } from "@/lib/analytics";
 import { activeMealKindLabels } from "@/lib/mealKinds";
 import { getMealTunnelStepIds } from "@/lib/mealTunnel";
+import { searchFoodAutocomplete } from "@/lib/nutrition/autocompleteFood";
 import { INITIAL_OBSERVATION_MEAL_MESSAGE } from "@/lib/observationPhase";
 import type {
   MealPassageRelation,
   ReserviceReason,
 } from "@/lib/types";
 import {
+  addMealFoodSelection,
   advanceMealTunnel,
   fullnessLabels,
   hungerLabels,
   previousMealTunnelStep,
+  removeMealFoodSelection,
   reserviceHungerLabels,
   reserviceReasonLabels,
   reserviceRelationLabels,
@@ -22,13 +25,16 @@ import {
   servingPatternLabels,
   snackContextLabels,
   snackTriggerLabels,
+  toggleReserviceReason,
   type MealDraft,
 } from "@/features/meal/mealDraftModel";
 import {
   ClarificationQuestion,
+  FoodSuggestionPicker,
   FindingPart,
   MealTunnelButton,
   QuantityFields,
+  SelectedFoodChips,
   TunnelChoiceLine,
   TunnelQuestion,
   mealAnnotationClass as annotationClass,
@@ -58,6 +64,13 @@ export function MealTunnelScreen({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const stepIds = getMealTunnelStepIds(draft.kind);
   const stepId = stepIds[step] ?? stepIds[0];
+  const foodSuggestions =
+    stepId === "text" || stepId === "snack-text"
+      ? searchFoodAutocomplete(
+          draft.freeText,
+          draft.selectedFoods.map((food) => food.id),
+        )
+      : [];
   const finding = buildImmediateFinding({
     kind: draft.kind,
     servingPattern: draft.servingPattern,
@@ -65,6 +78,8 @@ export function MealTunnelScreen({
     fullnessAfter: draft.fullnessAfter,
     starterTaken: draft.starterTaken,
     dessertTaken: draft.dessertTaken,
+    hungerAtReservice: draft.hungerAtReservice,
+    reserviceReasons: draft.reserviceReasons,
     snackTrigger: draft.snackTrigger,
     snackContext: draft.snackContext,
     components: draft.components,
@@ -175,6 +190,18 @@ export function MealTunnelScreen({
                   onChange({ ...draft, freeText: event.target.value })
                 }
                 placeholder="Exemple : pâtes, deux steaks, sauce au poivre"
+              />
+              <SelectedFoodChips
+                foods={draft.selectedFoods}
+                onRemove={(foodId) =>
+                  onChange(removeMealFoodSelection(draft, foodId))
+                }
+              />
+              <FoodSuggestionPicker
+                suggestions={foodSuggestions}
+                onPick={(suggestion) =>
+                  onChange(addMealFoodSelection(draft, suggestion))
+                }
               />
             </section>
           ) : null}
@@ -358,11 +385,10 @@ export function MealTunnelScreen({
                       onClick={() =>
                         onChange({
                           ...draft,
-                          reserviceReasons: selected
-                            ? draft.reserviceReasons.filter(
-                                (item) => item !== reason,
-                              )
-                            : [...draft.reserviceReasons, reason],
+                          reserviceReasons: toggleReserviceReason(
+                            draft.reserviceReasons,
+                            reason,
+                          ),
                         })
                       }
                     >

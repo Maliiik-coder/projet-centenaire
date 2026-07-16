@@ -187,6 +187,37 @@ describe("calculateWeeklyAnalysis", () => {
     expect(finding.nextAction).toContain("10 à 15 minutes");
   });
 
+  it("relie le resservice sans faim au plat encore disponible", () => {
+    const finding = buildImmediateFinding({
+      kind: "dejeuner",
+      servingPattern: "once",
+      hungerBefore: "yes",
+      hungerAtReservice: "no",
+      reserviceReasons: ["food_available"],
+      fullnessAfter: "fine",
+      components: EMPTY_COMPONENTS,
+    });
+
+    expect(finding.fact).toContain("sans vraie faim");
+    expect(finding.reading).toContain("nourriture soit restée disponible");
+    expect(finding.frictionPoint).toBe("plat disponible");
+  });
+
+  it("ne réduit pas un resservice sans faim à une émotion par défaut", () => {
+    const finding = buildImmediateFinding({
+      kind: "dejeuner",
+      servingPattern: "once",
+      hungerBefore: "yes",
+      hungerAtReservice: "not_really",
+      reserviceReasons: ["pleasure"],
+      fullnessAfter: "fine",
+      components: EMPTY_COMPONENTS,
+    });
+
+    expect(finding.fact).toBe("La reprise arrive avec peu de faim.");
+    expect(finding.reading).not.toContain("émotion");
+  });
+
   it("garde la signature héritée du constat immédiat compatible", () => {
     const finding = buildImmediateFinding(
       "two-plates",

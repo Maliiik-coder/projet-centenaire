@@ -43,13 +43,18 @@ fonctionnels sont désormais en refonte progressive, écran par écran.
 - contrôles de release Supabase renforcés : une base existante n'est plus
   considérée à jour sans comparaison explicite des migrations locales et distantes.
 - démarrage et onboarding Haru finalisés dans leur première version testable ;
+- pages Aujourd'hui et Carnet validées dans leur structure actuelle ;
 - page Aujourd'hui restructurée autour d'une saisie de poids intégrée et d'un
   repère neutre pendant les sept premiers jours ;
 - tunnel repas V2 structuré localement, sans affichage de calories ni connexion
   Ciqual à ce stade ;
-- Carnet réorganisé en lectures Jours et Semaines ; la disparition de l'onglet
-  Constats séparé reste à finaliser avec l'arrivée de Recettes ;
+- Carnet réorganisé en lectures Jours et Semaines ; l'onglet Constats autonome
+  est retiré de la navigation et remplacé par Recettes ;
+- route `/recipes` et frontière `src/features/recipes/` créées avec un écran
+  temporaire « En développement » ;
 - module Sport accessible par une cinquième entrée de navigation.
+- module Sport fonctionnel mais encore à enrichir et à peaufiner ;
+- Profil identifié comme prochaine refonte fonctionnelle et visuelle complète.
 
 Commit de référence :
 - `a6641db` — `Prepare V0.6.1 production fixes`
@@ -74,6 +79,8 @@ Commit de référence :
 - Un module Recettes est désormais approuvé. Sa dimension communautaire est limitée au partage contrôlé de recettes publiques, aux favoris, à la duplication et au signalement ; aucun fil social, commentaire ou messagerie n’est prévu dans le MVP.
 - Ciqual doit servir de base alimentaire officielle pour structurer les ingrédients, estimer les recettes et préparer une analyse qualitative plus fiable des repas.
 - Les données nutritionnelles ne doivent jamais être inventées lorsqu’un aliment ou une conversion n’est pas fiable.
+- Les portions usuelles constituent une couche séparée de Ciqual, versionnée,
+  sourcée et exprimée en fourchettes plutôt qu'en valeurs exactes.
 - L’affichage nutritionnel détaillé appartient d’abord aux fiches recettes. Son éventuelle visibilité dans le suivi quotidien reste à arbitrer.
 - Pas d’IA tant que le tunnel repas n’est pas stabilisé.
 - Le tabac est intégré mais doit devenir un vrai module plus tard.
@@ -127,6 +134,15 @@ Commit de référence :
   s'affiche que sur demande via une action discrète ;
 - le bilan immédiat reste descriptif durant la semaine d'observation ;
 - une lecture rapide explicite aussi les repas sans signal dominant ;
+- les clarifications du texte libre sont plafonnées et priorisées : aliments
+  opaques, sauces et boissons passent avant les ambiguïtés faibles ;
+- si le texte précise déjà le contenu d'un wrap, d'une sauce ou d'une boisson,
+  Haru évite de reposer la question ;
+- l'analyse immédiate tient compte de la faim au moment du resservice et des
+  raisons choisies, sans assimiler automatiquement une reprise à une émotion ;
+- les contrats internes Ciqual 2025, portions usuelles et estimation à
+  fourchettes sont préparés dans `src/lib/nutrition/`, sans affichage
+  nutritionnel dans le carnet ;
 - les changements de type de repas ne conservent plus de champs cachés
   incompatibles ;
 - la structure détaillée du repas est persistée dans `meal_structure` ;
@@ -423,7 +439,9 @@ Itérations suivantes :
 
 ### Chantier principal — Recettes et Ciqual
 
-Statut : vision reçue, cadrage d’architecture à réaliser dans la conversation principale.
+Statut : route et frontière de module créées ; écran temporaire « En
+développement » actif. Le cadrage fonctionnel et l’architecture de données
+restent à découper en tranches verticales dans la conversation principale.
 
 Objectifs :
 - catalogue, recherche et fiches recettes ;

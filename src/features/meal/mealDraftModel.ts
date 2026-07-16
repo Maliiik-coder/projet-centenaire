@@ -4,6 +4,10 @@ import {
   mergeDetectedClarifications,
 } from "@/lib/foodDetection";
 import {
+  activeFoodSegment,
+  type FoodAutocompleteSuggestion,
+} from "@/lib/nutrition/autocompleteFood";
+import {
   getMealTunnelStepIds,
   type MealTunnelStepId,
 } from "@/lib/mealTunnel";
@@ -18,6 +22,7 @@ import type {
   MealClarification,
   MealComponents,
   MealEntry,
+  MealItemV2,
   MealKind,
   MealPassageRelation,
   MealQuantityEstimate,
@@ -37,6 +42,15 @@ export interface MealQuantityDraft {
   amount: string;
   unit: MealQuantityUnit;
   note: string;
+}
+
+export interface MealDraftFoodSelection {
+  id: string;
+  rawText: string;
+  canonicalName: string;
+  ciqualCode: string | null;
+  confidence: number;
+  source: string;
 }
 
 export interface MealDraft {
@@ -66,6 +80,7 @@ export interface MealDraft {
   reserviceText: string;
   reserviceReasons: ReserviceReason[];
   clarifications: MealClarification[];
+  selectedFoods: MealDraftFoodSelection[];
   questionnaireVersion: QuestionnaireVersion;
   components: MealComponents;
 }
@@ -202,6 +217,7 @@ export function createEmptyMealDraft(
     reserviceText: "",
     reserviceReasons: [],
     clarifications: [],
+    selectedFoods: [],
     questionnaireVersion: "v2",
     components: { ...EMPTY_COMPONENTS },
   };
@@ -356,6 +372,57 @@ export function shouldAskReserviceReason(draft: MealDraft): boolean {
     (draft.hungerAtReservice === "not_really" ||
       draft.hungerAtReservice === "no")
   );
+}
+
+export function toggleReserviceReason(
+  currentReasons: ReserviceReason[],
+  reason: ReserviceReason,
+): ReserviceReason[] {
+  if (currentReasons.includes(reason)) {
+    return currentReasons.filter((item) => item !== reason);
+  }
+
+  if (reason === "unsure") {
+    return ["unsure"];
+  }
+
+  return [...currentReasons.filter((item) => item !== "unsure"), reason];
+}
+
+export function addMealFoodSelection(
+  draft: MealDraft,
+  suggestion: FoodAutocompleteSuggestion,
+): MealDraft {
+  if (draft.selectedFoods.some((item) => item.id === suggestion.id)) {
+    return draft;
+  }
+
+  const rawSegment = activeFoodSegment(draft.freeText).raw;
+
+  return {
+    ...draft,
+    selectedFoods: [
+      ...draft.selectedFoods,
+      {
+        id: suggestion.id,
+        rawText: rawSegment || suggestion.matchedText || suggestion.label,
+        canonicalName: suggestion.label,
+        ciqualCode: suggestion.ciqualCode,
+        confidence: 1,
+        source: suggestion.source,
+      },
+    ],
+  };
+}
+
+export function removeMealFoodSelection(
+  draft: MealDraft,
+  foodId: string,
+): MealDraft {
+  return {
+    ...draft,
+    selectedFoods: draft.selectedFoods.filter((item) => item.id !== foodId),
+  };
 }
 
 export function shouldSkipMealStep(
@@ -518,6 +585,7 @@ export function mealDraftFromEntry(meal: MealEntry): MealDraft {
     reserviceText: reservicePassage?.relationText ?? "",
     reserviceReasons: meal.mealStructure?.behavior.reserviceReasons ?? [],
     clarifications: meal.clarifications ?? [],
+    selectedFoods: selectedFoodsFromEntry(meal),
     questionnaireVersion: "v2",
     components: { ...meal.components },
   };
@@ -536,6 +604,8 @@ export function mealEntryFromDraft(
     fullnessAfter: draft.fullnessAfter,
     starterTaken: draft.starterTaken,
     dessertTaken: draft.dessertTaken,
+    hungerAtReservice: draft.hungerAtReservice,
+    reserviceReasons: draft.reserviceReasons,
     snackTrigger: draft.snackTrigger,
     snackContext: draft.snackContext,
     components: draft.components,
@@ -613,6 +683,7 @@ function buildMealStructure(draft: MealDraft): MealStructureV2 {
         kind: "snack",
         rawText: draft.freeText.trim(),
         quantity: quantityEstimateFromDraft(draft.snackQuantity),
+        items: selectedMealItems(draft.selectedFoods),
       }),
     );
   } else {
@@ -620,6 +691,7 @@ function buildMealStructure(draft: MealDraft): MealStructureV2 {
       kind: "main",
       rawText: draft.freeText.trim(),
       quantity: mainQuantity,
+      items: selectedMealItems(draft.selectedFoods),
     });
 
     if (hasReservice(draft.servingPattern)) {
@@ -637,7 +709,7 @@ function buildMealStructure(draft: MealDraft): MealStructureV2 {
         items: [
           createMealItem(
             reserviceText,
-            draft.reserviceRelation === "smaller" ? null : mainQuantity,
+            draft.reserviceRelation === "same" ? mainQuantity : null,
           ),
         ],
       });
@@ -687,14 +759,36 @@ function createMealItem(
   };
 }
 
+function createSelectedMealItem(selection: MealDraftFoodSelection): MealItemV2 {
+  return {
+    id: selection.id,
+    rawText: selection.rawText,
+    recognitionStatus: "confirmed",
+    canonicalName: selection.canonicalName,
+    ciqualCode: selection.ciqualCode,
+    confidence: selection.confidence,
+    quantity: null,
+  };
+}
+
+function selectedMealItems(
+  selections: MealDraftFoodSelection[],
+): MealItemV2[] | null {
+  return selections.length > 0
+    ? selections.map((selection) => createSelectedMealItem(selection))
+    : null;
+}
+
 function createSinglePassageSection({
   kind,
   rawText,
   quantity,
+  items,
 }: {
   kind: "starter" | "main" | "dessert" | "snack";
   rawText: string;
   quantity: MealQuantityEstimate | null;
+  items?: MealItemV2[] | null;
 }): MealStructureV2["sections"][number] {
   return {
     id: createMealId(`meal-section-${kind}`),
@@ -707,10 +801,34 @@ function createSinglePassageSection({
         index: 1,
         relationToPrevious: null,
         relationText: null,
-        items: [createMealItem(rawText, quantity)],
+        items: items && items.length > 0 ? items : [createMealItem(rawText, quantity)],
       },
     ],
   };
+}
+
+function selectedFoodsFromEntry(meal: MealEntry): MealDraftFoodSelection[] {
+  const primarySection = meal.mealStructure?.sections.find(
+    (section) => section.kind === "main" || section.kind === "snack",
+  );
+
+  return (
+    primarySection?.passages
+      .find((passage) => passage.index === 1)
+      ?.items.filter(
+        (item) =>
+          item.recognitionStatus === "confirmed" &&
+          Boolean(item.canonicalName),
+      )
+      .map((item) => ({
+        id: item.ciqualCode ?? item.id,
+        rawText: item.rawText,
+        canonicalName: item.canonicalName ?? item.rawText,
+        ciqualCode: item.ciqualCode,
+        confidence: item.confidence ?? 1,
+        source: item.ciqualCode ? "ciqual_2025" : "meal_structure",
+      })) ?? []
+  );
 }
 
 function createMealId(prefix: string): string {

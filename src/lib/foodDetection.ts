@@ -147,51 +147,130 @@ const componentKeywords: Array<{
 
 const savoryMuffinContext = ["bacon", "oeuf", "jambon", "cheddar", "fromage"];
 
-const ambiguousFoods = [
+const MAX_MEAL_CLARIFICATIONS = 3;
+
+const opaqueMealDescriptors = [
+  "bacon",
+  "boeuf",
+  "cheddar",
+  "dinde",
+  "falafel",
+  "fromage",
+  "jambon",
+  "oeuf",
+  "poisson",
+  "porc",
+  "poulet",
+  "saumon",
+  "steak",
+  "thon",
+  "vegetarien",
+  "veggie",
+];
+
+const sauceDescriptors = [
+  "barbecue",
+  "bbq",
+  "blanche",
+  "creme",
+  "curry",
+  "fromage",
+  "ketchup",
+  "legere",
+  "mayo",
+  "mayonnaise",
+  "moutarde",
+  "pesto",
+  "poivre",
+  "soja",
+  "tomate",
+  "vinaigrette",
+];
+
+const drinkDescriptors = [
+  "alcool",
+  "biere",
+  "eau",
+  "jus",
+  "light",
+  "sucre",
+  "vin",
+  "zero",
+];
+
+const ambiguousFoods: Array<{
+  key: string;
+  question: string;
+  patterns: string[];
+  priority: number;
+  satisfiedBy?: string[];
+}> = [
   {
     key: "wrap",
     question: "Le wrap était plutôt à quoi ?",
     patterns: ["wrap", "vrap", "ourap"],
+    priority: 100,
+    satisfiedBy: opaqueMealDescriptors,
   },
   {
     key: "sandwich",
     question: "Le sandwich était plutôt à quoi ?",
     patterns: ["sandwich"],
+    priority: 95,
+    satisfiedBy: opaqueMealDescriptors,
   },
   {
     key: "burger",
     question: "Le burger était plutôt à quoi ?",
     patterns: ["burger"],
+    priority: 90,
+    satisfiedBy: opaqueMealDescriptors,
   },
   {
     key: "tacos",
     question: "Le tacos était plutôt à quoi ?",
     patterns: ["tacos"],
-  },
-  {
-    key: "pizza",
-    question: "La pizza était plutôt à quoi ?",
-    patterns: ["pizza"],
-  },
-  {
-    key: "sauce",
-    question: "La sauce était plutôt à quoi ?",
-    patterns: ["sauce"],
-  },
-  {
-    key: "boisson",
-    question: "La boisson était plutôt quoi ?",
-    patterns: ["soda", "coca", "pepsi", "ice tea", "orangina", "sprite"],
-  },
-  {
-    key: "salade-composee",
-    question: "La salade composée était plutôt à quoi ?",
-    patterns: ["salade composee", "salade composée", "bowl"],
+    priority: 90,
+    satisfiedBy: opaqueMealDescriptors,
   },
   {
     key: "assiette-kebab",
     question: "L’assiette kebab était plutôt à quoi ?",
     patterns: ["assiette kebab", "kebab"],
+    priority: 85,
+    satisfiedBy: opaqueMealDescriptors,
+  },
+  {
+    key: "sauce",
+    question: "La sauce était plutôt à quoi ?",
+    patterns: ["sauce"],
+    priority: 80,
+    satisfiedBy: sauceDescriptors,
+  },
+  {
+    key: "boisson",
+    question: "La boisson était plutôt quoi ?",
+    patterns: ["boisson", "soda"],
+    priority: 70,
+    satisfiedBy: drinkDescriptors,
+  },
+  {
+    key: "pizza",
+    question: "La pizza était plutôt à quoi ?",
+    patterns: ["pizza"],
+    priority: 55,
+  },
+  {
+    key: "dessert-maison",
+    question: "Le dessert maison était plutôt quoi ?",
+    patterns: ["dessert maison", "dessert fait maison"],
+    priority: 45,
+  },
+  {
+    key: "salade-composee",
+    question: "La salade composée était plutôt à quoi ?",
+    patterns: ["salade composee", "salade composée", "bowl"],
+    priority: 20,
   },
 ];
 
@@ -223,6 +302,14 @@ const clarificationChoicesByKey: Record<string, string[]> = {
     "Je ne sais pas",
     "Autre",
   ],
+  "dessert-maison": [
+    "Fruit / compote",
+    "Yaourt",
+    "Gâteau / tarte",
+    "Glace / crème",
+    "Je ne sais pas",
+    "Autre",
+  ],
 };
 
 export function getClarificationChoices(key: string): string[] {
@@ -239,6 +326,47 @@ export function normalizeFoodText(text: string): string {
 
 function containsWord(text: string, word: string): boolean {
   return text.includes(normalizeFoodText(word));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function containsDescriptor(text: string, descriptor: string): boolean {
+  const normalizedDescriptor = escapeRegExp(normalizeFoodText(descriptor))
+    .trim()
+    .replace(/\s+/g, "\\s+");
+
+  return new RegExp(
+    `(^|[^\\p{L}\\p{N}])${normalizedDescriptor}([^\\p{L}\\p{N}]|$)`,
+    "u",
+  ).test(text);
+}
+
+function hasNearbyDescriptor(
+  text: string,
+  patterns: string[],
+  descriptors: string[],
+): boolean {
+  return patterns.some((pattern) => {
+    const normalizedPattern = normalizeFoodText(pattern);
+    let index = text.indexOf(normalizedPattern);
+
+    while (index !== -1) {
+      const context = text.slice(
+        Math.max(0, index - 45),
+        index + normalizedPattern.length + 75,
+      );
+
+      if (descriptors.some((descriptor) => containsDescriptor(context, descriptor))) {
+        return true;
+      }
+
+      index = text.indexOf(normalizedPattern, index + normalizedPattern.length);
+    }
+
+    return false;
+  });
 }
 
 export function detectMealComponents(text: string): MealComponents {
@@ -270,9 +398,14 @@ export function detectMealClarifications(text: string): MealClarification[] {
 
   return ambiguousFoods
     .filter((food) =>
-      food.patterns.some((pattern) => containsWord(normalized, pattern)),
+      food.patterns.some((pattern) => containsWord(normalized, pattern)) &&
+      !(
+        food.satisfiedBy &&
+        hasNearbyDescriptor(normalized, food.patterns, food.satisfiedBy)
+      ),
     )
-    .slice(0, 3)
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, MAX_MEAL_CLARIFICATIONS)
     .map((food) => ({
       key: food.key,
       question: food.question,
