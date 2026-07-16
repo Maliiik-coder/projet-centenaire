@@ -1,22 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Cigarette,
   Download,
   Dumbbell,
   LineChart,
   PenLine,
-  RefreshCw,
-  Scale,
   Settings2,
-  Upload,
 } from "lucide-react";
 import {
   EMPTY_COMPONENTS,
@@ -27,17 +22,12 @@ import {
   roundOne,
 } from "@/lib/analytics";
 import {
-  addDays,
   calculateAgeOnDate,
   daysBetween,
-  formatLongDate,
-  formatShortDate,
   shouldUpdateCurrentDate,
-  startOfWeek,
   todayISO,
 } from "@/lib/dates";
 import {
-  dedupeDailyWeights,
   upsertDailyWeightEntry,
   upsertSmokingEntry,
 } from "@/lib/dataStabilization";
@@ -46,7 +36,7 @@ import {
   CLOUD_RECOVERY_DELAY_MS,
   withCloudReadTimeout,
 } from "@/lib/cloudRead";
-import { activeMealKindLabels, mealKindLabels } from "@/lib/mealKinds";
+import { activeMealKindLabels } from "@/lib/mealKinds";
 import {
   deleteMealEntry,
   updateMealEntry,
@@ -101,7 +91,6 @@ import {
   userStorageScope,
 } from "@/lib/storage";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { WeightTrendChart } from "@/components/WeightTrendChart";
 import { AppHeader } from "@/components/centenaire/AppHeader";
 import { BottomNav } from "@/components/centenaire/BottomNav";
 import {
@@ -120,6 +109,10 @@ import {
 } from "@/components/centenaire/OnboardingPreparationScreen";
 import { StartupStateLayout } from "@/components/centenaire/StartupStateLayout";
 import { TodayScreen } from "@/components/centenaire/TodayScreen";
+import { InsightsScreen } from "@/features/insights/InsightsScreen";
+import { JournalScreen } from "@/features/journal/JournalScreen";
+import type { JournalViewMode } from "@/features/journal/journalModel";
+import { ProfileScreen } from "@/features/profile/ProfileScreen";
 import {
   Button as UIButton,
   ChoiceCard,
@@ -208,30 +201,6 @@ import type {
 
 type TabId = "today" | "journal" | "insights" | "profile";
 type NavigationTabId = TabId | "sport";
-type JournalViewMode = "days" | "weeks";
-
-type JournalDayEvent =
-  | {
-      createdAt: string;
-      id: string;
-      kind: "meal";
-      meal: MealEntry;
-      time: string;
-    }
-  | {
-      createdAt: string;
-      id: string;
-      kind: "weight";
-      time: string;
-      weight: WeightEntry;
-    }
-  | {
-      createdAt: string;
-      id: string;
-      kind: "smoking";
-      smoking: SmokingEntry;
-      time: string;
-    };
 
 interface TabDefinition {
   accessibleLabel?: string;
@@ -303,26 +272,11 @@ const tabs: TabDefinition[] = [
   { id: "profile", label: "Profil", icon: Settings2 },
 ];
 
-const smokingStatusLabels: Record<SmokingStatus, string> = {
-  "non-renseigne": "Non renseigné",
-  non: "Non",
-  occasionnellement: "Occasionnellement",
-  "tous-les-jours": "Tous les jours",
-  arrete: "Je viens d'arrêter",
-};
-
 const onboardingSmokingLabels: Partial<Record<SmokingStatus, string>> = {
   non: "Non",
   occasionnellement: "Occasionnellement",
   "tous-les-jours": "Tous les jours",
   arrete: "Je viens d’arrêter",
-};
-
-const smokingGoalLabels: Record<SmokingGoal, string> = {
-  arreter: "Arrêter",
-  reduire: "Réduire",
-  observer: "Observer seulement",
-  "pas-maintenant": "Pas maintenant",
 };
 
 const onboardingSmokingGoalLabels: Partial<Record<SmokingGoal, string>> = {
@@ -525,8 +479,6 @@ const emptyMigrationSources: LocalMigrationSources = {
 
 const inputClass =
   "min-h-12 w-full rounded-[16px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-base text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]";
-const sectionClass =
-  "rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]";
 const annotationClass =
   "text-xs font-semibold uppercase tracking-[0.16em] text-[var(--pc-color-text-muted)]";
 
@@ -976,70 +928,8 @@ function mealDetailLine(meal: MealEntry): string {
   return details.join(" · ");
 }
 
-function journalMealDetailLines(meal: MealEntry): string[] {
-  const details = [];
-
-  if (meal.starterTaken && meal.starterText) {
-    details.push(`Entrée · ${meal.starterText}`);
-  }
-
-  if (meal.dessertTaken && meal.dessertText) {
-    details.push(`Dessert · ${meal.dessertText}`);
-  }
-
-  if (meal.kind === "grignotage") {
-    if (meal.snackTrigger) {
-      details.push(snackTriggerLabels[meal.snackTrigger]);
-    }
-    if (meal.snackContext) {
-      details.push(snackContextLabels[meal.snackContext]);
-    }
-  }
-
-  return details;
-}
-
 function mealTagLabels(): string[] {
   return [];
-}
-
-function buildJournalDayEvents(data: AppData, date: ISODate): JournalDayEvent[] {
-  return [
-    ...data.weights
-      .filter((weight) => weight.date === date)
-      .map((weight) => ({
-        createdAt: weight.createdAt,
-        id: weight.id,
-        kind: "weight" as const,
-        time: weight.time,
-        weight,
-      })),
-    ...data.meals
-      .filter((meal) => meal.date === date)
-      .map((meal) => ({
-        createdAt: meal.createdAt,
-        id: meal.id,
-        kind: "meal" as const,
-        meal,
-        time: meal.time,
-      })),
-    ...data.smokingEntries
-      .filter((smoking) => smoking.date === date)
-      .map((smoking) => ({
-        createdAt: smoking.createdAt,
-        id: smoking.id,
-        kind: "smoking" as const,
-        smoking,
-        time: smoking.time,
-      })),
-  ].sort(
-    (a, b) =>
-      a.time.localeCompare(b.time) || a.createdAt.localeCompare(b.createdAt),
-  );
-}
-
-function sameWeek(a: ISODate, b: ISODate): boolean {
-  return startOfWeek(a) === startOfWeek(b);
 }
 
 function buildSmokingDaySummary(
@@ -1363,57 +1253,6 @@ function ChoiceLine<T extends string>({
   );
 }
 
-function SwitchRow({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <button
-      aria-checked={checked}
-      className="flex min-h-14 w-full items-center justify-between gap-4 rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-left transition active:scale-[0.99]"
-      role="switch"
-      type="button"
-      onClick={() => onChange(!checked)}
-    >
-      <span className="text-sm font-semibold text-[var(--pc-color-text)]">{label}</span>
-      <span
-        className={`flex h-8 w-14 items-center rounded-full p-1 transition ${
-          checked
-            ? "justify-end bg-[var(--pc-color-primary)]"
-            : "justify-start bg-[var(--pc-color-primary-muted)]"
-        }`}
-      >
-        <span className="size-6 rounded-full bg-white shadow-[0_2px_8px_rgba(16,24,32,0.18)]" />
-      </span>
-    </button>
-  );
-}
-
-function PageTitle({
-  kicker,
-  title,
-  children,
-}: {
-  kicker: string;
-  title: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <header className="space-y-3 pb-5">
-      <p className={annotationClass}>{kicker}</p>
-      <h1 className="font-serif text-3xl leading-tight text-[var(--pc-color-text)]">{title}</h1>
-      {children ? (
-        <div className="text-base leading-7 text-[var(--pc-color-text)]">{children}</div>
-      ) : null}
-    </header>
-  );
-}
-
 function LoadingScreen() {
   return (
     <StartupStateLayout title="Ouverture du carnet.">
@@ -1596,7 +1435,6 @@ export function ProjetCentenaireApp() {
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [behaviorEditorOpen, setBehaviorEditorOpen] = useState(false);
-  const importInputRef = useRef<HTMLInputElement>(null);
   const cloudGenerationRef = useRef(0);
   const localEditGenerationRef = useRef(0);
   const activeCloudUserIdRef = useRef<string | null>(null);
@@ -2855,7 +2693,6 @@ export function ProjetCentenaireApp() {
   );
   const dayNumber = Math.max(1, daysBetween(profile.startDate, currentDate) + 1);
   const smokingEnabled = isSmokingTrackingEnabled(data);
-  const hasEnoughMealData = analysis.mealCount >= 5;
   const activePriorityText =
     analysis.priority.id === "insufficient-data"
       ? initialPriorityText(profile.initialFriction)
@@ -3294,522 +3131,145 @@ export function ProjetCentenaireApp() {
     />
   );
 
-  const renderJournal = () => {
-    const selectedWeekAnalysis = calculateWeeklyAnalysis(data, journalWeekDate);
-    const canGoNextDay = journalDate < currentDate;
-    const canGoNextWeek = startOfWeek(journalWeekDate) < startOfWeek(currentDate);
-
-    return (
-      <div className="space-y-5">
-        <JournalWeightOverview profile={profile} weights={data.weights} />
-
-        <JournalSegmentedControl value={journalView} onChange={setJournalView} />
-
-        {pendingSync ? (
-          <Surface className="px-4 py-3" variant="subtle">
-            <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
-              Des changements locaux attendent la synchronisation.
-            </p>
-          </Surface>
-        ) : null}
-
-        {journalView === "days" ? (
-          <JournalDaysView
-            currentDate={currentDate}
-            date={journalDate}
-            events={buildJournalDayEvents(data, journalDate)}
-            canGoNext={canGoNextDay}
-            onDeleteMeal={deleteMealFromJournal}
-            onEditMeal={openMealEditor}
-            onGoToday={() => setJournalDate(currentDate)}
-            onNext={() => setJournalDate((date) => addDays(date, 1))}
-            onPrevious={() => setJournalDate((date) => addDays(date, -1))}
-          />
-        ) : (
-          <JournalWeeksView
-            analysis={selectedWeekAnalysis}
-            canGoNext={canGoNextWeek}
-            currentDate={currentDate}
-            smokingEnabled={smokingEnabled}
-            onGoCurrent={() => setJournalWeekDate(currentDate)}
-            onNext={() => setJournalWeekDate((date) => addDays(date, 7))}
-            onPrevious={() => setJournalWeekDate((date) => addDays(date, -7))}
-          />
-        )}
-      </div>
-    );
-  };
-
-  const renderInsights = () => (
-    <div className="space-y-5">
-      <PageTitle kicker="Constats" title="Bilan de semaine">
-        <p>Les faits sont lus par domaine, sans mélanger les signaux.</p>
-      </PageTitle>
-      <section className={sectionClass}>
-        <p className={annotationClass}>Alimentation</p>
-        <dl className="mt-4 grid grid-cols-2 gap-3">
-          <Fact label="Repas observés" value={analysis.mealCount} />
-          {hasEnoughMealData ? (
-            <>
-              <Fact label="Une assiette" value={analysis.onePlateMeals} />
-              <Fact label="Deux assiettes ou plus" value={analysis.multiPlateMeals} />
-              <Fact label="Sans faim" value={analysis.mealsStartedWithoutHunger} />
-              <Fact label="Trop plein" value={analysis.mealsEndedTooFull} />
-              <Fact
-                label="Grignotages sans faim"
-                value={analysis.snackingWithoutHunger}
-              />
-            </>
-          ) : null}
-        </dl>
-        {!hasEnoughMealData ? (
-          <p className="mt-5 leading-7 text-[var(--pc-color-text)]">
-            Données insuffisantes pour établir un point de friction fiable.
-          </p>
-        ) : (
-          <div className="mt-6 space-y-5">
-            <div>
-              <p className={annotationClass}>Point de friction</p>
-              <h2 className="mt-2 font-serif text-2xl text-[var(--pc-color-text)]">
-                {analysis.frictionPoint}
-              </h2>
-              <p className="mt-3 leading-7 text-[var(--pc-color-text)]">
-                {analysis.priority.rationale}
-              </p>
-            </div>
-            <div>
-              <p className={annotationClass}>Priorité active</p>
-              <h2 className="mt-2 font-serif text-2xl text-[var(--pc-color-text)]">
-                {analysis.priority.label}
-              </h2>
-              <p className="mt-2 text-sm uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
-                Niveau de preuve : {analysis.priority.evidenceLevel}
-              </p>
-              <p className="mt-4 rounded-[18px] bg-[var(--pc-color-primary-soft)] px-4 py-3 leading-7 text-[var(--pc-color-primary)]">
-                {analysis.priority.action}
-              </p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {smokingEnabled ? (
-        <section className={sectionClass}>
-          <p className={annotationClass}>Tabac</p>
-          {analysis.smokingEntries === 0 ? (
-            <p className="mt-3 leading-7 text-[var(--pc-color-text)]">
-              Aucune donnée tabac renseignée cette semaine.
-            </p>
-          ) : (
-            <>
-              <dl className="mt-4 grid grid-cols-2 gap-3">
-                <Fact label="Données tabac" value={analysis.smokingEntries} />
-                <Fact
-                  label="Jours sans cigarette renseignés"
-                  value={analysis.smokeFreeDays}
-                />
-              </dl>
-              <p className="mt-5 leading-7 text-[var(--pc-color-text)]">
-                Les jours non renseignés restent neutres : absence de donnée ne
-                signifie pas échec.
-              </p>
-            </>
-          )}
-        </section>
-      ) : null}
-
-      <section className={sectionClass}>
-        <p className={annotationClass}>Poids</p>
-        <p className="mt-2 text-sm text-[var(--pc-color-text-muted)]">
-          Moyenne hebdomadaire :{" "}
-          {analysis.weightAverageKg === null
-            ? "Données insuffisantes"
-            : formatKg(analysis.weightAverageKg)}
-        </p>
-        <div className="mt-4">
-          <WeightTrendChart weights={data.weights} />
-        </div>
-      </section>
-    </div>
+  const renderJournal = () => (
+    <JournalScreen
+      currentDate={currentDate}
+      data={data}
+      date={journalDate}
+      formatKg={formatKg}
+      formatSmokingEntry={smokingEntryLine}
+      pendingSync={pendingSync}
+      profile={profile}
+      smokingEnabled={smokingEnabled}
+      view={journalView}
+      weekDate={journalWeekDate}
+      onDateChange={setJournalDate}
+      onDeleteMeal={deleteMealFromJournal}
+      onEditMeal={openMealEditor}
+      onViewChange={setJournalView}
+      onWeekDateChange={setJournalWeekDate}
+    />
   );
 
-  const renderProfile = () => {
-    const smokingSummaryText = profile.smokingGoal
-      ? `${smokingStatusLabels[profile.smokingStatus]} · ${smokingGoalLabels[profile.smokingGoal]}`
-      : smokingStatusLabels[profile.smokingStatus];
-    const behaviorAssessment = profile.initialBehaviorAssessment;
+  const renderInsights = () => (
+    <InsightsScreen
+      analysis={analysis}
+      formatKg={formatKg}
+      smokingEnabled={smokingEnabled}
+      weights={data.weights}
+    />
+  );
 
-    return (
-      <div className="space-y-5">
-        <PageTitle kicker="Profil" title="Paramètres">
-          <p>Les réglages essentiels, le compte et les options avancées.</p>
-        </PageTitle>
+  const saveProfileChanges = (nextProfile: Profile) => {
+    const patch = buildProfilePatch(profile, nextProfile);
+    const mutation = createProfilePatchMutationDraft(patch);
 
-        {profileDraft ? (
-          <section className={sectionClass}>
-            <div className="flex items-center justify-between gap-3">
-              <p className={annotationClass}>Profil</p>
-              <button
-                className="rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--pc-color-primary)] transition active:scale-[0.98]"
-                type="button"
-                onClick={() => setProfileEditorOpen((open) => !open)}
-              >
-                {profileEditorOpen ? "Fermer" : "Modifier"}
-              </button>
-            </div>
-            <button
-              className="mt-4 grid w-full gap-3 rounded-[20px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-4 text-left shadow-[var(--pc-shadow-level-1)] transition active:scale-[0.99]"
-              type="button"
-              onClick={() => setProfileEditorOpen(true)}
-            >
-              <div>
-                <p className="font-serif text-2xl leading-tight text-[var(--pc-color-text)]">
-                  {profile.firstName || "Profil"}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-[var(--pc-color-text-muted)]">
-                  {profile.age} ans · {profile.heightCm} cm
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm text-[var(--pc-color-text)]">
-                <span>Départ · {formatKg(profile.startWeightKg)}</span>
-                <span>Objectif · {formatKg(profile.goalWeightKg)}</span>
-                <span className="col-span-2">Tabac · {smokingSummaryText}</span>
-              </div>
-            </button>
-
-            {profileEditorOpen ? (
-              <form
-                className="mt-5 grid gap-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-
-                  if (
-                    profileDraft.firstName.trim().length === 0 ||
-                    profileDraft.age < 18 ||
-                    profileDraft.heightCm < 120 ||
-                    profileDraft.startWeightKg < 40 ||
-                    profileDraft.goalWeightKg < 40
-                  ) {
-                    setError("Vérifie les données du profil.");
-                    return;
-                  }
-
-                  const patch = buildProfilePatch(profile, profileDraft);
-                  const mutation = createProfilePatchMutationDraft(patch);
-
-                  saveData(
-                    { ...data, profile: profileDraft },
-                    "Profil mis à jour.",
-                    mutation ? [mutation] : [],
-                  );
-                  setProfileEditorOpen(false);
-                }}
-              >
-                <TextInput
-                  label="Prénom"
-                  value={profileDraft.firstName}
-                  onChange={(value) =>
-                    setProfileDraft({ ...profileDraft, firstName: value })
-                  }
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <NumberInput
-                    label="Âge"
-                    value={profileDraft.age}
-                    onChange={(value) =>
-                      setProfileDraft({ ...profileDraft, age: value })
-                    }
-                  />
-                  <NumberInput
-                    label="Taille en cm"
-                    value={profileDraft.heightCm}
-                    onChange={(value) =>
-                      setProfileDraft({ ...profileDraft, heightCm: value })
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <NumberInput
-                    label="Poids de départ"
-                    value={profileDraft.startWeightKg}
-                    onChange={(value) =>
-                      setProfileDraft({ ...profileDraft, startWeightKg: value })
-                    }
-                  />
-                  <NumberInput
-                    label="Poids objectif"
-                    value={profileDraft.goalWeightKg}
-                    onChange={(value) =>
-                      setProfileDraft({ ...profileDraft, goalWeightKg: value })
-                    }
-                  />
-                </div>
-                <ChoiceLine
-                  options={smokingStatusLabels}
-                  value={profileDraft.smokingStatus}
-                  onChange={(value) =>
-                    setProfileDraft({
-                      ...profileDraft,
-                      smokingStatus: value,
-                      smokingGoal: needsSmokingGoal(value)
-                        ? profileDraft.smokingGoal ?? "observer"
-                        : undefined,
-                    })
-                  }
-                />
-                {needsSmokingGoal(profileDraft.smokingStatus) ? (
-                  <ChoiceLine
-                    options={smokingGoalLabels}
-                    value={profileDraft.smokingGoal ?? "observer"}
-                    onChange={(value) =>
-                      setProfileDraft({ ...profileDraft, smokingGoal: value })
-                    }
-                  />
-                ) : null}
-                <div className="flex flex-wrap gap-2">
-                  <Button type="submit">Enregistrer</Button>
-                  <Button
-                    variant="line"
-                    onClick={() => {
-                      setProfileDraft(profile);
-                      setProfileEditorOpen(false);
-                    }}
-                  >
-                    Annuler
-                  </Button>
-                </div>
-              </form>
-            ) : null}
-          </section>
-        ) : null}
-
-        <section className={sectionClass}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className={annotationClass}>Portrait initial</p>
-              <h2 className="mt-2 text-lg font-semibold text-[var(--pc-color-text)]">
-                Tes pistes à observer
-              </h2>
-            </div>
-            <UIButton
-              className="shrink-0"
-              variant="secondary"
-              onClick={() => setBehaviorEditorOpen(true)}
-            >
-              {behaviorAssessment ? "Revoir" : "Compléter"}
-            </UIButton>
-          </div>
-          {behaviorAssessment?.hypotheses.length ? (
-            <ul className="mt-4 space-y-3">
-              {behaviorAssessment.hypotheses.map((hypothesis) => (
-                <li
-                  className="flex gap-3 text-sm leading-6 text-[var(--pc-color-text-muted)]"
-                  key={hypothesis.axis}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]"
-                  />
-                  {behaviorHypothesisText(hypothesis.axis)}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 text-sm leading-6 text-[var(--pc-color-text-muted)]">
-              {behaviorAssessment
-                ? "Aucune tendance nette ne ressort pour le moment."
-                : "Ce portrait aide Haru à choisir les premières situations à observer."}
-            </p>
-          )}
-          <p className="mt-3 text-xs leading-5 text-[var(--pc-color-text-muted)]">
-            Réponses déclarées, modifiables à tout moment. Ce n’est pas un
-            diagnostic.
-          </p>
-        </section>
-
-        <section className={sectionClass}>
-          <p className={annotationClass}>Préférences</p>
-          <div className="mt-4 grid gap-3">
-            <SwitchRow
-              checked={profile.darkMode}
-              label="Mode sombre"
-              onChange={(checked) => updateProfilePreferences({ darkMode: checked })}
-            />
-            <SwitchRow
-              checked={profile.showActiveMission}
-              label="Afficher la mission en cours"
-              onChange={(checked) =>
-                updateProfilePreferences({ showActiveMission: checked })
-              }
-            />
-          </div>
-        </section>
-
-        <section className={sectionClass}>
-          <p className={annotationClass}>Compte</p>
-          <div className="mt-4 space-y-3">
-            <div className="rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-4">
-              <p className="text-sm font-semibold text-[var(--pc-color-text)]">
-                {cloudUserId ? "Connecté" : "Non connecté"}
-              </p>
-              <p className="mt-1 break-words text-sm text-[var(--pc-color-text-muted)]">
-                {cloudUserId
-                  ? cloudEmail ?? "Compte cloud actif"
-                  : "Le carnet fonctionne en local sur cet appareil."}
-              </p>
-            </div>
-            {cloudUserId ? (
-              <div className="grid gap-2">
-                <Button onClick={signOut} variant="line">
-                  Se déconnecter
-                </Button>
-                <Link
-                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#D7B8B2] bg-[#FFF7F3] px-5 text-sm font-semibold text-[#8A3B32] transition active:scale-[0.99]"
-                  href="/account"
-                >
-                  Supprimer mon compte
-                </Link>
-              </div>
-            ) : (
-              <Link
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-5 text-sm font-semibold text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)] transition active:scale-[0.99]"
-                href="/login"
-              >
-                Se connecter
-              </Link>
-            )}
-          </div>
-        </section>
-
-        <section className={sectionClass}>
-          <p className={annotationClass}>Options avancées</p>
-          <details className="mt-4 rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-4">
-            <summary className="cursor-pointer text-sm font-semibold text-[var(--pc-color-text)]">
-              Export, import et réinitialisation
-            </summary>
-            <div className="mt-4 grid gap-2">
-              <Button
-                onClick={() => {
-                  exportJson(data, `projet-centenaire-carnet-${currentDate}.json`);
-                }}
-                variant="line"
-              >
-                <Download aria-hidden="true" size={17} />
-                Export JSON
-              </Button>
-              <Button onClick={() => importInputRef.current?.click()} variant="line">
-                <Upload aria-hidden="true" size={17} />
-                Import JSON
-              </Button>
-              <input
-                ref={importInputRef}
-                accept="application/json"
-                className="hidden"
-                type="file"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) return;
-
-                  try {
-                    const parsedImport: unknown = JSON.parse(await file.text());
-                    const imported = mergeImportedData(data, parsedImport);
-
-                    if (imported.recognizedContributionCount === 0) {
-                      setError("Aucune donnée nouvelle valide n’a été reconnue.");
-                      return;
-                    }
-
-                    const importedMealMutations = cloudUserId
-                      ? imported.mealUpserts.map((meal) =>
-                          createMealUpsertMutation(cloudUserId, meal),
-                        )
-                      : [];
-                    saveData(
-                      imported.data,
-                      "Import terminé.",
-                      imported.nonMealMutations,
-                      importedMealMutations,
-                    );
-                  } catch (importError) {
-                    setError(
-                      importError instanceof ImportValidationError
-                        ? "Une date ou heure du fichier est invalide. Aucune donnée n’a été importée."
-                        : "Le fichier JSON n'a pas pu être importé.",
-                    );
-                  } finally {
-                    event.target.value = "";
-                  }
-                }}
-              />
-              <Button
-                onClick={async () => {
-                  if (
-                    !window.confirm(
-                      "Réinitialiser les données locales de cet appareil ?",
-                    )
-                  ) {
-                    return;
-                  }
-
-                  if (cloudUserId) {
-                    const supabase = getSupabaseBrowserClient();
-
-                    if (!supabase) {
-                      setError("Connexion cloud indisponible.");
-                      return;
-                    }
-
-                    cloudGenerationRef.current += 1;
-                    activeCloudUserIdRef.current = cloudUserId;
-                    setConnectedResetStatus("running");
-
-                    try {
-                      const cloudData = await resetConnectedLocalData(
-                        supabase,
-                        cloudUserId,
-                      );
-                      localEditGenerationRef.current += 1;
-                      setCloudStatus("ready");
-                      setCloudSnapshot(cloudData);
-                      setMigrationOperation(null);
-                      setData(cloudData);
-                      setProfileDraft(cloudData.profile);
-                      setPendingSync(false);
-                      setNotice("Données locales réinitialisées.");
-                      setConnectedResetStatus("idle");
-                    } catch {
-                      setData(createEmptyData());
-                      setProfileDraft(null);
-                      setCloudStatus("unavailable");
-                      setCloudSnapshot(null);
-                      setPendingSync(false);
-                      setConnectedResetStatus("reload-required");
-                    }
-                    return;
-                  }
-
-                  const reset = localDataStore.reset(guestStorageScope);
-                  setData(reset);
-                  setProfileDraft(null);
-                  setOnboardingStep(0);
-                  setMigrationSources((current) => ({
-                    ...current,
-                    guest: null,
-                  }));
-                  setPendingSync(false);
-                  setNotice("Carnet local réinitialisé.");
-                }}
-                variant="signal"
-              >
-                <RefreshCw aria-hidden="true" size={17} />
-                Réinitialiser données locales
-              </Button>
-            </div>
-          </details>
-        </section>
-      </div>
+    saveData(
+      { ...data, profile: nextProfile },
+      "Profil mis à jour.",
+      mutation ? [mutation] : [],
     );
+    setProfileEditorOpen(false);
   };
+
+  const importProfileData = async (file: File) => {
+    try {
+      const parsedImport: unknown = JSON.parse(await file.text());
+      const imported = mergeImportedData(data, parsedImport);
+
+      if (imported.recognizedContributionCount === 0) {
+        setError("Aucune donnée nouvelle valide n’a été reconnue.");
+        return;
+      }
+
+      const importedMealMutations = cloudUserId
+        ? imported.mealUpserts.map((meal) =>
+            createMealUpsertMutation(cloudUserId, meal),
+          )
+        : [];
+      saveData(
+        imported.data,
+        "Import terminé.",
+        imported.nonMealMutations,
+        importedMealMutations,
+      );
+    } catch (importError) {
+      setError(
+        importError instanceof ImportValidationError
+          ? "Une date ou heure du fichier est invalide. Aucune donnée n’a été importée."
+          : "Le fichier JSON n'a pas pu être importé.",
+      );
+    }
+  };
+
+  const resetProfileData = async () => {
+    if (cloudUserId) {
+      const supabase = getSupabaseBrowserClient();
+
+      if (!supabase) {
+        setError("Connexion cloud indisponible.");
+        return;
+      }
+
+      cloudGenerationRef.current += 1;
+      activeCloudUserIdRef.current = cloudUserId;
+      setConnectedResetStatus("running");
+
+      try {
+        const cloudData = await resetConnectedLocalData(supabase, cloudUserId);
+        localEditGenerationRef.current += 1;
+        setCloudStatus("ready");
+        setCloudSnapshot(cloudData);
+        setMigrationOperation(null);
+        setData(cloudData);
+        setProfileDraft(cloudData.profile);
+        setPendingSync(false);
+        setNotice("Données locales réinitialisées.");
+        setConnectedResetStatus("idle");
+      } catch {
+        setData(createEmptyData());
+        setProfileDraft(null);
+        setCloudStatus("unavailable");
+        setCloudSnapshot(null);
+        setPendingSync(false);
+        setConnectedResetStatus("reload-required");
+      }
+      return;
+    }
+
+    const reset = localDataStore.reset(guestStorageScope);
+    setData(reset);
+    setProfileDraft(null);
+    setOnboardingStep(0);
+    setMigrationSources((current) => ({
+      ...current,
+      guest: null,
+    }));
+    setPendingSync(false);
+    setNotice("Carnet local réinitialisé.");
+  };
+
+  const renderProfile = () => (
+    <ProfileScreen
+      cloudEmail={cloudEmail}
+      cloudUserId={cloudUserId}
+      currentDate={currentDate}
+      data={data}
+      editorOpen={profileEditorOpen}
+      formatKg={formatKg}
+      profile={profile}
+      profileDraft={profileDraft}
+      onChangeDraft={setProfileDraft}
+      onChangeEditorOpen={setProfileEditorOpen}
+      onImportFile={importProfileData}
+      onOpenBehaviorEditor={() => setBehaviorEditorOpen(true)}
+      onPreferencesChange={updateProfilePreferences}
+      onResetData={resetProfileData}
+      onSaveProfile={saveProfileChanges}
+      onSignOut={signOut}
+      onValidationError={setError}
+    />
+  );
 
   const content = {
     today: renderToday,
@@ -5447,767 +4907,5 @@ function ConstatPart({
         {text}
       </p>
     </div>
-  );
-}
-
-function EmptyState({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="rounded-[22px] border border-dashed border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
-      <p className="font-serif text-xl text-[var(--pc-color-text)]">{title}</p>
-      <p className="mt-2 leading-7 text-[var(--pc-color-text)]">{text}</p>
-    </div>
-  );
-}
-
-function JournalSegmentedControl({
-  value,
-  onChange,
-}: {
-  value: JournalViewMode;
-  onChange: (value: JournalViewMode) => void;
-}) {
-  const options: Array<{ id: JournalViewMode; label: string }> = [
-    { id: "days", label: "Jours" },
-    { id: "weeks", label: "Semaines" },
-  ];
-
-  return (
-    <div
-      aria-label="Vue du carnet"
-      className="grid grid-cols-2 gap-1 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-primary-soft)] p-1 shadow-[var(--pc-shadow-level-1)]"
-      role="tablist"
-    >
-      {options.map((option) => (
-        <button
-          aria-selected={value === option.id}
-          className={`min-h-11 rounded-full text-sm font-semibold transition active:scale-[0.98] ${
-            value === option.id
-              ? "bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)]"
-              : "text-[var(--pc-color-text)]"
-          }`}
-          key={option.id}
-          role="tab"
-          type="button"
-          onClick={() => onChange(option.id)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function JournalWeightOverview({
-  profile,
-  weights,
-}: {
-  profile: Profile;
-  weights: WeightEntry[];
-}) {
-  const measuredWeights = dedupeDailyWeights(weights).sort((a, b) =>
-    a.date.localeCompare(b.date),
-  );
-  const latestWeight = getLatestWeight(measuredWeights);
-  const chartPoints = [
-    {
-      date: profile.startDate,
-      id: "start",
-      value: profile.startWeightKg,
-    },
-    ...measuredWeights.map((weight) => ({
-      date: weight.date,
-      id: weight.id,
-      value: weight.weightKg,
-    })),
-  ];
-
-  return (
-    <Surface as="section" className="overflow-hidden px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
-            Évolution du poids
-          </p>
-          <h2 className="mt-1 text-2xl leading-8 font-bold text-[var(--pc-color-text)]">
-            Depuis le départ
-          </h2>
-        </div>
-        <Scale
-          aria-hidden="true"
-          className="mt-1 text-[var(--pc-color-primary)]"
-          size={24}
-          strokeWidth={2.25}
-        />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
-            Départ
-          </p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--pc-color-text)]">
-            {formatKg(profile.startWeightKg)}
-          </p>
-        </div>
-        <div className="min-w-0 text-right">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
-            Dernière mesure
-          </p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--pc-color-text)]">
-            {latestWeight ? formatKg(latestWeight.weightKg) : "Aucune"}
-          </p>
-        </div>
-      </div>
-
-      <SimpleWeightChart points={chartPoints} />
-    </Surface>
-  );
-}
-
-function SimpleWeightChart({
-  points,
-}: {
-  points: Array<{ date: ISODate; id: string; value: number }>;
-}) {
-  const width = 320;
-  const height = 132;
-  const paddingX = 18;
-  const paddingY = 18;
-  const values = points.map((point) => point.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = Math.max(max - min, 0.8);
-  const lower = min - span * 0.25;
-  const upper = max + span * 0.25;
-  const firstDate = points[0]?.date ?? todayISO();
-  const lastDate = points[points.length - 1]?.date ?? firstDate;
-  const totalDays = Math.max(0, daysBetween(firstDate, lastDate));
-  const xRange = width - paddingX * 2;
-  const yRange = height - paddingY * 2;
-  const toX = (point: { date: ISODate }, index: number) => {
-    if (points.length === 1) {
-      return width / 2;
-    }
-
-    if (totalDays === 0) {
-      return paddingX + (xRange * index) / (points.length - 1);
-    }
-
-    return paddingX + (xRange * daysBetween(firstDate, point.date)) / totalDays;
-  };
-  const toY = (value: number) =>
-    paddingY + yRange - ((value - lower) / (upper - lower)) * yRange;
-  const svgPoints = points
-    .map((point, index) => `${toX(point, index)},${toY(point.value)}`)
-    .join(" ");
-  const visibleDots = points.filter(
-    (_, index) =>
-      points.length <= 15 || index === 0 || index === points.length - 1,
-  );
-
-  return (
-    <div
-      aria-label="Courbe simple du poids depuis le départ"
-      className="mt-4 h-32 w-full"
-      role="img"
-    >
-      <svg
-        aria-hidden="true"
-        className="h-full w-full overflow-visible"
-        preserveAspectRatio="none"
-        viewBox={`0 0 ${width} ${height}`}
-      >
-        <line
-          stroke="var(--pc-color-border)"
-          strokeDasharray="4 8"
-          strokeWidth="1.2"
-          x1={paddingX}
-          x2={width - paddingX}
-          y1={height / 2}
-          y2={height / 2}
-        />
-        {points.length > 1 ? (
-          <polyline
-            fill="none"
-            points={svgPoints}
-            stroke="var(--pc-color-primary)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2.4"
-          />
-        ) : null}
-        {visibleDots.map((point) => {
-          const pointIndex = points.indexOf(point);
-          const isEdge = pointIndex === 0 || pointIndex === points.length - 1;
-
-          return (
-            <circle
-              cx={toX(point, pointIndex)}
-              cy={toY(point.value)}
-              fill={
-                isEdge
-                  ? "var(--pc-color-primary)"
-                  : "var(--pc-color-primary-muted)"
-              }
-              key={point.id}
-              r={isEdge ? 3.4 : 2.4}
-            />
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-function JournalDaysView({
-  currentDate,
-  date,
-  events,
-  canGoNext,
-  onDeleteMeal,
-  onEditMeal,
-  onGoToday,
-  onNext,
-  onPrevious,
-}: {
-  currentDate: ISODate;
-  date: ISODate;
-  events: JournalDayEvent[];
-  canGoNext: boolean;
-  onDeleteMeal: (meal: MealEntry) => void;
-  onEditMeal: (meal: MealEntry) => void;
-  onGoToday: () => void;
-  onNext: () => void;
-  onPrevious: () => void;
-}) {
-  return (
-    <section className="space-y-4" aria-labelledby="journal-days-title">
-      <div className="flex items-center justify-between gap-3">
-        <UIIconButton label="Jour précédent" onClick={onPrevious}>
-          <ChevronLeft aria-hidden="true" size={22} />
-        </UIIconButton>
-        <div className="min-w-0 text-center">
-          <h2
-            className="text-lg leading-6 font-bold text-[var(--pc-color-text)]"
-            id="journal-days-title"
-          >
-            {formatLongDate(date)}
-          </h2>
-          <p className="mt-1 text-sm text-[var(--pc-color-text-muted)]">
-            {events.length === 0
-              ? "Aucun événement"
-              : countLabel(events.length, "événement", "événements")}
-          </p>
-        </div>
-        <UIIconButton
-          disabled={!canGoNext}
-          label="Jour suivant"
-          onClick={onNext}
-        >
-          <ChevronRight aria-hidden="true" size={22} />
-        </UIIconButton>
-      </div>
-
-      {date !== currentDate ? (
-        <div className="flex justify-center">
-          <Button onClick={onGoToday} variant="line">
-            Aujourd’hui
-          </Button>
-        </div>
-      ) : null}
-
-      {events.length === 0 ? (
-        <EmptyState
-          title="Rien noté ce jour-là."
-          text="Une journée vide reste neutre : Haru n’en tire aucun score."
-        />
-      ) : (
-        <div className="space-y-3">
-          {events.map((event) => {
-            if (event.kind === "meal") {
-              return (
-                <JournalMealEvent
-                  key={`meal-${event.id}`}
-                  meal={event.meal}
-                  onDelete={() => onDeleteMeal(event.meal)}
-                  onEdit={() => onEditMeal(event.meal)}
-                />
-              );
-            }
-
-            if (event.kind === "weight") {
-              return (
-                <JournalFactEvent
-                  icon={Scale}
-                  key={`weight-${event.id}`}
-                  time={event.time}
-                  title="Poids"
-                  value={formatKg(event.weight.weightKg)}
-                />
-              );
-            }
-
-            return (
-              <JournalFactEvent
-                icon={Cigarette}
-                key={`smoking-${event.id}`}
-                time={event.time}
-                title="Tabac"
-                value={smokingEntryLine(event.smoking)}
-              />
-            );
-          })}
-          <JournalDayReflection events={events} />
-        </div>
-      )}
-    </section>
-  );
-}
-
-function JournalMealEvent({
-  meal,
-  onDelete,
-  onEdit,
-}: {
-  meal: MealEntry;
-  onDelete: () => void;
-  onEdit: () => void;
-}) {
-  const detailLines = journalMealDetailLines(meal);
-
-  return (
-    <Surface as="article" className="p-3">
-      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-3">
-        <p className="pt-1 text-sm font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
-          {meal.time}
-        </p>
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-start gap-2">
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
-              <BookOpen aria-hidden="true" size={17} strokeWidth={2.25} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-[var(--pc-color-text)]">
-                {mealKindLabels[meal.kind]}
-              </p>
-              <p className="mt-0.5 text-sm leading-5 text-[var(--pc-color-text)]">
-                {meal.freeText}
-              </p>
-              {detailLines.length > 0 ? (
-                <div className="mt-2 space-y-1 text-xs leading-4 text-[var(--pc-color-text-muted)]">
-                  {detailLines.map((detail) => (
-                    <p key={detail}>{detail}</p>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              className="min-h-10 rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-text)] transition active:scale-[0.98]"
-              type="button"
-              onClick={onEdit}
-            >
-              Modifier
-            </button>
-            <button
-              className="min-h-10 rounded-full border border-[var(--pc-color-danger)] bg-[var(--pc-color-danger-soft)] px-3 text-sm font-semibold text-[var(--pc-color-danger)] transition active:scale-[0.98]"
-              type="button"
-              onClick={onDelete}
-            >
-              Supprimer
-            </button>
-          </div>
-        </div>
-      </div>
-    </Surface>
-  );
-}
-
-function JournalFactEvent({
-  icon: Icon,
-  time,
-  title,
-  value,
-}: {
-  icon: LucideIcon;
-  time: string;
-  title: string;
-  value: string;
-}) {
-  return (
-    <Surface as="article" className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-3 p-3">
-      <p className="pt-1 text-sm font-semibold tabular-nums text-[var(--pc-color-text-muted)]">
-        {time}
-      </p>
-      <div className="flex min-w-0 gap-2">
-        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
-          <Icon aria-hidden="true" size={17} strokeWidth={2.25} />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-[var(--pc-color-text)]">
-            {title}
-          </p>
-          <p className="mt-0.5 text-sm leading-5 text-[var(--pc-color-text)]">
-            {value}
-          </p>
-        </div>
-      </div>
-    </Surface>
-  );
-}
-
-function JournalDayReflection({ events }: { events: JournalDayEvent[] }) {
-  const meals = events
-    .filter((event): event is Extract<JournalDayEvent, { kind: "meal" }> =>
-      event.kind === "meal",
-    )
-    .map((event) => event.meal);
-  const weights = events.filter((event) => event.kind === "weight");
-  const smokingEvents = events.filter((event) => event.kind === "smoking");
-  const reserviceMeals = meals.filter((meal) =>
-    hasReservice(meal.servingPattern ?? servingPatternFromQuantity(meal.quantity)),
-  ).length;
-  const lowHungerMeals = meals.filter(journalMealStartedLowHunger).length;
-  const tooFullMeals = meals.filter(journalMealEndedTooFull).length;
-  const facts = [
-    meals.length > 0
-      ? countLabel(meals.length, "repas noté", "repas notés")
-      : null,
-    weights.length > 0 ? "poids renseigné" : null,
-    smokingEvents.length > 0
-      ? countLabel(smokingEvents.length, "événement tabac", "événements tabac")
-      : null,
-  ].filter((fact): fact is string => fact !== null);
-  const reading = journalDayReading({
-    lowHungerMeals,
-    meals: meals.length,
-    reserviceMeals,
-    tooFullMeals,
-    weights: weights.length,
-  });
-
-  return (
-    <Surface as="section" className="px-4 py-4" variant="subtle">
-      <p className={annotationClass}>Lecture de la journée</p>
-      {facts.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {facts.map((fact) => (
-            <span
-              className="rounded-full bg-[var(--pc-color-surface)] px-3 py-1 text-xs font-semibold text-[var(--pc-color-text-muted)]"
-              key={fact}
-            >
-              {fact}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      <p className="mt-3 text-sm leading-6 text-[var(--pc-color-text)]">
-        {reading}
-      </p>
-    </Surface>
-  );
-}
-
-function journalMealStartedLowHunger(meal: MealEntry): boolean {
-  return (
-    meal.hungerBefore === "no" ||
-    meal.hungerBefore === "not_really" ||
-    meal.hungerBefore === "pas-faim"
-  );
-}
-
-function journalMealEndedTooFull(meal: MealEntry): boolean {
-  const fullness = meal.fullnessAfter ?? fullnessFromAfterMeal(meal.afterMeal);
-
-  return fullness === "too_full" || fullness === "uncomfortable";
-}
-
-function journalDayReading({
-  lowHungerMeals,
-  meals,
-  reserviceMeals,
-  tooFullMeals,
-  weights,
-}: {
-  lowHungerMeals: number;
-  meals: number;
-  reserviceMeals: number;
-  tooFullMeals: number;
-  weights: number;
-}): string {
-  if (meals === 0) {
-    return weights > 0
-      ? "La journée contient surtout un repère de poids. Haru attend les repas pour relier ce chiffre au contexte."
-      : "Haru a peu de matière pour lire cette journée.";
-  }
-
-  if (reserviceMeals > 0 && tooFullMeals > 0) {
-    return "Le signal le plus utile à relire aujourd’hui est le lien entre resservice et sensation de trop plein.";
-  }
-
-  if (reserviceMeals > 0) {
-    return "Le resservice apparaît dans la journée. Ce n’est pas un problème en soi, mais c’est un fait à suivre s’il revient.";
-  }
-
-  if (lowHungerMeals > 0) {
-    return "Au moins un repas commence avec peu de faim réelle. Haru le garde comme point d’observation, pas comme conclusion.";
-  }
-
-  if (tooFullMeals > 0) {
-    return "Au moins un repas se termine trop plein. La journée aide à repérer le volume ou le rythme du repas.";
-  }
-
-  return "La journée est renseignée sans signal dominant évident. Elle sert surtout de base de comparaison pour la suite.";
-}
-
-function JournalWeeksView({
-  analysis,
-  canGoNext,
-  currentDate,
-  smokingEnabled,
-  onGoCurrent,
-  onNext,
-  onPrevious,
-}: {
-  analysis: ReturnType<typeof calculateWeeklyAnalysis>;
-  canGoNext: boolean;
-  currentDate: ISODate;
-  smokingEnabled: boolean;
-  onGoCurrent: () => void;
-  onNext: () => void;
-  onPrevious: () => void;
-}) {
-  const isCurrentWeek = sameWeek(analysis.weekStart, currentDate);
-  const hasEnoughMealData = analysis.mealCount >= 5;
-  const rhythms = buildWeeklyRhythms(analysis, smokingEnabled);
-
-  return (
-    <section className="space-y-4" aria-labelledby="journal-weeks-title">
-      <div className="flex items-center justify-between gap-3">
-        <UIIconButton label="Semaine précédente" onClick={onPrevious}>
-          <ChevronLeft aria-hidden="true" size={22} />
-        </UIIconButton>
-        <div className="min-w-0 text-center">
-          <h2
-            className="text-lg leading-6 font-bold text-[var(--pc-color-text)]"
-            id="journal-weeks-title"
-          >
-            {formatShortDate(analysis.weekStart)} - {formatShortDate(analysis.weekEnd)}
-          </h2>
-          <p className="mt-1 text-sm text-[var(--pc-color-text-muted)]">
-            {isCurrentWeek ? "Lecture provisoire" : "Semaine terminée"}
-          </p>
-        </div>
-        <UIIconButton
-          disabled={!canGoNext}
-          label="Semaine suivante"
-          onClick={onNext}
-        >
-          <ChevronRight aria-hidden="true" size={22} />
-        </UIIconButton>
-      </div>
-
-      {!isCurrentWeek ? (
-        <div className="flex justify-center">
-          <Button onClick={onGoCurrent} variant="line">
-            Semaine en cours
-          </Button>
-        </div>
-      ) : null}
-
-      <Surface as="section" className="px-4 py-4">
-        <p className={annotationClass}>Ce qui est noté</p>
-        <dl className="mt-3 grid grid-cols-2 gap-2">
-          <JournalMetric label="Repas" value={analysis.mealCount} />
-          <JournalMetric label="Resservice" value={analysis.multiPlateMeals} />
-          <JournalMetric label="Sans vraie faim" value={analysis.mealsStartedWithoutHunger} />
-          <JournalMetric label="Trop plein" value={analysis.mealsEndedTooFull} />
-          {smokingEnabled ? (
-            <JournalMetric label="Tabac" value={analysis.smokingEntries} />
-          ) : null}
-          <JournalMetric
-            label="Poids"
-            value={
-              analysis.weightAverageKg === null
-                ? "Non renseigné"
-                : formatKg(analysis.weightAverageKg)
-            }
-          />
-        </dl>
-      </Surface>
-
-      <Surface as="section" className="px-4 py-4">
-        <p className={annotationClass}>Rythmes observés</p>
-        {rhythms.length === 0 ? (
-          <p className="mt-3 text-sm leading-6 text-[var(--pc-color-text)]">
-            Aucun rythme dominant net avec les données disponibles.
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--pc-color-text)]">
-            {rhythms.map((rhythm) => (
-              <li className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface-subtle)] px-3 py-2" key={rhythm}>
-                {rhythm}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Surface>
-
-      <Surface as="section" className="px-4 py-4">
-        <p className={annotationClass}>Hypothèse de Haru</p>
-        <p className="mt-3 text-sm leading-6 text-[var(--pc-color-text)]">
-          {weeklyHypothesisText(analysis, hasEnoughMealData)}
-        </p>
-      </Surface>
-
-      <Surface as="section" className="px-4 py-4" variant="subtle">
-        <p className={annotationClass}>
-          {isCurrentWeek ? "À observer" : "Expérience possible"}
-        </p>
-        <p className="mt-3 text-sm leading-6 text-[var(--pc-color-text)]">
-          {hasEnoughMealData
-            ? analysis.priority.action
-            : "Continuer à noter quelques repas avant de choisir une action."}
-        </p>
-      </Surface>
-    </section>
-  );
-}
-
-function JournalMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: number | string;
-}) {
-  return (
-    <div className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface-subtle)] p-3">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--pc-color-text-muted)]">
-        {label}
-      </dt>
-      <dd className="mt-1 text-lg font-bold tabular-nums text-[var(--pc-color-text)]">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function buildWeeklyRhythms(
-  analysis: ReturnType<typeof calculateWeeklyAnalysis>,
-  smokingEnabled: boolean,
-): string[] {
-  const rhythms = [];
-
-  if (analysis.multiPlateMeals > 0) {
-    rhythms.push(
-      `${analysis.multiPlateMeals} repas avec resservice ou plusieurs passages.`,
-    );
-  }
-
-  if (analysis.mealsStartedWithoutHunger > 0) {
-    rhythms.push(
-      `${analysis.mealsStartedWithoutHunger} repas avec peu de faim réelle au départ.`,
-    );
-  }
-
-  if (analysis.mealsEndedTooFull > 0) {
-    rhythms.push(`${analysis.mealsEndedTooFull} repas finissent trop plein.`);
-  }
-
-  if (analysis.snackingWithoutHunger > 0) {
-    rhythms.push(
-      countLabel(
-        analysis.snackingWithoutHunger,
-        "grignotage de contexte noté.",
-        "grignotages de contexte notés.",
-      ),
-    );
-  }
-
-  if (smokingEnabled && analysis.smokingEntries > 0) {
-    rhythms.push(
-      countLabel(
-        analysis.smokingEntries,
-        "événement tabac noté.",
-        "événements tabac notés.",
-      ),
-    );
-  }
-
-  return rhythms;
-}
-
-function weeklyHypothesisText(
-  analysis: ReturnType<typeof calculateWeeklyAnalysis>,
-  hasEnoughMealData: boolean,
-): string {
-  if (!hasEnoughMealData) {
-    return "Haru attend encore quelques faits avant de proposer une hypothèse.";
-  }
-
-  if (analysis.priority.id === "maintenance") {
-    return "Haru ne voit pas encore de signal principal à isoler cette semaine.";
-  }
-
-  const hypothesisLabel = analysis.priority.label
-    .replace(/^Priorité\s+/i, "")
-    .toLowerCase();
-
-  return `Haru regarderait d’abord ${hypothesisLabel}, parce que ${analysis.priority.rationale.toLowerCase()}`;
-}
-
-function Fact({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-[18px] bg-[#F6F4EC] p-3">
-      <dt className="text-xs uppercase tracking-[0.14em] text-[#7A7166]">{label}</dt>
-      <dd className="mt-1 font-serif text-2xl tabular-nums text-[#171512]">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function TextInput({
-  label,
-  value,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-}) {
-  return (
-    <label className="grid gap-1 text-sm text-[#3A3732]">
-      {label}
-      <input
-        className={inputClass}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
-  );
-}
-
-function NumberInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <TextInput
-      label={label}
-      type="number"
-      value={Number.isFinite(value) ? String(value) : ""}
-      onChange={(next) => onChange(Number(next))}
-    />
   );
 }

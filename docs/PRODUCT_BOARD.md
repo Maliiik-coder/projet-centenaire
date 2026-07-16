@@ -443,12 +443,20 @@ Objectif : sortir progressivement les écrans et contrôleurs métier de
 `ProjetCentenaireApp.tsx`, sans recréer une seconde application ni réécrire la
 tuyauterie fiable.
 
+Statut au 16 juillet 2026 : première tranche réalisée. Les écrans Aujourd’hui,
+Carnet, Constats et Profil possèdent désormais des frontières dédiées. Le shell
+conserve les mutations, la session et la synchronisation ; les écrans émettent
+des intentions par callbacks et n’accèdent pas directement au stockage ou à
+Supabase. Voir [ARCHITECTURE.md](ARCHITECTURE.md).
+
 Ordre recommandé :
 - stabiliser les contrats Aujourd'hui, Repas et Carnet déjà intégrés ;
 - extraire leurs contrôleurs, vues et helpers par domaine ;
 - conserver un shell Haru mince pour la session, la navigation et le routage ;
 - ajouter Recettes et les futurs modules dans des frontières indépendantes ;
 - couvrir chaque extraction avant de supprimer l'ancien code.
+
+Prochaines extractions : tunnel Repas, onboarding, puis panneaux Poids et Tabac.
 
 ### V0.8 — Bilan quotidien
 
