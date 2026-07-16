@@ -352,6 +352,8 @@ Décisions :
 - IMC dérivé de la taille et du poids, présenté comme un repère limité ;
 - sept questions de fréquence pour produire zéro, une ou deux hypothèses ;
 - hypothèses déclarées, non diagnostiques, à confirmer par sept jours de carnet ;
+- fin d'onboarding en deux temps : préparation de trois secondes avec le
+  monogramme Haru, puis bilan et contrat d'observation des sept premiers jours ;
 - contextes et freins perçus conservés séparément ;
 - accompagnement professionnel demandé de manière facultative et non bloquante ;
 - tabac conservé dans une branche indépendante du portrait alimentaire ;

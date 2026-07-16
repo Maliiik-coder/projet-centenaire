@@ -108,6 +108,10 @@ import {
   OnboardingLayout,
   OnboardingQuestion,
 } from "@/components/centenaire/OnboardingLayout";
+import {
+  ONBOARDING_PREPARATION_DURATION_MS,
+  OnboardingPreparationScreen,
+} from "@/components/centenaire/OnboardingPreparationScreen";
 import { StartupStateLayout } from "@/components/centenaire/StartupStateLayout";
 import { TodayActionTile } from "@/components/centenaire/TodayActionTile";
 import {
@@ -3429,9 +3433,31 @@ function Onboarding({
   onNext: () => void;
 }) {
   const visibleStep = step;
+  const [finalPreparationComplete, setFinalPreparationComplete] =
+    useState(false);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [visibleStep]);
+
+  useEffect(() => {
+    if (
+      visibleStep !== onboardingFinalStep ||
+      finalPreparationComplete
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setFinalPreparationComplete(true);
+    }, ONBOARDING_PREPARATION_DURATION_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [finalPreparationComplete, visibleStep]);
+
+  if (visibleStep === onboardingFinalStep && !finalPreparationComplete) {
+    return <OnboardingPreparationScreen />;
+  }
 
   const showPrimaryAction = [
     onboardingNameStep,
@@ -3447,7 +3473,7 @@ function Onboarding({
   ].includes(visibleStep);
   const primaryLabel =
     visibleStep === onboardingFinalStep
-      ? "Ouvrir la page du jour"
+      ? "Commencer les 7 jours"
       : visibleStep === onboardingProfessionalSupportStep &&
           draft.professionalSupport === undefined
         ? "Passer"
@@ -3779,22 +3805,37 @@ function Onboarding({
       {visibleStep === onboardingFinalStep ? (
         <section className="space-y-5" aria-labelledby="onboarding-priority">
           <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-            Première lecture
+            Ton bilan
           </p>
           <h1
             className="max-w-[19ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]"
             id="onboarding-priority"
           >
-            Ton point de départ
+            Voilà ce que nous allons observer.
           </h1>
-          {bmi !== null ? (
-            <p className="text-lg font-semibold text-[var(--pc-color-text)]">
-              IMC estimé · {bmi.toLocaleString("fr-FR", {
-                maximumFractionDigits: 1,
-                minimumFractionDigits: 1,
-              })}
-            </p>
-          ) : null}
+          <dl className="grid grid-cols-2 gap-3">
+            {bmi !== null ? (
+              <div className="rounded-[var(--pc-radius-card)] bg-[var(--pc-color-primary-soft)] p-4">
+                <dt className="text-xs font-semibold text-[var(--pc-color-text-muted)]">
+                  IMC estimé
+                </dt>
+                <dd className="mt-1 text-2xl font-bold text-[var(--pc-color-text)]">
+                  {bmi.toLocaleString("fr-FR", {
+                    maximumFractionDigits: 1,
+                    minimumFractionDigits: 1,
+                  })}
+                </dd>
+              </div>
+            ) : null}
+            <div className="rounded-[var(--pc-radius-card)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]">
+              <dt className="text-xs font-semibold text-[var(--pc-color-text-muted)]">
+                Poids visé
+              </dt>
+              <dd className="mt-1 text-2xl font-bold text-[var(--pc-color-text)]">
+                {draft.goalWeightKg} kg
+              </dd>
+            </div>
+          </dl>
           <Surface className="space-y-3 p-5" variant="subtle">
             <p className="text-sm font-semibold text-[var(--pc-color-text)]">
               {assessmentPreview.hypotheses.length > 0
@@ -3825,10 +3866,38 @@ function Onboarding({
               </p>
             )}
           </Surface>
-          <p className="max-w-[38ch] text-base leading-6 text-[var(--pc-color-text-muted)]">
-            Ce sont des hypothèses issues de tes réponses. Le carnet va les
-            vérifier pendant sept jours, sans compter les calories.
-          </p>
+          <Surface className="space-y-4 p-5">
+            <div className="space-y-2">
+              <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
+                Les 7 prochains jours
+              </p>
+              <h2 className="text-xl leading-7 font-bold text-[var(--pc-color-text)]">
+                Vis comme d’habitude.
+              </h2>
+            </div>
+            <p className="text-sm leading-6 text-[var(--pc-color-text-muted)]">
+              Avant de commencer à changer tes habitudes, j’ai besoin de
+              comprendre comment tu fonctionnes vraiment. Pendant sept jours,
+              mange et organise tes journées comme tu le fais habituellement.
+              Ne change rien exprès pour l’application.
+            </p>
+            <ul className="space-y-3 text-sm leading-6 text-[var(--pc-color-text-muted)]">
+              <li className="flex gap-3">
+                <span aria-hidden="true" className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]" />
+                Renseigne chaque repas avec soin : contenu, quantités, faim et
+                sensations.
+              </li>
+              <li className="flex gap-3">
+                <span aria-hidden="true" className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--pc-color-primary)]" />
+                Sois honnête, même lorsque la journée ne se déroule pas comme
+                prévu.
+              </li>
+            </ul>
+            <p className="text-sm leading-6 font-semibold text-[var(--pc-color-text)]">
+              Il n’y a rien à réussir ni à rater. Plus les faits seront fidèles
+              à ton quotidien, plus je pourrai t’aider justement.
+            </p>
+          </Surface>
         </section>
       ) : null}
     </OnboardingLayout>

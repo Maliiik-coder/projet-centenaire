@@ -376,6 +376,12 @@ validée avant implémentation.
 
 ### Bloc E - Restitution
 
+#### E0 - Préparation
+
+Après la dernière réponse, un écran de transition affiche uniquement le
+monogramme Haru et une barre de progression pendant trois secondes. Aucune
+donnée n'est enregistrée pendant cette transition.
+
 #### E1 - Point de départ
 
 La restitution tient sur un écran mobile et ne présente jamais plus de deux
@@ -395,7 +401,13 @@ Exemple :
 > Ce sont des hypothèses issues de tes réponses. Le carnet va les vérifier
 > pendant sept jours.
 
-Action : `Ouvrir la page du jour`
+La restitution présente ensuite le contrat d'observation initial : pendant sept
+jours, l'utilisateur conserve son fonctionnement habituel, ne cherche pas à
+« bien faire » pour l'application et renseigne honnêtement le contenu, les
+quantités, la faim et les sensations de chaque repas. Le texte rappelle qu'il
+n'y a rien à réussir ni à rater pendant cette phase.
+
+Action : `Commencer les 7 jours`
 
 La première mission reprend la piste la plus utile à observer, sans donner de
 conseil correctif prématuré.
