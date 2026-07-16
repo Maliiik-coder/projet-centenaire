@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { withCloudReadTimeout } from "@/lib/cloudRead";
+import {
+  CLOUD_RECOVERY_DELAY_MS,
+  DEFAULT_CLOUD_READ_TIMEOUT_MS,
+  withCloudReadTimeout,
+} from "@/lib/cloudRead";
 import { MemoryCloudMutationJournal } from "@/lib/cloudMutationJournal";
 import { createWeightMutationDraft } from "@/lib/nonMealData";
 import type { UserCloudLockHandle } from "@/lib/userCloudLock";
@@ -12,6 +16,11 @@ function deferred<T>() {
 }
 
 describe("withCloudReadTimeout", () => {
+  it("laisse suffisamment de temps à une lecture mobile et retente rapidement", () => {
+    expect(DEFAULT_CLOUD_READ_TIMEOUT_MS).toBe(12_000);
+    expect(CLOUD_RECOVERY_DELAY_MS).toBe(3_000);
+  });
+
   it("n’efface aucun record du journal lorsqu’une lecture expire", async () => {
     vi.useFakeTimers();
     const journal = new MemoryCloudMutationJournal();

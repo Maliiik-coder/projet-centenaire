@@ -100,6 +100,10 @@ Retours remontés après 3/4 jours de test réel.
 
 ### Bugs / irritants immédiats
 
+- Une session Auth valide pouvait afficher « Connexion cloud indisponible »
+  après un simple délai de lecture sur mobile. Le seuil de lecture est porté à
+  12 s et une reprise automatique est déclenchée après 3 s, puis au retour au
+  premier plan ou du réseau.
 - L’application ne change pas automatiquement de jour après minuit si elle reste ouverte.
 - Le logo historique était parfois rogné ou coupé ; le kit Haru recadré le remplace.
 - La mission en cours doit pouvoir être masquée/affichée.

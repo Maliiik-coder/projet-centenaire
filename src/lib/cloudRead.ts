@@ -1,8 +1,9 @@
-const defaultCloudReadTimeoutMs = 4500;
+export const DEFAULT_CLOUD_READ_TIMEOUT_MS = 12_000;
+export const CLOUD_RECOVERY_DELAY_MS = 3_000;
 
 export function withCloudReadTimeout<T>(
   promise: Promise<T>,
-  timeoutMs = defaultCloudReadTimeoutMs,
+  timeoutMs = DEFAULT_CLOUD_READ_TIMEOUT_MS,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = globalThis.setTimeout(() => {

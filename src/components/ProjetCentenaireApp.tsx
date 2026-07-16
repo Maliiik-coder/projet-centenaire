@@ -40,7 +40,10 @@ import {
   upsertSmokingEntry,
 } from "@/lib/dataStabilization";
 import { isCurrentCloudAttempt } from "@/lib/cloudAttempt";
-import { withCloudReadTimeout } from "@/lib/cloudRead";
+import {
+  CLOUD_RECOVERY_DELAY_MS,
+  withCloudReadTimeout,
+} from "@/lib/cloudRead";
 import { activeMealKindLabels, mealKindLabels } from "@/lib/mealKinds";
 import {
   deleteMealEntry,
@@ -1145,6 +1148,7 @@ export function ProjetCentenaireApp() {
   const cloudGenerationRef = useRef(0);
   const localEditGenerationRef = useRef(0);
   const activeCloudUserIdRef = useRef<string | null>(null);
+  const cloudRecoveryInFlightRef = useRef(false);
 
   useEffect(() => {
     const sloganTimer = window.setTimeout(() => {
@@ -1400,7 +1404,11 @@ export function ProjetCentenaireApp() {
         setData(fallbackData);
         setProfileDraft(fallbackData.profile);
         setWeightDraft("");
-        setError("Connexion cloud indisponible. Le carnet reste local pour le moment.");
+        setError(
+          sessionUserId
+            ? "Compte connecté. La synchronisation cloud est retardée ; un nouvel essai va démarrer automatiquement."
+            : "Connexion cloud indisponible. Le carnet reste local pour le moment.",
+        );
       }
     };
 
@@ -1466,6 +1474,12 @@ export function ProjetCentenaireApp() {
         return;
       }
 
+      if (cloudRecoveryInFlightRef.current) {
+        return;
+      }
+
+      cloudRecoveryInFlightRef.current = true;
+
       const generation = cloudGenerationRef.current + 1;
       cloudGenerationRef.current = generation;
       activeCloudUserIdRef.current = cloudUserId;
@@ -1500,6 +1514,7 @@ export function ProjetCentenaireApp() {
           currentOperation?.source,
         );
         setCloudStatus("ready");
+        setError(null);
         setCloudSnapshot(cloudData);
         setMigrationOperation(currentOperation);
         setPendingSync(await hasPendingCloudWork(cloudUserId));
@@ -1562,6 +1577,9 @@ export function ProjetCentenaireApp() {
         localDataStore.save(userStorageScope(cloudUserId), cloudData);
         setData(cloudData);
         setProfileDraft(cloudData.profile);
+        if (cloudStatus === "unavailable") {
+          setNotice("Synchronisation cloud rétablie.");
+        }
       } catch {
         if (
           isCurrentCloudAttempt(
@@ -1581,12 +1599,39 @@ export function ProjetCentenaireApp() {
           setProfileDraft(visibleData.profile);
           setPendingSync(await hasPendingCloudWork(cloudUserId));
         }
+      } finally {
+        cloudRecoveryInFlightRef.current = false;
       }
     };
 
-    window.addEventListener("online", syncOnOnline);
+    const retryWhenVisible = () => {
+      if (
+        cloudStatus === "unavailable" &&
+        document.visibilityState === "visible"
+      ) {
+        void syncOnOnline();
+      }
+    };
 
-    return () => window.removeEventListener("online", syncOnOnline);
+    const recoveryTimer =
+      cloudStatus === "unavailable" && navigator.onLine
+        ? window.setTimeout(() => {
+            void syncOnOnline();
+          }, CLOUD_RECOVERY_DELAY_MS)
+        : null;
+
+    window.addEventListener("online", syncOnOnline);
+    window.addEventListener("focus", retryWhenVisible);
+    document.addEventListener("visibilitychange", retryWhenVisible);
+
+    return () => {
+      window.removeEventListener("online", syncOnOnline);
+      window.removeEventListener("focus", retryWhenVisible);
+      document.removeEventListener("visibilitychange", retryWhenVisible);
+      if (recoveryTimer !== null) {
+        window.clearTimeout(recoveryTimer);
+      }
+    };
   }, [cloudStatus, cloudUserId, migrationOperation, migrationSources]);
 
   useEffect(() => {
