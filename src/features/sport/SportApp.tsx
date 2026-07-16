@@ -19,6 +19,13 @@ import {
 } from "lucide-react";
 import { getExerciseById, getVariantById } from "@/lib/sport/exerciseLibrary";
 import { ExerciseIllustration } from "@/features/sport/ExerciseIllustration";
+import bodyweightSquatControlledGuide from "@/features/sport/assets/bodyweight-squat-controlled-guide.png";
+import bodyweightSquatDeeperGuide from "@/features/sport/assets/bodyweight-squat-deeper-guide.png";
+import bodyweightSquatPartialGuide from "@/features/sport/assets/bodyweight-squat-partial-guide.png";
+import plankFullGuide from "@/features/sport/assets/plank-full-guide.png";
+import plankKneesGuide from "@/features/sport/assets/plank-knees-guide.png";
+import plankWallGuide from "@/features/sport/assets/plank-wall-guide.png";
+import pushFeetElevatedGuide from "@/features/sport/assets/push-feet-elevated-guide.png";
 import pushKneesGuide from "@/features/sport/assets/push-knees-guide.png";
 import pushStandardGuide from "@/features/sport/assets/push-standard-guide.png";
 import pushWallGuide from "@/features/sport/assets/push-wall-guide.png";
@@ -784,6 +791,34 @@ const assessmentGuideImages: Partial<
   push_standard: {
     alt: "Guide illustre des pompes classiques, avec position de depart, fin du mouvement et consignes.",
     src: pushStandardGuide,
+  },
+  push_feet_elevated: {
+    alt: "Guide illustre des pompes pieds sureleves, avec position de depart, fin du mouvement et consignes.",
+    src: pushFeetElevatedGuide,
+  },
+  bodyweight_squat_partial: {
+    alt: "Guide illustre du demi-squat tres court, avec position de depart, fin du mouvement et consignes.",
+    src: bodyweightSquatPartialGuide,
+  },
+  bodyweight_squat_controlled: {
+    alt: "Guide illustre du demi-squat controle, avec position de depart, fin du mouvement et consignes.",
+    src: bodyweightSquatControlledGuide,
+  },
+  bodyweight_squat_deeper: {
+    alt: "Guide illustre du squat poids du corps adapte, avec position de depart, fin du mouvement et consignes.",
+    src: bodyweightSquatDeeperGuide,
+  },
+  plank_wall: {
+    alt: "Guide illustre du gainage face au mur, avec position et consignes.",
+    src: plankWallGuide,
+  },
+  plank_knees: {
+    alt: "Guide illustre du gainage sur les genoux, avec position et consignes.",
+    src: plankKneesGuide,
+  },
+  plank_full: {
+    alt: "Guide illustre du gainage classique, avec position et consignes.",
+    src: plankFullGuide,
   },
 };
 

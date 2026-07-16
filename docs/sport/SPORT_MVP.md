@@ -12,7 +12,7 @@ Cette tranche expose une route isolee `/sport`, sans integration dans le shell p
 - capacites multidimensionnelles calibrees depuis le niveau de variante tenu ;
 - bibliotheque initiale de mouvements de renforcement dans `src/lib/sport/exerciseLibrary.ts` ;
 - tableau de bord `/sport` avec choix d'activite, seances faites et jauges de progression ;
-- illustrations fournies pour les premieres variantes de pompes, avec fallback SVG interne pour les autres mouvements ;
+- illustrations fournies pour les pompes, squats et gainages de l'evaluation, avec fallback SVG interne pour les marches ;
 - moteur deterministe et versionne dans `src/lib/sport/workoutGenerator.ts` ;
 - aperçu de seance, chronometre, pause, reprise, passage d'etape et fin ;
 - retour de seance neutre, historique basique et adaptation d'une seule variable ;
