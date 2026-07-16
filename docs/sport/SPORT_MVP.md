@@ -9,12 +9,16 @@ Cette tranche expose une route isolee `/sport`, sans integration dans le shell p
 - profil sportif local et capacites multidimensionnelles calibrees apres creation ;
 - seance d'evaluation proposee juste apres la creation du profil ;
 - bibliotheque initiale de mouvements de renforcement dans `src/lib/sport/exerciseLibrary.ts` ;
+- tableau de bord `/sport` avec choix d'activite, seances faites et progressions ;
+- illustrations SVG internes pour l'evaluation, les progressions et l'aperçu de seance ;
 - moteur deterministe et versionne dans `src/lib/sport/workoutGenerator.ts` ;
 - aperçu de seance, chronometre, pause, reprise, passage d'etape et fin ;
 - retour de seance neutre, historique basique et adaptation d'une seule variable ;
 - migration Supabase locale `20260715165000_v08_sport_foundation.sql` avec RLS explicites.
 
-Marche/course et natation sont representees dans les types du profil, mais leur generation autonome n'est pas implementee dans cette tranche. La marche/course est une seule progression : une personne visant la course peut commencer par marcher, et une preference "marche seulement" pourra etre ajoutee dans l'arbre dedie.
+Marche/course et natation sont representees dans les types du profil et dans le selecteur du tableau de bord, avec la mention "En developpement". Leur generation autonome n'est pas implementee dans cette tranche. La marche/course est une seule progression : une personne visant la course peut commencer par marcher, et une preference "marche seulement" pourra etre ajoutee dans l'arbre dedie.
+
+La progression de renforcement privilegie les variantes sans materiel obligatoire. Exemple pour les pompes : mur, genoux, sol, puis pieds sureleves. Le moteur ne doit augmenter qu'une seule variable a la fois.
 
 ## Architecture
 
@@ -25,6 +29,7 @@ Marche/course et natation sont representees dans les types du profil, mais leur 
 - `src/lib/sport/workoutGenerator.ts` : generation pure et reproductible.
 - `src/lib/sport/workoutTimer.ts` : chronometre pur fonde sur des horodatages.
 - `src/services/sport/*` : profil, stockage local isole, historique et permissions.
+- `src/features/sport/ExerciseIllustration.tsx` : illustrations schematiques locales, sans media externe.
 - `src/features/sport/SportApp.tsx` : experience client isolee.
 - `src/app/sport/page.tsx` : route App Router.
 
@@ -38,6 +43,7 @@ Quand la conversation principale integrera l'onglet :
 4. Remplacer `sportLocalStore` par un miroir local officiel dans `AppData`.
 5. Conserver le moteur pur : il doit recevoir ses donnees par props/services et ne pas lire directement Supabase.
 6. Ajouter plus tard l'arbre marche/course : marche seulement, marche avant course, reprise course.
+7. Brancher l'entree basse `Sport` sur le tableau de bord, pas directement sur l'onboarding ; l'onboarding reste affiche seulement si aucun profil Sport n'existe.
 
 Aucun fichier de navigation partage n'a ete modifie dans cette branche.
 

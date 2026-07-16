@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   Dumbbell,
   History,
   Pause,
@@ -16,6 +17,7 @@ import {
   Timer,
 } from "lucide-react";
 import { getExerciseById, getVariantById } from "@/lib/sport/exerciseLibrary";
+import { ExerciseIllustration } from "@/features/sport/ExerciseIllustration";
 import { generateWorkout } from "@/lib/sport/workoutGenerator";
 import {
   cancelTimer,
@@ -33,6 +35,8 @@ import {
 import type {
   AssessmentFeeling,
   BodyZone,
+  Exercise,
+  ExerciseVariant,
   FeedbackBodySignal,
   FeedbackCompletion,
   FeedbackDifficulty,
@@ -150,6 +154,75 @@ function primaryLocation(profile: NonNullable<SportLocalData["profile"]>): Sport
   return profile.availableLocations[0] ?? "home";
 }
 
+function isDoneSession(session: GeneratedWorkoutSession): boolean {
+  return session.status === "completed" || session.status === "partially_completed";
+}
+
+function formatSessionDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+const dashboardProgressionExerciseIds = [
+  "push_up_family",
+  "bodyweight_squat",
+  "hip_hinge",
+  "glute_bridge",
+  "dead_bug",
+  "plank_family",
+  "bird_dog",
+];
+
+function noEquipmentProgressionVariants(exercise: Exercise): ExerciseVariant[] {
+  const eligibleVariants = exercise.variants.filter(
+    (variant) => variant.requiredEquipment.length === 0,
+  );
+  const byId = new Map(eligibleVariants.map((variant) => [variant.id, variant]));
+  const start =
+    byId.get("push_wall") ??
+    eligibleVariants
+      .filter(
+        (variant) => !variant.easierVariantId || !byId.has(variant.easierVariantId),
+      )
+      .sort((a, b) => a.difficulty - b.difficulty || a.id.localeCompare(b.id))[0];
+
+  if (!start) {
+    return [];
+  }
+
+  const ordered: ExerciseVariant[] = [];
+  const seen = new Set<string>();
+  let current: ExerciseVariant | undefined = start;
+
+  while (current && !seen.has(current.id)) {
+    ordered.push(current);
+    seen.add(current.id);
+    current = current.harderVariantId ? byId.get(current.harderVariantId) : undefined;
+  }
+
+  const remaining = eligibleVariants
+    .filter((variant) => !seen.has(variant.id))
+    .sort((a, b) => a.difficulty - b.difficulty || a.id.localeCompare(b.id));
+
+  return [...ordered, ...remaining];
+}
+
+function dashboardProgressions(): Array<{
+  exercise: Exercise;
+  variants: ExerciseVariant[];
+}> {
+  return dashboardProgressionExerciseIds
+    .map((exerciseId) => getExerciseById(exerciseId))
+    .filter((exercise): exercise is Exercise => exercise !== null)
+    .map((exercise) => ({
+      exercise,
+      variants: noEquipmentProgressionVariants(exercise),
+    }))
+    .filter((item) => item.variants.length > 0);
+}
+
 export function SportApp() {
   const [loaded, setLoaded] = useState(false);
   const [data, setData] = useState<SportLocalData>(() => createEmptySportData());
@@ -236,7 +309,6 @@ export function SportApp() {
     return undefined;
   }, [activeSession, timer, view]);
 
-  const latestSession = data.sessions[0] ?? null;
   const timerView = timer ? getTimerView(timer, nowMs) : null;
 
   function persist(next: SportLocalData): void {
@@ -425,7 +497,6 @@ export function SportApp() {
             duration={selectedDuration}
             generationError={generationError}
             hasAssessment={hasCompletedSportAssessment(data.capabilities)}
-            latestSession={latestSession}
             onDurationChange={setSelectedDuration}
             onAssessment={() => setView("assessment")}
             onGenerate={generateSession}
@@ -719,30 +790,40 @@ const assessmentItems: Array<{
   key: keyof SportAssessmentResults;
   title: string;
   instruction: string;
+  exerciseId: string;
+  variantId: string;
 }> = [
   {
     key: "upperPush",
     title: "Poussee douce",
     instruction:
       "Pompes contre un mur pendant 20 secondes, sans chercher l'echec.",
+    exerciseId: "push_up_family",
+    variantId: "push_wall",
   },
   {
     key: "legs",
     title: "Jambes",
     instruction:
       "Demi-squats courts pendant 20 secondes, amplitude confortable.",
+    exerciseId: "bodyweight_squat",
+    variantId: "bodyweight_squat_partial",
   },
   {
     key: "core",
     title: "Centre du corps",
     instruction:
       "Gainage debout contre un mur pendant 20 secondes, respiration libre.",
+    exerciseId: "plank_family",
+    variantId: "plank_wall",
   },
   {
     key: "cardio",
     title: "Souffle",
     instruction:
       "Marche active sur place pendant 45 secondes, capable de ralentir a tout moment.",
+    exerciseId: "warmup_march",
+    variantId: "warmup_march_active",
   },
 ];
 
@@ -797,13 +878,20 @@ function AssessmentView({
       </Surface>
       {assessmentItems.map((item) => (
         <Surface className="grid gap-3 p-4" key={item.key}>
-          <div>
-            <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
-              {item.title}
-            </h3>
-            <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
-              {item.instruction}
-            </p>
+          <div className="grid grid-cols-[5rem_1fr] gap-3">
+            <ExerciseIllustration
+              exerciseId={item.exerciseId}
+              label={item.title}
+              variantId={item.variantId}
+            />
+            <div className="min-w-0">
+              <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+                {item.title}
+              </h3>
+              <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+                {item.instruction}
+              </p>
+            </div>
           </div>
           <div className="grid gap-2">
             {(Object.keys(assessmentLabels) as AssessmentFeeling[]).map(
@@ -843,7 +931,6 @@ function HomeView({
   duration,
   generationError,
   hasAssessment,
-  latestSession,
   onAssessment,
   onDurationChange,
   onGenerate,
@@ -854,7 +941,6 @@ function HomeView({
   duration: number;
   generationError: string | null;
   hasAssessment: boolean;
-  latestSession: GeneratedWorkoutSession | null;
   onAssessment: () => void;
   onDurationChange: (duration: number) => void;
   onGenerate: () => void;
@@ -866,37 +952,53 @@ function HomeView({
     return null;
   }
 
+  const completedSessions = data.sessions.filter(isDoneSession);
+  const recentCompletedSessions = completedSessions.slice(0, 3);
+  const totalPerformedSeconds = completedSessions.reduce(
+    (total, session) =>
+      total + (session.performedDurationSeconds ?? session.plannedDurationSeconds),
+    0,
+  );
+  const progressions = dashboardProgressions();
+
   return (
     <section className="grid gap-4">
-      <Surface className="p-4" variant="selected">
-        <div className="flex items-start gap-3">
+      <Surface className="grid gap-4 p-4" variant="selected">
+        <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--pc-radius-card)] bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)]">
             <Dumbbell aria-hidden="true" size={23} />
           </div>
           <div className="min-w-0">
-            <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold">
-              Seance de renforcement musculaire
-            </h2>
-            <p className="mt-1 text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
-              {"Proposee selon le temps disponible, l'evaluation et les retours de seance."}
+            <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
+              Tableau de bord
             </p>
+            <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold">
+              Sport
+            </h2>
           </div>
         </div>
+        <SportActivityChooser />
       </Surface>
-      {!hasAssessment ? (
-        <Surface className="grid gap-3 p-4">
-          <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
-            Evaluation conseillee
-          </h3>
-          <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
-            Elle prend quelques minutes et aide a choisir des variantes
-            realistes des le depart.
+      <Surface className="grid gap-3 p-4">
+        <div>
+          <p className="text-sm font-semibold text-[var(--pc-color-primary)]">
+            Action conseillee
           </p>
-          <Button variant="secondary" onClick={onAssessment}>
-            {"Faire l'evaluation"}
-          </Button>
-        </Surface>
-      ) : null}
+          <h3 className="mt-1 text-[length:var(--pc-font-size-card-title)] font-semibold">
+            {hasAssessment ? "Seance du jour" : "Premiere seance"}
+          </h3>
+          <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+            {hasAssessment
+              ? "Le moteur utilise ton evaluation et tes retours precedents."
+              : "Elle sert a creer un programme sur mesure, sans test maximal."}
+          </p>
+        </div>
+        <Button fullWidth onClick={hasAssessment ? onGenerate : onAssessment}>
+          {hasAssessment
+            ? "Preparer ma seance de renforcement musculaire"
+            : "Une premiere seance pour te creer un programme sur mesure"}
+        </Button>
+      </Surface>
       <Surface className="grid gap-3 p-4">
         <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
           {"Duree aujourd'hui"}
@@ -918,8 +1020,8 @@ function HomeView({
             </button>
           ))}
         </div>
-        <Button fullWidth onClick={onGenerate}>
-          {"Generer l'aperçu"}
+        <Button fullWidth variant="secondary" onClick={onGenerate}>
+          {"Generer l'aperçu renforcement musculaire"}
         </Button>
         {generationError ? (
           <p className="rounded-[var(--pc-radius-card)] bg-[var(--pc-color-warning-soft)] p-3 text-sm text-[var(--pc-color-warning)]">
@@ -927,15 +1029,12 @@ function HomeView({
           </p>
         ) : null}
       </Surface>
-      <div className="grid grid-cols-2 gap-3">
-        <Surface className="p-4">
-          <p className="text-sm font-semibold text-[var(--pc-color-text-muted)]">
-            Derniere seance
-          </p>
-          <p className="mt-2 text-lg font-semibold">
-            {latestSession ? formatMinutes(latestSession.plannedDurationSeconds) : "Aucune"}
-          </p>
-        </Surface>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <DashboardMetric label="Seances faites" value={completedSessions.length} />
+        <DashboardMetric
+          label="Temps effectif"
+          value={totalPerformedSeconds > 0 ? formatMinutes(totalPerformedSeconds) : "0 min"}
+        />
         <Surface className="p-4">
           <p className="text-sm font-semibold text-[var(--pc-color-text-muted)]">
             Retours
@@ -943,30 +1042,165 @@ function HomeView({
           <p className="mt-2 text-lg font-semibold">{data.feedback.length}</p>
         </Surface>
       </div>
-      <Surface className="grid gap-3 p-4" variant="subtle">
-        <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
-          Activites prevues
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {profile.preferredActivities.map((activity) => (
-            <span
-              className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface)] px-3 py-2 text-sm font-semibold"
-              key={activity}
-            >
-              {activityLabels[activity]}
-            </span>
-          ))}
+      <section className="grid gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+            Seances deja faites
+          </h3>
+          <Button className="min-h-10 px-3" variant="tertiary" onClick={onHistory}>
+            Historique
+          </Button>
         </div>
-      </Surface>
+        {recentCompletedSessions.length > 0 ? (
+          recentCompletedSessions.map((session) => (
+            <button
+              className="pc-focus-ring text-left"
+              key={session.id}
+              type="button"
+              onClick={onHistory}
+            >
+              <Surface className="p-4" variant="interactive">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold">
+                      {formatMinutes(
+                        session.performedDurationSeconds ??
+                          session.plannedDurationSeconds,
+                      )}
+                    </p>
+                    <p className="text-sm text-[var(--pc-color-text-muted)]">
+                      {formatSessionDate(session.scheduledAt)}
+                    </p>
+                  </div>
+                  <span className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] px-2 py-1 text-sm font-semibold text-[var(--pc-color-primary)]">
+                    {session.status === "completed" ? "Terminee" : "Partielle"}
+                  </span>
+                </div>
+              </Surface>
+            </button>
+          ))
+        ) : (
+          <Surface className="p-4" variant="subtle">
+            <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
+              Aucune seance terminee pour le moment.
+            </p>
+          </Surface>
+        )}
+      </section>
+      <section className="grid gap-3">
+        <div>
+          <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+            Progression des mouvements
+          </h3>
+          <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+            Une seule marche a la fois : quand une variante devient facile, la
+            suivante prend le relais.
+          </p>
+        </div>
+        {progressions.map(({ exercise, variants }) => (
+          <Surface className="grid grid-cols-[5.5rem_1fr] gap-3 p-3" key={exercise.id}>
+            <ExerciseIllustration
+              exerciseId={exercise.id}
+              label={exercise.name}
+              variantId={variants[0]?.id}
+            />
+            <div className="min-w-0">
+              <p className="font-semibold">{exercise.name}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {variants.map((variant, index) => (
+                  <span
+                    className={cx(
+                      "rounded-[var(--pc-radius-control)] border px-2 py-1 text-xs font-semibold",
+                      index === 0
+                        ? "border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]"
+                        : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] text-[var(--pc-color-text-muted)]",
+                    )}
+                    key={variant.id}
+                  >
+                    {variant.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </Surface>
+        ))}
+      </section>
       <div className="grid grid-cols-2 gap-3">
-        <Button variant="secondary" onClick={onHistory}>
-          Historique
+        <Button variant="secondary" onClick={hasAssessment ? onGenerate : onAssessment}>
+          {hasAssessment ? "Seance du jour" : "Evaluation"}
         </Button>
         <Button variant="tertiary" onClick={onSettings}>
           Profil sportif
         </Button>
       </div>
     </section>
+  );
+}
+
+function SportActivityChooser() {
+  const [open, setOpen] = useState(false);
+  const futureActivities: SportActivity[] = ["walk_run", "swim"];
+
+  return (
+    <div className="grid gap-2">
+      <button
+        aria-expanded={open}
+        className="pc-focus-ring flex min-h-12 w-full items-center justify-between gap-3 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] px-3 py-2 text-left"
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
+            Sport choisi
+          </span>
+          <span className="block truncate font-semibold">
+            Renforcement musculaire
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className={cx(
+            "shrink-0 transition-transform duration-[var(--pc-motion-fast)]",
+            open && "rotate-180",
+          )}
+          size={18}
+        />
+      </button>
+      {open ? (
+        <div className="grid gap-2">
+          {futureActivities.map((activity) => (
+            <button
+              className="flex min-h-12 w-full cursor-not-allowed items-center justify-between gap-3 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-subtle)] px-3 py-2 text-left opacity-80"
+              disabled
+              key={activity}
+              type="button"
+            >
+              <span className="font-semibold">{activityLabels[activity]}</span>
+              <span className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface)] px-2 py-1 text-xs font-semibold text-[var(--pc-color-text-muted)]">
+                En developpement
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DashboardMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <Surface className="p-4">
+      <p className="text-sm font-semibold text-[var(--pc-color-text-muted)]">
+        {label}
+      </p>
+      <p className="mt-2 text-lg font-semibold">{value}</p>
+    </Surface>
   );
 }
 
@@ -1006,9 +1240,12 @@ function PreviewView({
               key={step.id}
             >
               <div className="flex gap-3">
-                <div className="flex aspect-square w-16 shrink-0 items-center justify-center rounded-[var(--pc-radius-card)] bg-[var(--pc-color-surface-subtle)] text-center text-xs font-semibold text-[var(--pc-color-text-muted)]">
-                  Media
-                </div>
+                <ExerciseIllustration
+                  className="w-16 shrink-0"
+                  exerciseId={step.exerciseId}
+                  label={variant?.name ?? step.title}
+                  variantId={step.variantId}
+                />
                 <div className="min-w-0">
                   <p className="font-semibold">{variant?.name ?? step.title}</p>
                   <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">
