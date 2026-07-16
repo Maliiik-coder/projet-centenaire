@@ -55,6 +55,13 @@ import {
 
 type ConnectedResetStatus = "idle" | "running" | "reload-required";
 
+export type SaveAppData = (
+  next: AppData,
+  message?: string,
+  nonMealMutations?: NonMealMutationDraft[],
+  mealMutations?: MealMutation[],
+) => void;
+
 const emptyMigrationSources: LocalMigrationSources = {
   guest: null,
   legacy: null,

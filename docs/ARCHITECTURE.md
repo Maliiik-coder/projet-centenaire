@@ -44,15 +44,27 @@ Les modules de `src/features/` suivent une frontière simple :
 - `src/features/session/useAppDataSession.ts` : sélection du scope invité ou
   utilisateur, chargement cloud, miroir hors ligne, reprise réseau, mutations
   pending, migration explicite, déconnexion et réinitialisation ;
+- `src/features/startup/useAppEntryFlow.ts` et `useCurrentDate.ts` : lancement,
+  reprise de route et changement de journée ;
+- `src/features/meal/useMealJournalController.ts` : ouverture, modification,
+  suppression et persistance des repas ;
+- `src/features/profile/useProfileController.ts` : brouillon, préférences,
+  portrait comportemental et import du profil ;
+- `src/features/tracking/useDailyTrackingController.ts` : mutations quotidiennes
+  Poids et Tabac ;
+- `src/features/today/todayViewModel.ts` : sélections et libellés purs de la
+  page Aujourd’hui ;
+- `src/components/centenaire/HaruAppShell.tsx` : header, messages, navigation et
+  montage des panneaux transversaux ;
 - `src/app/sport/` et `src/features/sport/` : module Sport isolé par route.
 
 ## Ordre d’extraction suivant
 
-1. Extraire les gestionnaires de repas et de suivi quotidien dans des
-   contrôleurs dédiés si leur taille augmente de nouveau.
-2. Déplacer les fonctions de formatage transversales vers leurs domaines.
-3. Réduire encore `ProjetCentenaireApp.tsx` à la navigation et à la composition
-   des contrôleurs déjà isolés.
+1. Découper `TodayScreen.tsx` entre page, roue Poids et fil de journée.
+2. Découper `MealTunnelScreen.tsx` par familles de questions.
+3. Découper `JournalScreen.tsx` entre vues Jours, Semaines et graphique.
+4. Séparer le hook de session en cycle de vie, persistance et migration si ces
+   sous-domaines doivent évoluer indépendamment.
 
 Chaque étape doit compiler et passer les tests avant la suppression de son
 ancienne implémentation. Une refonte produit ne doit pas être mélangée à une
