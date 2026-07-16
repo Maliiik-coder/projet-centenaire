@@ -123,7 +123,10 @@ Commit de référence :
 - les chantiers Aujourd'hui, Repas et Carnet sont présents dans la même branche ;
 - le poids s'édite sans navigation et sans déplacement de l'écran arrière ;
 - le tunnel repas V2 conserve heure, composition, passages, faim et satiété ;
+- l'heure reste l'information principale du premier écran repas ; la date ne
+  s'affiche que sur demande via une action discrète ;
 - le bilan immédiat reste descriptif durant la semaine d'observation ;
+- une lecture rapide explicite aussi les repas sans signal dominant ;
 - les changements de type de repas ne conservent plus de champs cachés
   incompatibles ;
 - la structure détaillée du repas est persistée dans `meal_structure` ;
@@ -134,6 +137,8 @@ Commit de référence :
 - le stockage local Sport est désormais cloisonné entre invité et chaque
   `userId` Supabase ; l'ancienne clé globale reste récupérable mais n'est jamais
   chargée automatiquement dans un compte.
+- la vue Jours du Carnet simplifie les détails de portions et termine par une
+  lecture factuelle de la journée, sans score ni jugement.
 
 ## 4. Retours terrain
 

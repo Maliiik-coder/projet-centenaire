@@ -286,11 +286,35 @@ export function buildImmediateFinding(
     });
   }
 
+  if (input.fullnessAfter === "still_hungry") {
+    return finding({
+      fact: "Tu termines avec encore faim.",
+      reading:
+        "Le signal n’est pas un excès ici. C’est plutôt un repas qui n’a peut-être pas assez couvert la faim du moment.",
+      nextAction:
+        "Regarder si une faim revient vite après ce type de repas.",
+      frictionPoint: "satiété",
+    });
+  }
+
+  if (!lowHunger && !reservice && input.fullnessAfter === "fine") {
+    return finding({
+      fact: "Repas stable noté.",
+      reading:
+        "Faim présente, pas de resservice, sensation correcte après : rien d’évident à corriger sur cette observation.",
+      nextAction:
+        "Garder ce repas comme repère et regarder ce qui change sur les prochains repas comparables.",
+      frictionPoint: "repère",
+    });
+  }
+
   return finding({
-    fact: "Observation ajoutée.",
-    reading: "Cette note devient utile si le même signal se répète.",
-    nextAction: "Continuer à noter les repas comparables.",
-    frictionPoint: "observation",
+    fact: "Repas noté.",
+    reading:
+      "Je ne vois pas de signal fort sur ce repas isolé. C’est utile comme point de comparaison, pas comme conclusion.",
+    nextAction:
+      "Continuer à noter les repas comparables pour faire ressortir les répétitions.",
+    frictionPoint: "repère",
   });
 }
 

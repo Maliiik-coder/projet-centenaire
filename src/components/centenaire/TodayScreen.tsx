@@ -455,7 +455,13 @@ function TodayWeightCard({
             <div className="relative">
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -inset-x-2 -inset-y-5 rounded-[2.25rem] bg-[rgba(17,24,32,0.12)] backdrop-blur-[3px]"
+                className="pointer-events-none absolute -inset-x-8 -inset-y-14 rounded-[3.25rem] bg-[rgba(17,24,32,0.08)] backdrop-blur-[4px]"
+                style={{
+                  maskImage:
+                    "radial-gradient(ellipse 92% 82% at 50% 50%, black 52%, rgba(0,0,0,0.62) 72%, transparent 100%)",
+                  WebkitMaskImage:
+                    "radial-gradient(ellipse 92% 82% at 50% 50%, black 52%, rgba(0,0,0,0.62) 72%, transparent 100%)",
+                }}
               />
               <WeightExpandedPanel
                 draft={draft}

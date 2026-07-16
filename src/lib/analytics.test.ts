@@ -94,8 +94,8 @@ describe("calculateWeeklyAnalysis", () => {
       components: EMPTY_COMPONENTS,
     });
 
-    expect(finding.fact).toBe("Observation ajoutée.");
-    expect(finding.reading).toContain("si le même signal se répète");
+    expect(finding.fact).toBe("Repas stable noté.");
+    expect(finding.reading).toContain("rien d’évident à corriger");
     expect(finding.evidenceLevel).toBe("observation unique");
   });
 

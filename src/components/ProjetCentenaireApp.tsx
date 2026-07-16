@@ -976,6 +976,29 @@ function mealDetailLine(meal: MealEntry): string {
   return details.join(" · ");
 }
 
+function journalMealDetailLines(meal: MealEntry): string[] {
+  const details = [];
+
+  if (meal.starterTaken && meal.starterText) {
+    details.push(`Entrée · ${meal.starterText}`);
+  }
+
+  if (meal.dessertTaken && meal.dessertText) {
+    details.push(`Dessert · ${meal.dessertText}`);
+  }
+
+  if (meal.kind === "grignotage") {
+    if (meal.snackTrigger) {
+      details.push(snackTriggerLabels[meal.snackTrigger]);
+    }
+    if (meal.snackContext) {
+      details.push(snackContextLabels[meal.snackContext]);
+    }
+  }
+
+  return details;
+}
+
 function mealTagLabels(): string[] {
   return [];
 }
@@ -3278,10 +3301,6 @@ export function ProjetCentenaireApp() {
 
     return (
       <div className="space-y-5">
-        <PageTitle kicker="Carnet" title="Mémoire">
-          <p>Le poids d’abord, puis les faits qui aident à comprendre.</p>
-        </PageTitle>
-
         <JournalWeightOverview profile={profile} weights={data.weights} />
 
         <JournalSegmentedControl value={journalView} onChange={setJournalView} />
@@ -4865,43 +4884,27 @@ function MealObservation({
                     onChange({ ...draft, time: event.target.value })
                   }
                 />
-                <div className="flex flex-wrap gap-2">
+                <div className="flex justify-end">
                   <button
-                    className="min-h-9 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 text-sm font-semibold text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
-                    type="button"
-                    onClick={() => onChange({ ...draft, date: todayISO() })}
-                  >
-                    Aujourd’hui
-                  </button>
-                  <button
-                    className="min-h-9 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 text-sm font-semibold text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
-                    type="button"
-                    onClick={() =>
-                      onChange({ ...draft, date: addDays(todayISO(), -1) })
-                    }
-                  >
-                    Hier
-                  </button>
-                  <button
-                    className="min-h-9 rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-primary)] shadow-[var(--pc-shadow-level-1)]"
+                    className="text-xs font-semibold text-[var(--pc-color-text-muted)] underline-offset-4 hover:text-[var(--pc-color-text)] hover:underline"
                     type="button"
                     onClick={() => setShowDatePicker((current) => !current)}
                   >
-                    Changer la date
+                    {showDatePicker ? "Masquer la date" : "Changer la date"}
                   </button>
                 </div>
-                <p className="text-sm font-semibold text-[var(--pc-color-text-muted)]">
-                  {formatShortDate(draft.date)}
-                </p>
                 {showDatePicker ? (
-                  <input
-                    className={inputClass}
-                    type="date"
-                    value={draft.date}
-                    onChange={(event) =>
-                      onChange({ ...draft, date: event.target.value })
-                    }
-                  />
+                  <label className="grid gap-2 text-sm font-semibold text-[var(--pc-color-text-muted)]">
+                    Date du repas
+                    <input
+                      className={inputClass}
+                      type="date"
+                      value={draft.date}
+                      onChange={(event) =>
+                        onChange({ ...draft, date: event.target.value })
+                      }
+                    />
+                  </label>
                 ) : null}
               </div>
             </TunnelQuestion>
@@ -5208,12 +5211,17 @@ function MealObservation({
             <section className="space-y-6">
               <ConstatPart title="Ce que je vois" text={finding.fact} emphasized />
               {initialObservationActive ? (
-                <div className="rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
-                  <ConstatPart
-                    title="Pour l’instant"
-                    text={INITIAL_OBSERVATION_MEAL_MESSAGE}
-                  />
-                </div>
+                <>
+                  <div className="rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
+                    <ConstatPart title="Lecture rapide" text={finding.reading} />
+                  </div>
+                  <div className="rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
+                    <ConstatPart
+                      title="Pour l’instant"
+                      text={INITIAL_OBSERVATION_MEAL_MESSAGE}
+                    />
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="space-y-5 rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
@@ -5600,7 +5608,7 @@ function SimpleWeightChart({
   return (
     <div
       aria-label="Courbe simple du poids depuis le départ"
-      className="mt-4 h-36 w-full"
+      className="mt-4 h-32 w-full"
       role="img"
     >
       <svg
@@ -5611,8 +5619,8 @@ function SimpleWeightChart({
       >
         <line
           stroke="var(--pc-color-border)"
-          strokeDasharray="6 8"
-          strokeWidth="2"
+          strokeDasharray="4 8"
+          strokeWidth="1.2"
           x1={paddingX}
           x2={width - paddingX}
           y1={height / 2}
@@ -5625,7 +5633,7 @@ function SimpleWeightChart({
             stroke="var(--pc-color-primary)"
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth="4"
+            strokeWidth="2.4"
           />
         ) : null}
         {visibleDots.map((point) => {
@@ -5642,7 +5650,7 @@ function SimpleWeightChart({
                   : "var(--pc-color-primary-muted)"
               }
               key={point.id}
-              r={isEdge ? 4.5 : 3}
+              r={isEdge ? 3.4 : 2.4}
             />
           );
         })}
@@ -5749,6 +5757,7 @@ function JournalDaysView({
               />
             );
           })}
+          <JournalDayReflection events={events} />
         </div>
       )}
     </section>
@@ -5764,6 +5773,8 @@ function JournalMealEvent({
   onDelete: () => void;
   onEdit: () => void;
 }) {
+  const detailLines = journalMealDetailLines(meal);
+
   return (
     <Surface as="article" className="p-3">
       <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-3">
@@ -5782,16 +5793,15 @@ function JournalMealEvent({
               <p className="mt-0.5 text-sm leading-5 text-[var(--pc-color-text)]">
                 {meal.freeText}
               </p>
-              <p className="mt-1 text-xs leading-4 text-[var(--pc-color-text-muted)]">
-                {mealDetailLine(meal)}
-              </p>
+              {detailLines.length > 0 ? (
+                <div className="mt-2 space-y-1 text-xs leading-4 text-[var(--pc-color-text-muted)]">
+                  {detailLines.map((detail) => (
+                    <p key={detail}>{detail}</p>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
-          {meal.finding?.fact ? (
-            <p className="mt-3 rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] px-3 py-2 text-sm leading-5 text-[var(--pc-color-primary)]">
-              {meal.finding.fact}
-            </p>
-          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               className="min-h-10 rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 text-sm font-semibold text-[var(--pc-color-text)] transition active:scale-[0.98]"
@@ -5845,6 +5855,110 @@ function JournalFactEvent({
       </div>
     </Surface>
   );
+}
+
+function JournalDayReflection({ events }: { events: JournalDayEvent[] }) {
+  const meals = events
+    .filter((event): event is Extract<JournalDayEvent, { kind: "meal" }> =>
+      event.kind === "meal",
+    )
+    .map((event) => event.meal);
+  const weights = events.filter((event) => event.kind === "weight");
+  const smokingEvents = events.filter((event) => event.kind === "smoking");
+  const reserviceMeals = meals.filter((meal) =>
+    hasReservice(meal.servingPattern ?? servingPatternFromQuantity(meal.quantity)),
+  ).length;
+  const lowHungerMeals = meals.filter(journalMealStartedLowHunger).length;
+  const tooFullMeals = meals.filter(journalMealEndedTooFull).length;
+  const facts = [
+    meals.length > 0
+      ? countLabel(meals.length, "repas noté", "repas notés")
+      : null,
+    weights.length > 0 ? "poids renseigné" : null,
+    smokingEvents.length > 0
+      ? countLabel(smokingEvents.length, "événement tabac", "événements tabac")
+      : null,
+  ].filter((fact): fact is string => fact !== null);
+  const reading = journalDayReading({
+    lowHungerMeals,
+    meals: meals.length,
+    reserviceMeals,
+    tooFullMeals,
+    weights: weights.length,
+  });
+
+  return (
+    <Surface as="section" className="px-4 py-4" variant="subtle">
+      <p className={annotationClass}>Lecture de la journée</p>
+      {facts.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {facts.map((fact) => (
+            <span
+              className="rounded-full bg-[var(--pc-color-surface)] px-3 py-1 text-xs font-semibold text-[var(--pc-color-text-muted)]"
+              key={fact}
+            >
+              {fact}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <p className="mt-3 text-sm leading-6 text-[var(--pc-color-text)]">
+        {reading}
+      </p>
+    </Surface>
+  );
+}
+
+function journalMealStartedLowHunger(meal: MealEntry): boolean {
+  return (
+    meal.hungerBefore === "no" ||
+    meal.hungerBefore === "not_really" ||
+    meal.hungerBefore === "pas-faim"
+  );
+}
+
+function journalMealEndedTooFull(meal: MealEntry): boolean {
+  const fullness = meal.fullnessAfter ?? fullnessFromAfterMeal(meal.afterMeal);
+
+  return fullness === "too_full" || fullness === "uncomfortable";
+}
+
+function journalDayReading({
+  lowHungerMeals,
+  meals,
+  reserviceMeals,
+  tooFullMeals,
+  weights,
+}: {
+  lowHungerMeals: number;
+  meals: number;
+  reserviceMeals: number;
+  tooFullMeals: number;
+  weights: number;
+}): string {
+  if (meals === 0) {
+    return weights > 0
+      ? "La journée contient surtout un repère de poids. Haru attend les repas pour relier ce chiffre au contexte."
+      : "Haru a peu de matière pour lire cette journée.";
+  }
+
+  if (reserviceMeals > 0 && tooFullMeals > 0) {
+    return "Le signal le plus utile à relire aujourd’hui est le lien entre resservice et sensation de trop plein.";
+  }
+
+  if (reserviceMeals > 0) {
+    return "Le resservice apparaît dans la journée. Ce n’est pas un problème en soi, mais c’est un fait à suivre s’il revient.";
+  }
+
+  if (lowHungerMeals > 0) {
+    return "Au moins un repas commence avec peu de faim réelle. Haru le garde comme point d’observation, pas comme conclusion.";
+  }
+
+  if (tooFullMeals > 0) {
+    return "Au moins un repas se termine trop plein. La journée aide à repérer le volume ou le rythme du repas.";
+  }
+
+  return "La journée est renseignée sans signal dominant évident. Elle sert surtout de base de comparaison pour la suite.";
 }
 
 function JournalWeeksView({
