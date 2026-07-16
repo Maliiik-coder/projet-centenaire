@@ -23,13 +23,17 @@ Les modules de `src/features/` suivent une frontière simple :
 - `src/features/insights/InsightsScreen.tsx` : constats hebdomadaires ;
 - `src/features/profile/ProfileScreen.tsx` : profil, préférences, compte et
   options avancées ;
+- `src/features/meal/MealTunnelScreen.tsx` : progression et rendu du tunnel
+  Repas ;
+- `src/features/meal/mealDraftModel.ts` : brouillon, validation, navigation,
+  reconstruction et création d’une observation repas ;
 - `src/app/sport/` et `src/features/sport/` : module Sport isolé par route.
 
 ## Ordre d’extraction suivant
 
-1. Déplacer le modèle et l’écran du tunnel Repas sans modifier son contrat.
-2. Déplacer l’onboarding et son brouillon dans `src/features/onboarding/`.
-3. Extraire les panneaux Poids et Tabac.
+1. Déplacer l’onboarding et son brouillon dans `src/features/onboarding/`.
+2. Extraire les panneaux Poids et Tabac.
+3. Extraire les écrans de démarrage et de migration locale.
 4. Réduire `ProjetCentenaireApp.tsx` à un shell de session, navigation et
    orchestration.
 

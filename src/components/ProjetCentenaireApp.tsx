@@ -6,7 +6,6 @@ import {
   Archive,
   BookOpen,
   ChevronLeft,
-  ChevronRight,
   Download,
   Dumbbell,
   LineChart,
@@ -14,8 +13,6 @@ import {
   Settings2,
 } from "lucide-react";
 import {
-  EMPTY_COMPONENTS,
-  buildImmediateFinding,
   calculateWeeklyAnalysis,
   getLatestWeight,
   isSmokingTrackingEnabled,
@@ -36,25 +33,12 @@ import {
   CLOUD_RECOVERY_DELAY_MS,
   withCloudReadTimeout,
 } from "@/lib/cloudRead";
-import { activeMealKindLabels } from "@/lib/mealKinds";
 import {
   deleteMealEntry,
   updateMealEntry,
 } from "@/lib/mealMutations";
-import {
-  getMealTunnelStepIds,
-  type MealTunnelStepId,
-} from "@/lib/mealTunnel";
-import {
-  detectMealComponents,
-  getClarificationChoices,
-  mergeDetectedClarifications,
-} from "@/lib/foodDetection";
 import { shouldShowActiveMission } from "@/lib/mission";
-import {
-  INITIAL_OBSERVATION_MEAL_MESSAGE,
-  isInitialObservationDay,
-} from "@/lib/observationPhase";
+import { isInitialObservationDay } from "@/lib/observationPhase";
 import {
   APP_RESUME_PARAM,
   APP_RESUME_TAB_PARAM,
@@ -112,6 +96,24 @@ import { TodayScreen } from "@/components/centenaire/TodayScreen";
 import { InsightsScreen } from "@/features/insights/InsightsScreen";
 import { JournalScreen } from "@/features/journal/JournalScreen";
 import type { JournalViewMode } from "@/features/journal/journalModel";
+import { MealTunnelScreen } from "@/features/meal/MealTunnelScreen";
+import {
+  createEmptyMealDraft,
+  fullnessFromAfterMeal,
+  fullnessLabels,
+  getMealSubmitError,
+  hungerLabels,
+  mealDraftFromEntry,
+  mealEntryFromDraft,
+  mealSectionQuantity,
+  quantitySummary,
+  reserviceHungerLabels,
+  servingPatternFromQuantity,
+  servingPatternLabels,
+  snackContextLabels,
+  snackTriggerLabels,
+  type MealDraft,
+} from "@/features/meal/mealDraftModel";
 import { ProfileScreen } from "@/features/profile/ProfileScreen";
 import {
   Button as UIButton,
@@ -160,42 +162,22 @@ import {
 } from "@/services/offlineSyncService";
 import type {
   AppData,
-  ActiveMealKind,
   BehaviorContext,
   BehaviorFrequency,
   FrictionChoice,
-  FullnessAfter,
-  HungerAtReservice,
-  HungerBefore,
   InitialBehaviorAnswers,
   InitialBehaviorAssessment,
   ISODate,
-  MealAfter,
-  MealClarification,
-  MealComponents,
   MealEntry,
-  MealPassageRelation,
   MealMutation,
-  MealKind,
-  MealQuantityEstimate,
-  MealQuantityUnit,
-  MealStructureV2,
   NonMealMutationDraft,
   Profile,
   PerceivedFriction,
   ProfessionalSupportStatus,
-  QuestionnaireVersion,
-  ReserviceReason,
-  ServedQuantity,
-  ServingPattern,
-  SnackContext,
-  SnackTrigger,
   SmokingEntry,
   SmokingDayState,
   SmokingGoal,
   SmokingStatus,
-  SnackingAfter,
-  StopReason,
   WeightEntry,
 } from "@/lib/types";
 
@@ -225,43 +207,6 @@ interface OnboardingDraft {
   professionalSupport?: ProfessionalSupportStatus;
   smokingStatus: SmokingStatus;
   smokingGoal?: SmokingGoal;
-}
-
-interface MealQuantityDraft {
-  amount: string;
-  unit: MealQuantityUnit;
-  note: string;
-}
-
-interface MealDraft {
-  kind: ActiveMealKind;
-  date: ISODate;
-  time: string;
-  freeText: string;
-  quantity: ServedQuantity;
-  servingPattern: ServingPattern;
-  mainQuantity: MealQuantityDraft;
-  hungerBefore: HungerBefore;
-  hungerAtReservice: HungerAtReservice | null;
-  afterMeal: MealAfter;
-  fullnessAfter: FullnessAfter;
-  stopReason: StopReason;
-  snackingAfter: SnackingAfter;
-  starterTaken: boolean;
-  starterText: string;
-  starterQuantity: MealQuantityDraft;
-  dessertTaken: boolean;
-  dessertText: string;
-  dessertQuantity: MealQuantityDraft;
-  snackQuantity: MealQuantityDraft;
-  snackTrigger: SnackTrigger | null;
-  snackContext: SnackContext | null;
-  reserviceRelation: MealPassageRelation | null;
-  reserviceText: string;
-  reserviceReasons: ReserviceReason[];
-  clarifications: MealClarification[];
-  questionnaireVersion: QuestionnaireVersion;
-  components: MealComponents;
 }
 
 const tabs: TabDefinition[] = [
@@ -324,81 +269,7 @@ const professionalSupportLabels: Record<ProfessionalSupportStatus, string> = {
   "prefer-not-to-say": "Je préfère ne pas répondre",
 };
 
-const servingPatternLabels: Record<ServingPattern, string> = {
-  none: "Une portion",
-  once: "Une reprise",
-  multiple: "Plusieurs reprises",
-  buffet: "Buffet / plusieurs passages",
-};
-
-const hungerLabels: Record<HungerBefore, string> = {
-  "pas-faim": "Pas faim",
-  "petite-faim": "Petite faim",
-  "vraie-faim": "Vraie faim",
-  "tres-faim": "Très faim",
-  yes: "Oui",
-  not_really: "Pas vraiment",
-  no: "Non",
-  unsure: "Je ne sais pas",
-};
-
-const fullnessLabels: Record<FullnessAfter, string> = {
-  still_hungry: "Encore faim",
-  fine: "Bien",
-  too_full: "Trop plein",
-  uncomfortable: "Inconfortable",
-};
-
-const quantityUnitLabels: Record<MealQuantityUnit, string> = {
-  piece: "pièce",
-  portion: "portion",
-  plate: "assiette",
-  bowl: "bol",
-  glass: "verre",
-  slice: "part",
-  spoon: "cuillère",
-  handful: "poignée",
-  other: "autre",
-  unknown: "je ne sais pas",
-};
-
-const quickQuantityUnits: MealQuantityUnit[] = [
-  "portion",
-  "plate",
-  "bowl",
-  "piece",
-  "glass",
-  "slice",
-  "other",
-  "unknown",
-];
-
-const reserviceRelationLabels: Record<MealPassageRelation, string> = {
-  same: "La même chose",
-  partial: "Seulement certains éléments",
-  side_only: "Surtout l’accompagnement",
-  smaller: "Une plus petite quantité",
-  other: "Autre",
-};
-
-const reserviceHungerLabels: Record<HungerAtReservice, string> = {
-  yes: "Oui",
-  not_really: "Pas vraiment",
-  no: "Non",
-  unsure: "Je ne sais pas",
-};
-
-const reserviceReasonLabels: Record<ReserviceReason, string> = {
-  pleasure: "Plaisir / goût",
-  habit: "Habitude",
-  stress_emotion: "Stress ou émotion",
-  food_available: "Le plat était devant moi",
-  avoid_waste: "Ne pas gaspiller",
-  others: "Les autres se resservaient",
-  unsure: "Je ne sais pas",
-};
-
-const smokingDayLabels: Record<SmokingDayState, string> = {
+ const smokingDayLabels: Record<SmokingDayState, string> = {
   aucun: "Aucun",
   envie: "Envie forte",
   cigarette: "Cigarette",
@@ -413,65 +284,7 @@ const smokingTriggerOptions = [
   "autre",
 ];
 
-const snackTriggerLabels: Record<SnackTrigger, string> = {
-  hunger: "Faim",
-  boredom: "Ennui",
-  stress: "Stress",
-  habit: "Habitude",
-  craving: "Envie",
-  unsure: "Je ne sais pas",
-};
-
-const snackContextLabels: Record<SnackContext, string> = {
-  hotel: "Hôtel",
-  car: "Voiture",
-  home: "Maison",
-  work: "Travail",
-  other: "Autre",
-};
-
-function emptyQuantityDraft(unit: MealQuantityUnit = "portion"): MealQuantityDraft {
-  return {
-    amount: "1",
-    unit,
-    note: "",
-  };
-}
-
-function createEmptyMealDraft(date: ISODate = todayISO()): MealDraft {
-  return {
-    kind: "dejeuner",
-    date,
-    time: currentTime(),
-    freeText: "",
-    quantity: "reasonable-plate",
-    servingPattern: "none",
-    mainQuantity: emptyQuantityDraft("plate"),
-    hungerBefore: "yes",
-    hungerAtReservice: null,
-    afterMeal: "fine",
-    fullnessAfter: "fine",
-    stopReason: "rassasie",
-    snackingAfter: "non",
-    starterTaken: false,
-    starterText: "",
-    starterQuantity: emptyQuantityDraft("portion"),
-    dessertTaken: false,
-    dessertText: "",
-    dessertQuantity: emptyQuantityDraft("portion"),
-    snackQuantity: emptyQuantityDraft("portion"),
-    snackTrigger: null,
-    snackContext: null,
-    reserviceRelation: null,
-    reserviceText: "",
-    reserviceReasons: [],
-    clarifications: [],
-    questionnaireVersion: "v2",
-    components: { ...EMPTY_COMPONENTS },
-  };
-}
-
-const today = todayISO();
+  const today = todayISO();
 const emptyMigrationSources: LocalMigrationSources = {
   guest: null,
   legacy: null,
@@ -479,9 +292,6 @@ const emptyMigrationSources: LocalMigrationSources = {
 
 const inputClass =
   "min-h-12 w-full rounded-[16px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-base text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]";
-const annotationClass =
-  "text-xs font-semibold uppercase tracking-[0.16em] text-[var(--pc-color-text-muted)]";
-
 async function materializeUserPendingState(
   baseData: AppData,
   userId: string,
@@ -530,349 +340,11 @@ function currentTime(): string {
   }).format(new Date());
 }
 
-function parseQuantityAmount(value: string): number | null {
-  const amount = Number(value.replace(",", "."));
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
-}
-
-function quantityEstimateFromDraft(
-  draft: MealQuantityDraft,
-): MealQuantityEstimate {
-  const amount = parseQuantityAmount(draft.amount);
-  const note = draft.note.trim() || null;
-  const hasUsableUnit = draft.unit !== "unknown";
-
-  return {
-    amount,
-    unit: draft.unit,
-    text: note,
-    confidence:
-      amount && hasUsableUnit
-        ? "medium"
-        : hasUsableUnit || note
-          ? "low"
-          : "not_estimated",
-  };
-}
-
-function quantityDraftFromEstimate(
-  estimate: MealQuantityEstimate | null | undefined,
-  fallbackUnit: MealQuantityUnit,
-): MealQuantityDraft {
-  return {
-    amount: estimate?.amount ? String(estimate.amount) : "1",
-    unit: estimate?.unit ?? fallbackUnit,
-    note: estimate?.text ?? "",
-  };
-}
-
-function quantitySummary(quantity: MealQuantityEstimate | null | undefined): string | null {
-  if (!quantity) {
-    return null;
-  }
-
-  if (quantity.text) {
-    return quantity.text;
-  }
-
-  if (quantity.amount && quantity.unit !== "unknown") {
-    return `${quantity.amount.toLocaleString("fr-FR", {
-      maximumFractionDigits: 1,
-    })} ${quantityUnitLabels[quantity.unit]}`;
-  }
-
-  if (quantity.unit !== "unknown") {
-    return quantityUnitLabels[quantity.unit];
-  }
-
-  return null;
-}
-
-function mealSectionQuantity(
-  meal: MealEntry,
-  kind: "starter" | "main" | "dessert" | "snack",
-): MealQuantityEstimate | null {
-  return meal.mealStructure?.sections.find((section) => section.kind === kind)
-    ?.quantity ?? null;
-}
-
-function countLabel(count: number, singular: string, plural: string): string {
+ function countLabel(count: number, singular: string, plural: string): string {
   return `${count} ${count > 1 ? plural : singular}`;
 }
 
-function activeKindFromMealKind(kind: MealKind): ActiveMealKind {
-  if (kind === "petit-dejeuner" || kind === "dejeuner" || kind === "diner") {
-    return kind;
-  }
-
-  if (kind === "grignotage" || kind === "collation") {
-    return "grignotage";
-  }
-
-  return "dejeuner";
-}
-
-function quantityFromServingPattern(value: ServingPattern): ServedQuantity {
-  if (value === "once") {
-    return "two-plates";
-  }
-
-  if (value === "multiple" || value === "buffet") {
-    return "three-plus-plates";
-  }
-
-  return "reasonable-plate";
-}
-
-function servingPatternFromQuantity(value: ServedQuantity): ServingPattern {
-  if (value === "two-plates") {
-    return "once";
-  }
-
-  if (value === "three-plus-plates") {
-    return "multiple";
-  }
-
-  return "none";
-}
-
-function fullnessFromAfterMeal(value: MealAfter): FullnessAfter {
-  if (
-    value === "still_hungry" ||
-    value === "fine" ||
-    value === "too_full" ||
-    value === "uncomfortable"
-  ) {
-    return value;
-  }
-
-  if (value === "encore-faim") {
-    return "still_hungry";
-  }
-
-  if (value === "trop-plein") {
-    return "too_full";
-  }
-
-  if (value === "inconfortable") {
-    return "uncomfortable";
-  }
-
-  return "fine";
-}
-
-function hungerForTunnel(value: HungerBefore): HungerBefore {
-  if (value === "pas-faim") {
-    return "no";
-  }
-
-  if (value === "petite-faim") {
-    return "not_really";
-  }
-
-  if (value === "vraie-faim" || value === "tres-faim") {
-    return "yes";
-  }
-
-  return value;
-}
-
-function mealDetectionText(draft: MealDraft): string {
-  return [
-    draft.freeText,
-    draft.starterTaken ? draft.starterText : "",
-    draft.dessertTaken ? draft.dessertText : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function prepareDetectedMealDraft(draft: MealDraft): MealDraft {
-  const text = mealDetectionText(draft);
-
-  return {
-    ...draft,
-    components: detectMealComponents(text),
-    clarifications: mergeDetectedClarifications(text, draft.clarifications),
-  };
-}
-
-function sanitizeMealDraftForKind(draft: MealDraft): MealDraft {
-  if (draft.kind === "dejeuner" || draft.kind === "diner") {
-    return draft;
-  }
-
-  return {
-    ...draft,
-    starterTaken: false,
-    starterText: "",
-    starterQuantity: emptyQuantityDraft("portion"),
-    dessertTaken: false,
-    dessertText: "",
-    dessertQuantity: emptyQuantityDraft("portion"),
-    servingPattern: "none",
-    hungerAtReservice: null,
-    reserviceRelation: null,
-    reserviceText: "",
-    reserviceReasons: [],
-  };
-}
-
-function hasReservice(servingPattern: ServingPattern): boolean {
-  return servingPattern === "once" ||
-    servingPattern === "multiple" ||
-    servingPattern === "buffet";
-}
-
-function shouldAskReserviceReason(draft: MealDraft): boolean {
-  return (
-    hasReservice(draft.servingPattern) &&
-    (draft.hungerAtReservice === "not_really" ||
-      draft.hungerAtReservice === "no")
-  );
-}
-
-function shouldSkipMealStep(stepId: MealTunnelStepId, draft: MealDraft): boolean {
-  if (stepId === "clarifications") {
-    return draft.clarifications.length === 0;
-  }
-
-  if (
-    stepId === "reservice-detail" ||
-    stepId === "reservice-hunger"
-  ) {
-    return !hasReservice(draft.servingPattern);
-  }
-
-  if (stepId === "reservice-reason") {
-    return !shouldAskReserviceReason(draft);
-  }
-
-  return false;
-}
-
-function createMealItem(
-  rawText: string,
-  quantity: MealQuantityEstimate | null,
-) {
-  return {
-    id: createId("meal-item"),
-    rawText,
-    recognitionStatus: "unprocessed" as const,
-    canonicalName: null,
-    ciqualCode: null,
-    confidence: null,
-    quantity,
-  };
-}
-
-function createSinglePassageSection({
-  kind,
-  rawText,
-  quantity,
-}: {
-  kind: "starter" | "main" | "dessert" | "snack";
-  rawText: string;
-  quantity: MealQuantityEstimate | null;
-}): MealStructureV2["sections"][number] {
-  return {
-    id: createId(`meal-section-${kind}`),
-    kind,
-    rawText,
-    quantity,
-    passages: [
-      {
-        id: createId("meal-passage"),
-        index: 1,
-        relationToPrevious: null,
-        relationText: null,
-        items: [createMealItem(rawText, quantity)],
-      },
-    ],
-  };
-}
-
-function buildMealStructure(draft: MealDraft): MealStructureV2 {
-  const sections: MealStructureV2["sections"] = [];
-  const mainQuantity = quantityEstimateFromDraft(draft.mainQuantity);
-
-  if (draft.starterTaken && draft.starterText.trim()) {
-    sections.push(
-      createSinglePassageSection({
-        kind: "starter",
-        rawText: draft.starterText.trim(),
-        quantity: quantityEstimateFromDraft(draft.starterQuantity),
-      }),
-    );
-  }
-
-  if (draft.kind === "grignotage") {
-    sections.push(
-      createSinglePassageSection({
-        kind: "snack",
-        rawText: draft.freeText.trim(),
-        quantity: quantityEstimateFromDraft(draft.snackQuantity),
-      }),
-    );
-  } else {
-    const mainSection = createSinglePassageSection({
-      kind: "main",
-      rawText: draft.freeText.trim(),
-      quantity: mainQuantity,
-    });
-
-    if (hasReservice(draft.servingPattern)) {
-      const reserviceText =
-        draft.reserviceText.trim() ||
-        (draft.reserviceRelation === "same"
-          ? draft.freeText.trim()
-          : reserviceRelationLabels[draft.reserviceRelation ?? "other"]);
-
-      mainSection.passages.push({
-        id: createId("meal-passage"),
-        index: 2,
-        relationToPrevious: draft.reserviceRelation ?? "other",
-        relationText: draft.reserviceText.trim() || null,
-        items: [
-          createMealItem(
-            reserviceText,
-            draft.reserviceRelation === "smaller" ? null : mainQuantity,
-          ),
-        ],
-      });
-    }
-
-    sections.push(mainSection);
-  }
-
-  if (draft.dessertTaken && draft.dessertText.trim()) {
-    sections.push(
-      createSinglePassageSection({
-        kind: "dessert",
-        rawText: draft.dessertText.trim(),
-        quantity: quantityEstimateFromDraft(draft.dessertQuantity),
-      }),
-    );
-  }
-
-  return {
-    version: 2,
-    source: "meal_tunnel_v2",
-    sections,
-    behavior: {
-      hungerBefore: draft.hungerBefore,
-      fullnessAfter: draft.fullnessAfter,
-      hungerAtReservice: hasReservice(draft.servingPattern)
-        ? draft.hungerAtReservice ?? "unsure"
-        : null,
-      reserviceReasons: shouldAskReserviceReason(draft)
-        ? draft.reserviceReasons
-        : [],
-    },
-  };
-}
-
-function mealDetailLine(meal: MealEntry): string {
+ function mealDetailLine(meal: MealEntry): string {
   const details = [];
   const servingPattern = meal.servingPattern ?? servingPatternFromQuantity(meal.quantity);
   const fullness = meal.fullnessAfter ?? fullnessFromAfterMeal(meal.afterMeal);
@@ -1415,7 +887,6 @@ export function ProjetCentenaireApp() {
     smokingGoal: undefined,
   });
   const [mealOpen, setMealOpen] = useState(false);
-  const [mealStep, setMealStep] = useState(0);
   const [mealDraft, setMealDraft] = useState<MealDraft>(() =>
     createEmptyMealDraft(currentDate),
   );
@@ -2754,73 +2225,19 @@ export function ProjetCentenaireApp() {
     setEditingMealId(null);
     setOpenMealActionId(null);
     setMealDraft(createEmptyMealDraft(currentDate));
-    setMealStep(0);
     setMealOpen(true);
   };
 
   const closeMealPanel = () => {
     setMealOpen(false);
     setEditingMealId(null);
-    setMealStep(0);
     setMealDraft(createEmptyMealDraft(currentDate));
   };
 
   const openMealEditor = (meal: MealEntry) => {
-    const mainSection = meal.mealStructure?.sections.find(
-      (section) => section.kind === "main" || section.kind === "snack",
-    );
-    const starterSection = meal.mealStructure?.sections.find(
-      (section) => section.kind === "starter",
-    );
-    const dessertSection = meal.mealStructure?.sections.find(
-      (section) => section.kind === "dessert",
-    );
-    const reservicePassage = mainSection?.passages.find(
-      (passage) => passage.index > 1,
-    );
-
     setOpenMealActionId(null);
     setEditingMealId(meal.id);
-    setMealDraft({
-      kind: activeKindFromMealKind(meal.kind),
-      date: meal.date,
-      time: meal.time,
-      freeText: meal.freeText,
-      quantity: meal.quantity,
-      servingPattern: meal.servingPattern ?? servingPatternFromQuantity(meal.quantity),
-      mainQuantity: quantityDraftFromEstimate(
-        mainSection?.quantity,
-        meal.kind === "grignotage" ? "portion" : "plate",
-      ),
-      hungerBefore: hungerForTunnel(meal.hungerBefore),
-      hungerAtReservice: meal.mealStructure?.behavior.hungerAtReservice ?? null,
-      afterMeal: meal.afterMeal,
-      fullnessAfter: meal.fullnessAfter ?? fullnessFromAfterMeal(meal.afterMeal),
-      stopReason: meal.stopReason,
-      snackingAfter: "non",
-      starterTaken: meal.starterTaken ?? false,
-      starterText: meal.starterText ?? "",
-      starterQuantity: quantityDraftFromEstimate(
-        starterSection?.quantity,
-        "portion",
-      ),
-      dessertTaken: meal.dessertTaken ?? false,
-      dessertText: meal.dessertText ?? "",
-      dessertQuantity: quantityDraftFromEstimate(
-        dessertSection?.quantity,
-        "portion",
-      ),
-      snackQuantity: quantityDraftFromEstimate(mainSection?.quantity, "portion"),
-      snackTrigger: meal.snackTrigger ?? null,
-      snackContext: meal.snackContext ?? null,
-      reserviceRelation: reservicePassage?.relationToPrevious ?? null,
-      reserviceText: reservicePassage?.relationText ?? "",
-      reserviceReasons: meal.mealStructure?.behavior.reserviceReasons ?? [],
-      clarifications: meal.clarifications ?? [],
-      questionnaireVersion: "v2",
-      components: { ...meal.components },
-    });
-    setMealStep(0);
+    setMealDraft(mealDraftFromEntry(meal));
     setMealOpen(true);
   };
 
@@ -2873,70 +2290,16 @@ export function ProjetCentenaireApp() {
   };
 
   const addMealToJournal = () => {
-    if (mealDraft.freeText.trim().length < 2) {
-      setError("Ajoute une observation courte avant de continuer.");
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(mealDraft.date)) {
-      setError("Choisis une date valide.");
-      return;
-    }
-    if (!/^\d{2}:\d{2}$/.test(mealDraft.time)) {
-      setError("Choisis une heure valide.");
+    const validationError = getMealSubmitError(mealDraft);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    const preparedDraft = prepareDetectedMealDraft(
-      sanitizeMealDraftForKind(mealDraft),
-    );
-    const quantity = quantityFromServingPattern(preparedDraft.servingPattern);
-    const mealStructure = buildMealStructure(preparedDraft);
-    const finding = buildImmediateFinding({
-      kind: preparedDraft.kind,
-      servingPattern: preparedDraft.servingPattern,
-      hungerBefore: preparedDraft.hungerBefore,
-      fullnessAfter: preparedDraft.fullnessAfter,
-      starterTaken: preparedDraft.starterTaken,
-      dessertTaken: preparedDraft.dessertTaken,
-      snackTrigger: preparedDraft.snackTrigger,
-      snackContext: preparedDraft.snackContext,
-      components: preparedDraft.components,
-    });
     const editedMeal = editingMealId
       ? data.meals.find((meal) => meal.id === editingMealId)
       : null;
-    const entry: MealEntry = {
-      id: editedMeal?.id ?? createId("meal"),
-      date: preparedDraft.date,
-      time: preparedDraft.time,
-      kind: preparedDraft.kind,
-      freeText: preparedDraft.freeText.trim(),
-      quantity,
-      servingPattern: preparedDraft.servingPattern,
-      hungerBefore: preparedDraft.hungerBefore,
-      afterMeal: preparedDraft.fullnessAfter,
-      fullnessAfter: preparedDraft.fullnessAfter,
-      stopReason: preparedDraft.stopReason,
-      snackingAfter: preparedDraft.snackingAfter,
-      starterTaken: preparedDraft.starterTaken,
-      starterText:
-        preparedDraft.starterTaken && preparedDraft.starterText.trim()
-          ? preparedDraft.starterText.trim()
-          : null,
-      dessertTaken: preparedDraft.dessertTaken,
-      dessertText:
-        preparedDraft.dessertTaken && preparedDraft.dessertText.trim()
-          ? preparedDraft.dessertText.trim()
-          : null,
-      snackTrigger: preparedDraft.kind === "grignotage" ? preparedDraft.snackTrigger : null,
-      snackContext: preparedDraft.kind === "grignotage" ? preparedDraft.snackContext : null,
-      clarifications: preparedDraft.clarifications,
-      questionnaireVersion: "v2",
-      mealStructure,
-      components: preparedDraft.components,
-      finding,
-      createdAt: editedMeal?.createdAt ?? new Date().toISOString(),
-    };
+    const entry = mealEntryFromDraft(mealDraft, editedMeal ?? null);
 
     saveData(
       {
@@ -2950,105 +2313,6 @@ export function ProjetCentenaireApp() {
       cloudUserId ? [createMealUpsertMutation(cloudUserId, entry)] : [],
     );
     closeMealPanel();
-  };
-
-  const goToNextMealStep = (draftOverride?: MealDraft) => {
-    const currentDraft = draftOverride ?? mealDraft;
-    const stepIds = getMealTunnelStepIds(currentDraft.kind);
-    const currentStepId = stepIds[mealStep];
-
-    if (currentStepId === "time") {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(currentDraft.date)) {
-        setError("Choisis une date valide.");
-        return;
-      }
-      if (!/^\d{2}:\d{2}$/.test(currentDraft.time)) {
-        setError("Choisis une heure valide.");
-        return;
-      }
-    }
-
-    if (
-      (currentStepId === "text" || currentStepId === "snack-text") &&
-      currentDraft.freeText.trim().length < 2
-    ) {
-      setError("Ajoute une observation courte avant de continuer.");
-      return;
-    }
-
-    if (
-      currentStepId === "starter" &&
-      currentDraft.starterTaken &&
-      currentDraft.starterText.trim().length < 2
-    ) {
-      setError("Note rapidement l’entrée, ou choisis Non.");
-      return;
-    }
-
-    if (
-      currentStepId === "dessert" &&
-      currentDraft.dessertTaken &&
-      currentDraft.dessertText.trim().length < 2
-    ) {
-      setError("Note rapidement le dessert, ou choisis Non.");
-      return;
-    }
-
-    if (
-      currentStepId === "reservice-detail" &&
-      hasReservice(currentDraft.servingPattern) &&
-      !currentDraft.reserviceRelation
-    ) {
-      setError("Précise rapidement ce que contenait la reprise.");
-      return;
-    }
-
-    if (
-      currentStepId === "reservice-reason" &&
-      shouldAskReserviceReason(currentDraft) &&
-      currentDraft.reserviceReasons.length === 0
-    ) {
-      setError("Choisis une raison, ou Je ne sais pas.");
-      return;
-    }
-
-    let nextDraft =
-      currentStepId === "text" ||
-      currentStepId === "snack-text" ||
-      currentStepId === "starter" ||
-      currentStepId === "dessert"
-        ? prepareDetectedMealDraft(currentDraft)
-        : currentDraft;
-    let nextStepIndex = Math.min(stepIds.length - 1, mealStep + 1);
-
-    while (
-      nextStepIndex < stepIds.length - 1 &&
-      shouldSkipMealStep(stepIds[nextStepIndex], nextDraft)
-    ) {
-      nextStepIndex += 1;
-    }
-
-    if (stepIds[nextStepIndex] === "finding") {
-      nextDraft = prepareDetectedMealDraft(nextDraft);
-    }
-
-    setError(null);
-    setMealDraft(nextDraft);
-    setMealStep(nextStepIndex);
-  };
-
-  const goToPreviousMealStep = () => {
-    const stepIds = getMealTunnelStepIds(mealDraft.kind);
-    let previousStepIndex = Math.max(0, mealStep - 1);
-
-    while (
-      previousStepIndex > 0 &&
-      shouldSkipMealStep(stepIds[previousStepIndex], mealDraft)
-    ) {
-      previousStepIndex -= 1;
-    }
-
-    setMealStep(previousStepIndex);
   };
 
   const addSmokingEntry = () => {
@@ -3324,16 +2588,14 @@ export function ProjetCentenaireApp() {
       ) : null}
 
       {mealOpen ? (
-        <MealObservation
+        <MealTunnelScreen
           draft={mealDraft}
           initialObservationActive={isInitialObservationDay(dayNumber)}
-          step={mealStep}
           submitLabel={editingMealId ? "Mettre à jour" : "Ajouter au carnet"}
           onAdd={addMealToJournal}
           onChange={setMealDraft}
           onClose={closeMealPanel}
-          onNext={goToNextMealStep}
-          onPrevious={goToPreviousMealStep}
+          onError={setError}
         />
       ) : null}
 
@@ -4255,657 +3517,5 @@ function SmokingPanel({
         </Button>
       </div>
     </ActionPanel>
-  );
-}
-
-function MealObservation({
-  draft,
-  initialObservationActive,
-  step,
-  submitLabel,
-  onAdd,
-  onChange,
-  onClose,
-  onNext,
-  onPrevious,
-}: {
-  draft: MealDraft;
-  initialObservationActive: boolean;
-  step: number;
-  submitLabel: string;
-  onAdd: () => void;
-  onChange: (draft: MealDraft) => void;
-  onClose: () => void;
-  onNext: (draftOverride?: MealDraft) => void;
-  onPrevious: () => void;
-}) {
-  const stepIds = getMealTunnelStepIds(draft.kind);
-  const stepId: MealTunnelStepId = stepIds[step] ?? stepIds[0];
-  const finding = buildImmediateFinding({
-    kind: draft.kind,
-    servingPattern: draft.servingPattern,
-    hungerBefore: draft.hungerBefore,
-    fullnessAfter: draft.fullnessAfter,
-    starterTaken: draft.starterTaken,
-    dessertTaken: draft.dessertTaken,
-    snackTrigger: draft.snackTrigger,
-    snackContext: draft.snackContext,
-    components: draft.components,
-  });
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const choose = (nextDraft: MealDraft) => {
-    onChange(nextDraft);
-    onNext(nextDraft);
-  };
-  const showNextButton =
-    stepId === "time" ||
-    stepId === "text" ||
-    stepId === "snack-text" ||
-    stepId === "starter" ||
-    stepId === "dessert" ||
-    stepId === "clarifications" ||
-    stepId === "quantity" ||
-    stepId === "reservice-detail" ||
-    stepId === "reservice-reason";
-
-  return (
-    <div className="app-fixed-panel z-30">
-      <div className="app-inner-screen mx-auto flex max-w-md flex-col">
-        <div className="mb-8 flex items-center justify-between rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 shadow-[var(--pc-shadow-level-1)]">
-          <p className={annotationClass}>
-            Observation {step + 1}/{stepIds.length}
-          </p>
-          <button className="text-sm font-semibold text-[var(--pc-color-text)]" type="button" onClick={onClose}>
-            Fermer
-          </button>
-        </div>
-
-        <div className="flex flex-1 flex-col justify-center py-3">
-          {stepId === "kind" ? (
-            <TunnelQuestion title="Type de repas">
-              <TunnelChoiceLine
-                options={activeMealKindLabels}
-                value={draft.kind}
-                onPick={(value) =>
-                  choose(sanitizeMealDraftForKind({ ...draft, kind: value }))
-                }
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "time" ? (
-            <TunnelQuestion title="À quelle heure as-tu mangé ?">
-              <div className="grid gap-4">
-                <input
-                  className="min-h-16 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-3xl font-semibold tabular-nums text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
-                  type="time"
-                  value={draft.time}
-                  onChange={(event) =>
-                    onChange({ ...draft, time: event.target.value })
-                  }
-                />
-                <div className="flex justify-end">
-                  <button
-                    className="text-xs font-semibold text-[var(--pc-color-text-muted)] underline-offset-4 hover:text-[var(--pc-color-text)] hover:underline"
-                    type="button"
-                    onClick={() => setShowDatePicker((current) => !current)}
-                  >
-                    {showDatePicker ? "Masquer la date" : "Changer la date"}
-                  </button>
-                </div>
-                {showDatePicker ? (
-                  <label className="grid gap-2 text-sm font-semibold text-[var(--pc-color-text-muted)]">
-                    Date du repas
-                    <input
-                      className={inputClass}
-                      type="date"
-                      value={draft.date}
-                      onChange={(event) =>
-                        onChange({ ...draft, date: event.target.value })
-                      }
-                    />
-                  </label>
-                ) : null}
-              </div>
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "text" || stepId === "snack-text" ? (
-            <section className="space-y-6">
-              <p className={annotationClass}>Contenu</p>
-              <h1 className="font-serif text-3xl leading-tight">
-                {stepId === "snack-text"
-                  ? "Tu as grignoté quoi ?"
-                  : "Note ce que tu as mangé, simplement."}
-              </h1>
-              <textarea
-                className="min-h-40 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-lg leading-8 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
-                value={draft.freeText}
-                onChange={(event) =>
-                  onChange({ ...draft, freeText: event.target.value })
-                }
-                placeholder="Exemple : pâtes, deux steaks, sauce au poivre"
-              />
-            </section>
-          ) : null}
-
-          {stepId === "starter" ? (
-            <TunnelQuestion title="Tu as pris une entrée ?">
-              <TunnelChoiceLine
-                options={{ non: "Non", oui: "Oui" }}
-                value={draft.starterTaken ? "oui" : "non"}
-                onPick={(value) => {
-                  if (value === "non") {
-                    choose({ ...draft, starterTaken: false, starterText: "" });
-                    return;
-                  }
-
-                  onChange({ ...draft, starterTaken: true });
-                }}
-              />
-              {draft.starterTaken ? (
-                <div className="grid gap-4">
-                  <input
-                    className={inputClass}
-                    value={draft.starterText}
-                    onChange={(event) =>
-                      onChange({ ...draft, starterText: event.target.value })
-                    }
-                    placeholder="C’était quoi ?"
-                  />
-                  <QuantityFields
-                    label="Quantité approximative"
-                    value={draft.starterQuantity}
-                    onChange={(starterQuantity) =>
-                      onChange({ ...draft, starterQuantity })
-                    }
-                  />
-                </div>
-              ) : null}
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "dessert" ? (
-            <TunnelQuestion title="Tu as pris un dessert ?">
-              <TunnelChoiceLine
-                options={{ non: "Non", oui: "Oui" }}
-                value={draft.dessertTaken ? "oui" : "non"}
-                onPick={(value) => {
-                  if (value === "non") {
-                    choose({ ...draft, dessertTaken: false, dessertText: "" });
-                    return;
-                  }
-
-                  onChange({ ...draft, dessertTaken: true });
-                }}
-              />
-              {draft.dessertTaken ? (
-                <div className="grid gap-4">
-                  <input
-                    className={inputClass}
-                    value={draft.dessertText}
-                    onChange={(event) =>
-                      onChange({ ...draft, dessertText: event.target.value })
-                    }
-                    placeholder="C’était quoi ?"
-                  />
-                  <QuantityFields
-                    label="Quantité approximative"
-                    value={draft.dessertQuantity}
-                    onChange={(dessertQuantity) =>
-                      onChange({ ...draft, dessertQuantity })
-                    }
-                  />
-                </div>
-              ) : null}
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "quantity" ? (
-            <TunnelQuestion
-              title={
-                draft.kind === "grignotage"
-                  ? "Tu en as pris quelle quantité ?"
-                  : "Tu dirais quelle quantité ?"
-              }
-            >
-              <QuantityFields
-                label="Quantité approximative"
-                value={
-                  draft.kind === "grignotage"
-                    ? draft.snackQuantity
-                    : draft.mainQuantity
-                }
-                onChange={(quantity) =>
-                  onChange(
-                    draft.kind === "grignotage"
-                      ? { ...draft, snackQuantity: quantity }
-                      : { ...draft, mainQuantity: quantity },
-                  )
-                }
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "serving" ? (
-            <TunnelQuestion title="Tu as repris ou ajouté une portion ?">
-              <TunnelChoiceLine
-                options={servingPatternLabels}
-                value={draft.servingPattern}
-                onPick={(value) =>
-                  choose({
-                    ...draft,
-                    servingPattern: value,
-                    hungerAtReservice: value === "none" ? null : draft.hungerAtReservice,
-                    reserviceReasons: value === "none" ? [] : draft.reserviceReasons,
-                    reserviceRelation: value === "none" ? null : draft.reserviceRelation,
-                    reserviceText: value === "none" ? "" : draft.reserviceText,
-                  })
-                }
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "reservice-detail" ? (
-            <TunnelQuestion title="La reprise contenait quoi ?">
-              <div className="grid gap-4">
-                <TunnelChoiceLine
-                  options={reserviceRelationLabels}
-                  value={
-                    (draft.reserviceRelation ?? "__none") as MealPassageRelation
-                  }
-                  onPick={(value) =>
-                    onChange({
-                      ...draft,
-                      reserviceRelation: value,
-                      reserviceText:
-                        value === "same" ? "" : draft.reserviceText,
-                    })
-                  }
-                />
-                {draft.reserviceRelation &&
-                draft.reserviceRelation !== "same" ? (
-                  <input
-                    className={inputClass}
-                    value={draft.reserviceText}
-                    onChange={(event) =>
-                      onChange({ ...draft, reserviceText: event.target.value })
-                    }
-                    placeholder="Exemple : juste des frites, un peu de pâtes"
-                  />
-                ) : null}
-              </div>
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "reservice-hunger" ? (
-            <TunnelQuestion title="Au moment de te resservir, tu avais encore faim ?">
-              <TunnelChoiceLine
-                options={reserviceHungerLabels}
-                value={draft.hungerAtReservice ?? "unsure"}
-                onPick={(value) =>
-                  choose({ ...draft, hungerAtReservice: value })
-                }
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "reservice-reason" ? (
-            <TunnelQuestion title="Qu’est-ce qui a joué ?">
-              <div className="grid gap-2">
-                {Object.entries(reserviceReasonLabels).map(([key, label]) => {
-                  const reason = key as ReserviceReason;
-                  const selected = draft.reserviceReasons.includes(reason);
-
-                  return (
-                    <button
-                      className={`min-h-12 rounded-[18px] border px-4 text-left text-base transition active:scale-[0.99] ${
-                        selected
-                          ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
-                          : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
-                      }`}
-                      key={key}
-                      type="button"
-                      onClick={() =>
-                        onChange({
-                          ...draft,
-                          reserviceReasons: selected
-                            ? draft.reserviceReasons.filter(
-                                (item) => item !== reason,
-                              )
-                            : [...draft.reserviceReasons, reason],
-                        })
-                      }
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "hunger" ? (
-            <TunnelQuestion title="Tu avais vraiment faim ?">
-              <TunnelChoiceLine
-                options={{
-                  yes: hungerLabels.yes,
-                  not_really: hungerLabels.not_really,
-                  no: hungerLabels.no,
-                  unsure: hungerLabels.unsure,
-                }}
-                value={draft.hungerBefore}
-                onPick={(value) => choose({ ...draft, hungerBefore: value })}
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "fullness" || stepId === "snack-fullness" ? (
-            <TunnelQuestion
-              title={
-                stepId === "snack-fullness"
-                  ? "Après, tu étais comment ?"
-                  : "Après le repas, tu étais comment ?"
-              }
-            >
-              <TunnelChoiceLine
-                options={fullnessLabels}
-                value={draft.fullnessAfter}
-                onPick={(value) =>
-                  choose({ ...draft, fullnessAfter: value, afterMeal: value })
-                }
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "snack-trigger" ? (
-            <TunnelQuestion title="Pourquoi tu as mangé ?">
-              <TunnelChoiceLine
-                options={snackTriggerLabels}
-                value={draft.snackTrigger ?? "unsure"}
-                onPick={(value) => choose({ ...draft, snackTrigger: value })}
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "snack-context" ? (
-            <TunnelQuestion title="Tu étais où ?">
-              <TunnelChoiceLine
-                options={snackContextLabels}
-                value={draft.snackContext ?? "other"}
-                onPick={(value) => choose({ ...draft, snackContext: value })}
-              />
-            </TunnelQuestion>
-          ) : null}
-
-          {stepId === "clarifications" ? (
-            <section className="space-y-4">
-              <p className={annotationClass}>Petite précision</p>
-              <h1 className="font-serif text-3xl leading-tight text-[var(--pc-color-text)]">
-                Je te demande juste ça.
-              </h1>
-              {draft.clarifications.length > 0 ? (
-                <div className="space-y-4 pt-2">
-                  {draft.clarifications.slice(0, 3).map((clarification) => (
-                    <ClarificationQuestion
-                      clarification={clarification}
-                      key={clarification.key}
-                      onChange={(nextClarification) =>
-                        onChange({
-                          ...draft,
-                          clarifications: draft.clarifications.map((item) =>
-                            item.key === nextClarification.key
-                              ? nextClarification
-                              : item,
-                          ),
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-
-          {stepId === "finding" ? (
-            <section className="space-y-6">
-              <ConstatPart title="Ce que je vois" text={finding.fact} emphasized />
-              {initialObservationActive ? (
-                <>
-                  <div className="rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
-                    <ConstatPart title="Lecture rapide" text={finding.reading} />
-                  </div>
-                  <div className="rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
-                    <ConstatPart
-                      title="Pour l’instant"
-                      text={INITIAL_OBSERVATION_MEAL_MESSAGE}
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-5 rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
-                    <ConstatPart title="Point à surveiller" text={finding.reading} />
-                    <ConstatPart title="Prochaine fois" text={finding.nextAction} />
-                  </div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--pc-color-text-muted)]">
-                    {finding.evidenceLevel}
-                  </p>
-                </>
-              )}
-            </section>
-          ) : null}
-        </div>
-
-        <div className="mt-10 flex items-center justify-between gap-3">
-          {step > 0 ? (
-            <Button onClick={onPrevious} variant="line">
-              <ChevronLeft aria-hidden="true" size={17} />
-              Retour
-            </Button>
-          ) : (
-            <span />
-          )}
-          {showNextButton ? (
-            <Button onClick={onNext}>
-              Continuer
-              <ChevronRight aria-hidden="true" size={17} />
-            </Button>
-          ) : null}
-          {stepId === "finding" ? (
-            <Button onClick={onAdd}>
-              <Archive aria-hidden="true" size={17} />
-              {submitLabel}
-            </Button>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TunnelQuestion({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-5">
-      <h1 className="font-serif text-3xl leading-tight text-[var(--pc-color-text)]">
-        {title}
-      </h1>
-      {children}
-    </section>
-  );
-}
-
-function QuantityFields({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: MealQuantityDraft;
-  onChange: (value: MealQuantityDraft) => void;
-}) {
-  return (
-    <div className="grid gap-3">
-      <p className={annotationClass}>{label}</p>
-      <div className="grid grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)] gap-2">
-        <input
-          className={inputClass}
-          inputMode="decimal"
-          value={value.amount}
-          onChange={(event) =>
-            onChange({ ...value, amount: event.target.value })
-          }
-          placeholder="1"
-        />
-        <select
-          className={inputClass}
-          value={value.unit}
-          onChange={(event) =>
-            onChange({
-              ...value,
-              unit: event.target.value as MealQuantityUnit,
-            })
-          }
-        >
-          {quickQuantityUnits.map((unit) => (
-            <option key={unit} value={unit}>
-              {quantityUnitLabels[unit]}
-            </option>
-          ))}
-        </select>
-      </div>
-      {value.unit === "other" || value.unit === "unknown" ? (
-        <input
-          className={inputClass}
-          value={value.note}
-          onChange={(event) =>
-            onChange({ ...value, note: event.target.value })
-          }
-          placeholder="Précise si tu veux"
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function TunnelChoiceLine<T extends string>({
-  value,
-  options,
-  onPick,
-}: {
-  value: T;
-  options: Partial<Record<T, string>>;
-  onPick: (value: T) => void;
-}) {
-  return (
-    <div className="grid gap-2">
-      {Object.entries(options).map(([key, label]) => {
-        const selected = key === value;
-
-        return (
-          <button
-            className={`min-h-12 cursor-pointer rounded-[18px] border px-4 text-left text-base transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pc-color-focus)_35%,transparent)] active:translate-y-px active:scale-[0.99] ${
-              selected
-                ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
-                : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
-            }`}
-            key={key}
-            type="button"
-            onClick={() => onPick(key as T)}
-          >
-            {label as string}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function ClarificationQuestion({
-  clarification,
-  onChange,
-}: {
-  clarification: MealClarification;
-  onChange: (clarification: MealClarification) => void;
-}) {
-  const choices = getClarificationChoices(clarification.key);
-
-  return (
-    <div className="rounded-[18px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-3 shadow-[var(--pc-shadow-level-1)]">
-      <p className="mb-3 text-sm font-semibold text-[var(--pc-color-text)]">
-        {clarification.question}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {choices.map((choice) => {
-          const selected = clarification.value === choice;
-
-          return (
-            <button
-              className={`min-h-9 rounded-full border px-3 text-xs font-semibold transition active:scale-[0.98] ${
-                selected
-                  ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]"
-                  : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)]"
-              }`}
-              key={choice}
-              type="button"
-              onClick={() =>
-                onChange({
-                  ...clarification,
-                  value: choice,
-                  customText:
-                    choice === "Autre" ? clarification.customText ?? "" : null,
-                })
-              }
-            >
-              {choice}
-            </button>
-          );
-        })}
-      </div>
-      {clarification.value === "Autre" ? (
-        <input
-          className={`${inputClass} mt-3`}
-          value={clarification.customText ?? ""}
-          onChange={(event) =>
-            onChange({
-              ...clarification,
-              customText: event.target.value,
-            })
-          }
-          placeholder="Précise en quelques mots"
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function ConstatPart({
-  title,
-  text,
-  emphasized = false,
-}: {
-  title: string;
-  text: string;
-  emphasized?: boolean;
-}) {
-  return (
-    <div>
-      <p className={annotationClass}>{title}</p>
-      <p
-        className={
-          emphasized
-            ? "mt-2 font-serif text-3xl leading-tight text-[var(--pc-color-text)]"
-            : "mt-2 leading-7 text-[var(--pc-color-text)]"
-        }
-      >
-        {text}
-      </p>
-    </div>
   );
 }
