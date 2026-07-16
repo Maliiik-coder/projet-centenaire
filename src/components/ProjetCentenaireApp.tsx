@@ -96,6 +96,7 @@ import {
   DateWheelPicker,
   ErrorState,
   FormField,
+  HoldChoiceCard,
   IconButton as UIIconButton,
   Surface,
   TextInput as UITextInput,
@@ -256,7 +257,6 @@ const behaviorFrequencyChoices: Array<{
   value: BehaviorFrequency;
 }> = [
   { label: "Jamais", value: 0 },
-  { label: "Rarement", value: 1 },
   { label: "Parfois", value: 2 },
   { label: "Souvent", value: 3 },
   { label: "Je ne sais pas encore", value: null },
@@ -3405,7 +3405,6 @@ function Onboarding({
       {behaviorQuestion ? (
         <BehaviorFrequencyQuestion
           answer={draft.behaviorAnswers[behaviorQuestion.key]}
-          name={`behavior-${behaviorQuestion.key}`}
           title={behaviorQuestion.title}
           onSelect={(answer) => {
             const nextDraft = {
@@ -3512,15 +3511,13 @@ function Onboarding({
           description="Le tabac sera suivi séparément de l’alimentation."
           title="Tu fumes actuellement ?"
         >
-          <div className="grid gap-2">
+          <div aria-label="Statut tabac" className="grid gap-2" role="radiogroup">
             {Object.entries(onboardingSmokingLabels).map(([key, label]) => (
-              <ChoiceCard
+              <HoldChoiceCard
                 checked={draft.smokingStatus === key}
                 key={key}
                 label={label}
-                name="smoking-status"
-                value={key}
-                onChange={() => {
+                onConfirm={() => {
                   const nextDraft = {
                     ...draft,
                     smokingStatus: key as SmokingStatus,
@@ -3542,15 +3539,13 @@ function Onboarding({
           description="Cette réponse sert seulement à adapter le suivi tabac."
           title="Qu’aimerais-tu faire concernant le tabac ?"
         >
-          <div className="grid gap-2">
+          <div aria-label="Objectif tabac" className="grid gap-2" role="radiogroup">
             {Object.entries(onboardingSmokingGoalLabels).map(([key, label]) => (
-              <ChoiceCard
+              <HoldChoiceCard
                 checked={draft.smokingGoal === key}
                 key={key}
                 label={label}
-                name="smoking-goal"
-                value={key}
-                onChange={() => {
+                onConfirm={() => {
                   const nextDraft = {
                     ...draft,
                     smokingGoal: key as SmokingGoal,
@@ -3628,15 +3623,15 @@ const behaviorQuestions: Record<
 > = {
   7: {
     key: "rhythm",
-    title: "Sur une semaine ordinaire, tes repas sont-ils souvent très espacés ou décalés ?",
+    title: "Sur une semaine habituelle, t’arrive-t-il de sauter un repas ou de manger beaucoup plus tard que prévu ?",
   },
   8: {
     key: "hunger",
-    title: "Quand tu commences à manger, arrives-tu avec une faim difficile à calmer ?",
+    title: "T’arrive-t-il de commencer un repas avec une faim difficile à calmer ?",
   },
   9: {
     key: "satietyControl",
-    title: "Une fois lancé, as-tu parfois du mal à t’arrêter même quand tu n’as plus vraiment faim ?",
+    title: "T’arrive-t-il de continuer à manger alors que tu n’as plus vraiment faim ?",
   },
   10: {
     key: "emotional",
@@ -3644,40 +3639,36 @@ const behaviorQuestions: Record<
   },
   11: {
     key: "externalCues",
-    title: "La vue, l’odeur ou la présence d’un aliment te pousse-t-elle parfois à manger sans faim ?",
+    title: "La vue, l’odeur ou la présence d’un aliment te donnent-elles envie de manger sans faim ?",
   },
   12: {
     key: "habitContext",
-    title: "Manges-tu parfois par habitude, parce que c’est l’heure ou parce que les autres mangent ?",
+    title: "T’arrive-t-il de manger uniquement parce que c’est l’heure ou parce que les autres mangent ?",
   },
   13: {
     key: "restrictionRebound",
-    title: "Après avoir essayé de te contrôler très fortement, t’arrive-t-il de manger beaucoup plus ensuite ?",
+    title: "Après t’être beaucoup privé, t’arrive-t-il de manger nettement plus ensuite ?",
   },
 };
 
 function BehaviorFrequencyQuestion({
   answer,
-  name,
   onSelect,
   title,
 }: {
   answer: BehaviorFrequency | undefined;
-  name: string;
   onSelect: (answer: BehaviorFrequency) => void;
   title: string;
 }) {
   return (
     <OnboardingQuestion title={title}>
-      <div className="grid gap-2">
+      <div aria-label={title} className="grid gap-2" role="radiogroup">
         {behaviorFrequencyChoices.map((choice) => (
-          <ChoiceCard
+          <HoldChoiceCard
             checked={answer === choice.value}
             key={choice.value ?? "unknown"}
             label={choice.label}
-            name={name}
-            value={choice.value === null ? "unknown" : String(choice.value)}
-            onChange={() => onSelect(choice.value)}
+            onConfirm={() => onSelect(choice.value)}
           />
         ))}
       </div>
@@ -3794,7 +3785,6 @@ function BehaviorProfileEditor({
       {question ? (
         <BehaviorFrequencyQuestion
           answer={draft.behaviorAnswers[question.key]}
-          name={`profile-behavior-${question.key}`}
           title={question.title}
           onSelect={(answer) => {
             setDraft((current) => ({

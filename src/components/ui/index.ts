@@ -10,6 +10,11 @@ export { ErrorState } from "@/components/ui/ErrorState";
 export type { ErrorStateProps } from "@/components/ui/ErrorState";
 export { FormField } from "@/components/ui/FormField";
 export type { FormFieldProps } from "@/components/ui/FormField";
+export {
+  DEFAULT_HOLD_DURATION_MS,
+  HoldChoiceCard,
+} from "@/components/ui/HoldChoiceCard";
+export type { HoldChoiceCardProps } from "@/components/ui/HoldChoiceCard";
 export { IconButton } from "@/components/ui/IconButton";
 export type { IconButtonProps } from "@/components/ui/IconButton";
 export { LoadingState } from "@/components/ui/LoadingState";

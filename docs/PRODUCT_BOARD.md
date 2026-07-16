@@ -341,9 +341,12 @@ Décisions :
 - tabac conservé dans une branche indépendante du portrait alimentaire ;
 - mini-test de Fagerström et SCOFF exclus de cette version ;
 - portrait initial modifiable depuis Profil sans altérer les notes du carnet ;
-- migration locale `20260716090000_initial_behavior_assessment.sql` ajoutée,
-  mais non déclarée appliquée à distance tant que le contrôle Supabase n'a pas
-  été rejoué.
+- migration `20260716090000_initial_behavior_assessment.sql` appliquée à la base
+  distante le 16 juillet 2026, avec historique local/distant aligné ;
+- échelle comportementale simplifiée à quatre réponses : Jamais, Parfois,
+  Souvent, Je ne sais pas encore ;
+- questions reformulées sans répéter « parfois » dans leur intitulé ;
+- validation des choix à avancement automatique par appui maintenu de 500 ms.
 
 ## 8. Backlog
 

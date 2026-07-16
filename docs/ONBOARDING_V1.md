@@ -194,16 +194,21 @@ L'application n'affiche pas de délai automatique ni de rythme de perte de poids
 Les questions C1 à C7 utilisent la même échelle :
 
 - Jamais ;
-- Rarement ;
 - Parfois ;
 - Souvent ;
 - Je ne sais pas encore.
+
+Chaque réponse est validée par un appui maintenu de 500 ms. La tuile se remplit
+progressivement en bleu et revient à son état initial si l'utilisateur relâche
+avant la fin. Cette confirmation s'applique uniquement aux choix qui font
+avancer immédiatement le parcours.
 
 #### C1 - Rythme
 
 Question :
 
-> Sur une semaine ordinaire, tes repas sont-ils souvent très espacés ou décalés ?
+> Sur une semaine habituelle, t'arrive-t-il de sauter un repas ou de manger
+> beaucoup plus tard que prévu ?
 
 Axe : `rhythm`.
 
@@ -211,7 +216,7 @@ Axe : `rhythm`.
 
 Question :
 
-> Quand tu commences à manger, arrives-tu avec une faim difficile à calmer ?
+> T'arrive-t-il de commencer un repas avec une faim difficile à calmer ?
 
 Axe : `hunger`.
 
@@ -219,8 +224,7 @@ Axe : `hunger`.
 
 Question :
 
-> Une fois lancé, as-tu parfois du mal à t'arrêter même quand tu n'as plus
-> vraiment faim ?
+> T'arrive-t-il de continuer à manger alors que tu n'as plus vraiment faim ?
 
 Axe : `satiety_control`.
 
@@ -237,7 +241,7 @@ Axe : `emotional`.
 
 Question :
 
-> La vue, l'odeur ou la présence d'un aliment te pousse-t-elle parfois à manger
+> La vue, l'odeur ou la présence d'un aliment te donnent-elles envie de manger
 > sans faim ?
 
 Axe : `external_cues`.
@@ -246,7 +250,7 @@ Axe : `external_cues`.
 
 Question :
 
-> Manges-tu parfois par habitude, parce que c'est l'heure ou parce que les
+> T'arrive-t-il de manger uniquement parce que c'est l'heure ou parce que les
 > autres mangent ?
 
 Axe : `habit_context`.
@@ -255,8 +259,7 @@ Axe : `habit_context`.
 
 Question :
 
-> Après avoir essayé de te contrôler très fortement, t'arrive-t-il de manger
-> beaucoup plus ensuite ?
+> Après t'être beaucoup privé, t'arrive-t-il de manger nettement plus ensuite ?
 
 Axe : `restriction_rebound`.
 
@@ -383,13 +386,14 @@ conseil correctif prématuré.
 | Réponse | Valeur interne |
 | --- | ---: |
 | Jamais | 0 |
-| Rarement | 1 |
 | Parfois | 2 |
 | Souvent | 3 |
 | Je ne sais pas encore | null |
 
 Ces valeurs servent uniquement à hiérarchiser les hypothèses. Elles ne forment
-pas un score clinique et ne sont jamais affichées.
+pas un score clinique et ne sont jamais affichées. La valeur historique `1`
+reste lisible pour les profils déjà enregistrés, mais n'est plus proposée dans
+la nouvelle interface.
 
 ### Axes calculés
 
