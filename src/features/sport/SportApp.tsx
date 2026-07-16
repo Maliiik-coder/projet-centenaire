@@ -1446,10 +1446,13 @@ function SportActivityChooser() {
       <button
         aria-expanded={open}
         aria-label="Choisir un sport"
-        className="pc-focus-ring ml-auto flex h-11 w-11 items-center justify-center rounded-full border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)]"
+        className="pc-focus-ring flex min-h-12 w-full items-center justify-between gap-3 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-surface)] px-3 py-2 text-left"
         type="button"
         onClick={() => setOpen((current) => !current)}
       >
+        <span className="min-w-0 truncate font-semibold">
+          Renforcement musculaire
+        </span>
         <ChevronDown
           aria-hidden="true"
           className={cx(
