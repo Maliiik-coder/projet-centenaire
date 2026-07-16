@@ -133,6 +133,7 @@ const zoneLabels: Record<BodyZone, string> = {
 };
 
 const durationChoices = [8, 15, 20, 30, 45];
+const dashboardDurationChoices = [15, 20, 30, 45, 60];
 const activityChoices: SportActivity[] = ["strength", "walk_run", "swim"];
 const zoneChoices: BodyZone[] = [
   "shoulders",
@@ -179,6 +180,15 @@ function formatSessionDate(isoDate: string): string {
   });
 }
 
+function isSameLocalDay(isoDate: string, reference: Date): boolean {
+  const date = new Date(isoDate);
+  return (
+    date.getFullYear() === reference.getFullYear() &&
+    date.getMonth() === reference.getMonth() &&
+    date.getDate() === reference.getDate()
+  );
+}
+
 function capabilityLevelFor(
   data: SportLocalData,
   dimension: CapabilityDimension,
@@ -196,6 +206,8 @@ export function SportApp() {
   );
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedDuration, setSelectedDuration] = useState(15);
+  const [dashboardDurationSelected, setDashboardDurationSelected] =
+    useState(false);
   const [activeSession, setActiveSession] =
     useState<GeneratedWorkoutSession | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -286,6 +298,7 @@ export function SportApp() {
     const nextData = createSportDataFromDraft(safeDraft, nowIso());
     persist(nextData);
     setSelectedDuration(nextData.profile?.usualDurationMinutes ?? 15);
+    setDashboardDurationSelected(false);
     setView("home");
   }
 
@@ -309,6 +322,7 @@ export function SportApp() {
         nowIso(),
       ),
     });
+    setDashboardDurationSelected(false);
     setView("home");
   }
 
@@ -345,6 +359,11 @@ export function SportApp() {
     setActiveSession(result.session);
     persist(saveProposedSession(data, result.session));
     setView("preview");
+  }
+
+  function selectDashboardDuration(duration: number): void {
+    setSelectedDuration(duration);
+    setDashboardDurationSelected(true);
   }
 
   function startActiveSession(): void {
@@ -454,13 +473,13 @@ export function SportApp() {
           <HomeView
             data={data}
             duration={selectedDuration}
+            durationSelected={dashboardDurationSelected}
             generationError={generationError}
             hasAssessment={hasCompletedSportAssessment(data.capabilities)}
-            onDurationChange={setSelectedDuration}
+            onDurationChange={selectDashboardDuration}
             onAssessment={() => setView("assessment")}
             onGenerate={generateSession}
             onHistory={() => setView("history")}
-            onSettings={() => setView("settings")}
           />
         ) : null}
         {view === "preview" && activeSession ? (
@@ -1199,23 +1218,23 @@ function TimerPanel({ label, value }: { label: string; value: number }) {
 function HomeView({
   data,
   duration,
+  durationSelected,
   generationError,
   hasAssessment,
   onAssessment,
   onDurationChange,
   onGenerate,
   onHistory,
-  onSettings,
 }: {
   data: SportLocalData;
   duration: number;
+  durationSelected: boolean;
   generationError: string | null;
   hasAssessment: boolean;
   onAssessment: () => void;
   onDurationChange: (duration: number) => void;
   onGenerate: () => void;
   onHistory: () => void;
-  onSettings: () => void;
 }) {
   const profile = data.profile;
   if (!profile) {
@@ -1224,10 +1243,8 @@ function HomeView({
 
   const completedSessions = data.sessions.filter(isDoneSession);
   const recentCompletedSessions = completedSessions.slice(0, 3);
-  const totalPerformedSeconds = completedSessions.reduce(
-    (total, session) =>
-      total + (session.performedDurationSeconds ?? session.plannedDurationSeconds),
-    0,
+  const hasDoneToday = completedSessions.some((session) =>
+    isSameLocalDay(session.scheduledAt, new Date()),
   );
 
   return (
@@ -1245,22 +1262,24 @@ function HomeView({
         </div>
         <SportActivityChooser />
       </Surface>
-      <Surface className="grid gap-3 p-4">
-        <div>
-          <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
-            {hasAssessment ? "Seance du jour" : "Premiere seance"}
-          </h3>
-        </div>
-        <Button fullWidth onClick={hasAssessment ? onGenerate : onAssessment}>
-          {hasAssessment ? "Preparer ma seance" : "Commencer"}
-        </Button>
-      </Surface>
+      {!hasAssessment ? (
+        <Surface className="grid gap-3 p-4">
+          <div>
+            <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+              Premiere seance
+            </h3>
+          </div>
+          <Button fullWidth onClick={onAssessment}>
+            Commencer
+          </Button>
+        </Surface>
+      ) : null}
       <Surface className="grid gap-3 p-4">
         <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
-          {"Duree aujourd'hui"}
+          Duree de ma seance
         </h3>
         <div className="grid grid-cols-5 gap-2">
-          {durationChoices.map((choice) => (
+          {dashboardDurationChoices.map((choice) => (
             <button
               className={cx(
                 "pc-focus-ring min-h-11 rounded-[var(--pc-radius-control)] border px-1 text-sm font-semibold",
@@ -1272,13 +1291,15 @@ function HomeView({
               type="button"
               onClick={() => onDurationChange(choice)}
             >
-              {choice === 8 ? "8" : choice}
+              {choice === 60 ? "1h" : choice}
             </button>
           ))}
         </div>
-        <Button fullWidth variant="secondary" onClick={onGenerate}>
-          {"Generer l'aperçu renforcement musculaire"}
-        </Button>
+        {hasAssessment && durationSelected ? (
+          <Button fullWidth onClick={onGenerate}>
+            Commencer la seance
+          </Button>
+        ) : null}
         {generationError ? (
           <p className="rounded-[var(--pc-radius-card)] bg-[var(--pc-color-warning-soft)] p-3 text-sm text-[var(--pc-color-warning)]">
             {generationError}
@@ -1287,16 +1308,8 @@ function HomeView({
       </Surface>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <DashboardMetric label="Seances faites" value={completedSessions.length} />
-        <DashboardMetric
-          label="Temps effectif"
-          value={totalPerformedSeconds > 0 ? formatMinutes(totalPerformedSeconds) : "0 min"}
-        />
-        <Surface className="p-4">
-          <p className="text-sm font-semibold text-[var(--pc-color-text-muted)]">
-            Retours
-          </p>
-          <p className="mt-2 text-lg font-semibold">{data.feedback.length}</p>
-        </Surface>
+        <DashboardMetric label="Aujourd'hui" value={hasDoneToday ? "Fait" : "Pas fait"} />
+        <DashboardMetric label="Distance parcourue" value="A venir" />
       </div>
       <StrengthProgressOverview
         data={data}
@@ -1348,14 +1361,6 @@ function HomeView({
           </Surface>
         )}
       </section>
-      <div className="grid grid-cols-2 gap-3">
-        <Button variant="secondary" onClick={hasAssessment ? onGenerate : onAssessment}>
-          {hasAssessment ? "Seance du jour" : "Evaluation"}
-        </Button>
-        <Button variant="tertiary" onClick={onSettings}>
-          Profil sportif
-        </Button>
-      </div>
     </section>
   );
 }
@@ -1402,7 +1407,7 @@ function StrengthProgressOverview({
             {"Vue d'ensemble des axes calibres par l'evaluation."}
           </p>
         </div>
-        <span className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] px-3 py-2 text-sm font-semibold text-[var(--pc-color-primary)]">
+        <span className="min-w-[5.5rem] whitespace-nowrap rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] px-3 py-2 text-center text-xs font-semibold text-[var(--pc-color-primary)]">
           {hasAssessment ? `${average}%` : "A evaluer"}
         </span>
       </div>
@@ -1419,7 +1424,7 @@ function StrengthProgressOverview({
             <div className="grid gap-2" key={item.dimension}>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold">{item.label}</p>
-                <p className="text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
+                <p className="whitespace-nowrap text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
                   {hasAssessment && level !== null
                     ? `Niveau ${level + 1}/5`
                     : "A evaluer"}
