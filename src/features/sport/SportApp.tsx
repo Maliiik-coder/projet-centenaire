@@ -90,6 +90,7 @@ import {
 } from "@/services/sport/sportAssessmentService";
 
 type SportView =
+  | "access"
   | "home"
   | "onboarding"
   | "assessment"
@@ -214,7 +215,7 @@ export function SportApp() {
       const stored = loadSportLocalData();
       setData(stored);
       setSelectedDuration(stored.profile?.usualDurationMinutes ?? 15);
-      setView(stored.profile?.questionnaireCompleted ? "home" : "onboarding");
+      setView(stored.profile?.questionnaireCompleted ? "home" : "access");
       setLoaded(true);
     }, 0);
 
@@ -288,6 +289,11 @@ export function SportApp() {
     setView("home");
   }
 
+  function openSportProgram(): void {
+    setOnboardingStep(0);
+    setView(data.profile?.questionnaireCompleted ? "home" : "onboarding");
+  }
+
   function completeAssessment(results: SportAssessmentLevelResults): void {
     const profile = data.profile;
     if (!profile) {
@@ -309,7 +315,7 @@ export function SportApp() {
   function generateSession(): void {
     const profile = data.profile;
     if (!profile) {
-      setView("onboarding");
+      setView("access");
       return;
     }
 
@@ -425,6 +431,9 @@ export function SportApp() {
     <main className="pc-screen">
       <div className="pc-screen-inner mx-auto flex w-full max-w-[var(--pc-content-max-width)] flex-col gap-5">
         <SportHeader view={view} onNavigate={setView} />
+        {view === "access" ? (
+          <SportAccessView onOpen={openSportProgram} />
+        ) : null}
         {view === "onboarding" ? (
           <OnboardingView
             draft={draft}
@@ -519,7 +528,7 @@ export function SportApp() {
                 persist(empty);
                 setDraft(createDefaultSportOnboardingDraft());
                 setOnboardingStep(0);
-                setView("onboarding");
+                setView("access");
               }
             }}
           />
@@ -553,7 +562,7 @@ function SportHeader({
           Sport
         </h1>
       </div>
-      {view !== "onboarding" ? (
+      {view !== "access" && view !== "onboarding" ? (
         <div className="flex shrink-0 gap-2">
           <Button
             aria-label="Historique Sport"
@@ -574,6 +583,48 @@ function SportHeader({
         </div>
       ) : null}
     </header>
+  );
+}
+
+function SportAccessView({ onOpen }: { onOpen: () => void }) {
+  return (
+    <section className="flex flex-1 flex-col justify-center gap-4">
+      <Surface className="grid gap-5 p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
+            <Dumbbell aria-hidden="true" size={24} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[length:var(--pc-font-size-meta)] font-semibold uppercase text-[var(--pc-color-text-muted)]">
+              Acces Sport
+            </p>
+            <h2 className="mt-1 text-[length:var(--pc-font-size-section-title)] leading-8 font-semibold text-[var(--pc-color-text)]">
+              Service Sport payant
+            </h2>
+          </div>
+        </div>
+
+        <div className="grid gap-3">
+          <div className="rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface-muted)] p-4">
+            <p className="text-[length:var(--pc-font-size-meta)] font-semibold uppercase text-[var(--pc-color-text-muted)]">
+              Tarif prevu
+            </p>
+            <p className="mt-1 text-4xl font-bold leading-none text-[var(--pc-color-text)]">
+              5 euros
+            </p>
+          </div>
+          <p className="text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text-muted)]">
+            La page de paiement sera ajoutee avant son ouverture definitive.
+            Pour cette version de travail, tu peux ouvrir le parcours de
+            creation du profil sportif.
+          </p>
+        </div>
+
+        <Button className="min-h-12" onClick={onOpen}>
+          Acceder a mon programme sportif
+        </Button>
+      </Surface>
+    </section>
   );
 }
 
