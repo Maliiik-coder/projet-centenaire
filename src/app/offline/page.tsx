@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { WifiOff } from "lucide-react";
-import { buttonClassName, TopBar } from "@/components/ui";
+import { BackButton, buttonClassName, TopBar } from "@/components/ui";
 
 export default function OfflinePage() {
   return (
@@ -8,6 +8,7 @@ export default function OfflinePage() {
       <div className="pc-screen-inner flex flex-col">
         <TopBar label="Hors connexion" />
         <section className="flex flex-1 flex-col items-start justify-center gap-5 py-10">
+          <BackButton label="Retour à la page précédente" />
           <span
             aria-hidden="true"
             className="flex h-12 w-12 items-center justify-center rounded-[var(--pc-radius-card)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]"

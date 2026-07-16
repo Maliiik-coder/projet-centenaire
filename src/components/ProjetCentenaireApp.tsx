@@ -60,6 +60,9 @@ import {
 } from "@/lib/foodDetection";
 import { shouldShowActiveMission } from "@/lib/mission";
 import {
+  APP_RESUME_PARAM,
+  APP_RESUME_TAB_PARAM,
+  appResumePath,
   clearLocalEntryMode,
   isLocalEntryModeSelected,
   onboardingEntryPath,
@@ -1703,6 +1706,9 @@ export function ProjetCentenaireApp() {
   const onboardingEntryRequested = Boolean(
     entrySearchParams?.has(ONBOARDING_START_PARAM),
   );
+  const appResumeRequested = Boolean(
+    data?.profile && entrySearchParams?.has(APP_RESUME_PARAM),
+  );
 
   useEffect(() => {
     if (!data?.profile || typeof window === "undefined") return;
@@ -1719,7 +1725,32 @@ export function ProjetCentenaireApp() {
     return () => window.clearTimeout(cleanupTimer);
   }, [data?.profile]);
 
-  if (!onboardingEntryRequested && !launchAcknowledged) {
+  useEffect(() => {
+    if (!data?.profile || typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(APP_RESUME_PARAM)) return;
+
+    const cleanupTimer = window.setTimeout(() => {
+      const requestedTab = url.searchParams.get(APP_RESUME_TAB_PARAM);
+      if (
+        requestedTab === "today" ||
+        requestedTab === "journal" ||
+        requestedTab === "insights" ||
+        requestedTab === "profile"
+      ) {
+        setActiveTab(requestedTab);
+      }
+      url.searchParams.delete(APP_RESUME_PARAM);
+      url.searchParams.delete(APP_RESUME_TAB_PARAM);
+      setLaunchAcknowledged(true);
+      window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    }, 0);
+
+    return () => window.clearTimeout(cleanupTimer);
+  }, [data?.profile]);
+
+  if (!onboardingEntryRequested && !appResumeRequested && !launchAcknowledged) {
     return (
       <LaunchScreen
         dataReady={Boolean(data)}
@@ -3364,6 +3395,11 @@ export function ProjetCentenaireApp() {
         items={tabs}
         onChange={(nextTab) => {
           if (nextTab === "sport") {
+            window.history.replaceState(
+              null,
+              "",
+              appResumePath(activeTab),
+            );
             window.location.assign("/sport");
             return;
           }

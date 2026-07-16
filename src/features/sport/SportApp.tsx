@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image, { type StaticImageData } from "next/image";
-import Link from "next/link";
 import {
-  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   Dumbbell,
@@ -65,6 +63,7 @@ import type {
 } from "@/lib/sport/types";
 import { SPORT_LOCAL_USER_ID } from "@/lib/sport/config";
 import {
+  BackButton,
   Button,
   ChoiceCard,
   LoadingState,
@@ -548,13 +547,7 @@ function SportHeader({
   return (
     <header className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <Link
-          className="pc-focus-ring mb-2 inline-flex items-center gap-2 rounded-[var(--pc-radius-control)] text-[length:var(--pc-font-size-secondary)] font-semibold text-[var(--pc-color-primary)]"
-          href="/"
-        >
-          <ArrowLeft aria-hidden="true" size={18} />
-          Accueil
-        </Link>
+        <BackButton className="mb-2" label="Retour à la page précédente" />
         <p className="text-[length:var(--pc-font-size-meta)] font-semibold uppercase text-[var(--pc-color-text-muted)]">
           Onglet isole
         </p>

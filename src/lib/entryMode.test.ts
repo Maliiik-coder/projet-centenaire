@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appResumePath,
   clearLocalEntryMode,
   isLocalEntryModeSelected,
   LOCAL_ENTRY_MODE_KEY,
@@ -33,5 +34,10 @@ describe("entryMode", () => {
     expect(onboardingEntryPath(true)).toBe(
       "/?onboarding-preview=1&onboarding-start=1",
     );
+  });
+
+  it("construit une reprise explicite du carnet", () => {
+    expect(appResumePath()).toBe("/?app-resume=1");
+    expect(appResumePath("journal")).toBe("/?app-resume=1&tab=journal");
   });
 });

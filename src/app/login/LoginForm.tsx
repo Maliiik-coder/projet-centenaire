@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CheckCircle2, ChevronLeft } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import {
+  BackButton,
   Button,
   ErrorState,
   FormField,
@@ -133,13 +133,7 @@ export function LoginForm() {
 
         <section className="flex flex-1 flex-col justify-center gap-6 py-8 sm:py-12">
           <div className="space-y-4">
-            <Link
-              className="pc-focus-ring inline-flex min-h-12 items-center gap-2 rounded-[var(--pc-radius-compact)] text-[length:var(--pc-font-size-secondary)] leading-5 font-semibold text-[var(--pc-color-primary)]"
-              href="/"
-            >
-              <ChevronLeft aria-hidden="true" size={17} />
-              Retour
-            </Link>
+            <BackButton fallbackHref="/" />
             <h1 className="max-w-sm text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
               Ouvrir Haru.
             </h1>

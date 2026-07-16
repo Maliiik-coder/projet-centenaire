@@ -76,6 +76,9 @@ Commit de référence :
 - Google OAuth doit toujours proposer le choix du compte avec
   `prompt=select_account`.
 - Une déconnexion réussie ramène explicitement à l'écran de connexion.
+- Les pages autonomes utilisent une flèche de retour ronde et reviennent à la
+  page précédente du même domaine. Un accès direct retombe sur une reprise du
+  carnet sans rejouer l'écran de garde complet.
 - Les types de repas doivent être : Petit déjeuner, Déjeuner, Dîner, Grignotage.
 - “Collation” et “Autre” ne doivent plus être proposés comme choix actifs.
 - Les anciennes données “Collation” restent lisibles et sont traitées comme “Grignotage”.

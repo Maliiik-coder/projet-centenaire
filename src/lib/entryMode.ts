@@ -1,5 +1,7 @@
 export const LOCAL_ENTRY_MODE_KEY = "haru-local-entry-mode-v1";
 export const ONBOARDING_START_PARAM = "onboarding-start";
+export const APP_RESUME_PARAM = "app-resume";
+export const APP_RESUME_TAB_PARAM = "tab";
 
 type ReadableStorage = Pick<Storage, "getItem">;
 type WritableStorage = Pick<Storage, "removeItem" | "setItem">;
@@ -52,5 +54,13 @@ export function onboardingEntryPath(includeDevelopmentPreview = false): string {
     params.set("onboarding-preview", "1");
   }
   params.set(ONBOARDING_START_PARAM, "1");
+  return `/?${params.toString()}`;
+}
+
+export function appResumePath(tab?: string): string {
+  const params = new URLSearchParams({ [APP_RESUME_PARAM]: "1" });
+  if (tab) {
+    params.set(APP_RESUME_TAB_PARAM, tab);
+  }
   return `/?${params.toString()}`;
 }

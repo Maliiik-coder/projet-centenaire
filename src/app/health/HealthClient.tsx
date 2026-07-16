@@ -1,8 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import Link from "next/link";
 import { LogoHorizontal } from "@/components/Logo";
+import { BackButton } from "@/components/ui";
 
 export type HealthStatus = {
   version: string;
@@ -64,6 +64,7 @@ export function HealthClient({ status }: { status: HealthStatus }) {
   return (
     <main className="app-screen">
       <div className="app-inner-screen mx-auto flex max-w-md flex-col gap-8">
+        <BackButton label="Retour au carnet" />
         <header className="flex items-center justify-between gap-4">
           <LogoHorizontal
             className="h-9 w-auto max-w-[50vw] shrink-0"
@@ -102,12 +103,6 @@ export function HealthClient({ status }: { status: HealthStatus }) {
           </div>
         </section>
 
-        <Link
-          className="mt-auto inline-flex min-h-12 items-center justify-center rounded-full border border-[#D7CEC0] bg-[#FAF8F1] px-5 text-sm font-semibold text-[#171512] shadow-[0_8px_18px_rgba(23,21,18,0.04)]"
-          href="/"
-        >
-          Retour au carnet
-        </Link>
       </div>
     </main>
   );

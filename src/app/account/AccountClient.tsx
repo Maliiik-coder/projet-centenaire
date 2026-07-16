@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { ChevronLeft, Download, LogOut, Trash2 } from "lucide-react";
+import { Download, LogOut, Trash2 } from "lucide-react";
 import {
+  BackButton,
   Button,
   ErrorState,
   FormField,
@@ -123,13 +123,7 @@ export function AccountClient({
         <TopBar label="Compte" />
 
         <div className="space-y-5 py-6 sm:py-8">
-          <Link
-            className="pc-focus-ring inline-flex min-h-12 items-center gap-2 rounded-[var(--pc-radius-compact)] text-[length:var(--pc-font-size-secondary)] leading-5 font-semibold text-[var(--pc-color-primary)]"
-            href="/"
-          >
-            <ChevronLeft aria-hidden="true" size={17} />
-            Retour au carnet
-          </Link>
+          <BackButton label="Retour au carnet" />
 
           <Surface as="section" className="p-5">
             <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-text-muted)]">

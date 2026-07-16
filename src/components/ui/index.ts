@@ -1,5 +1,7 @@
 export { Button, buttonClassName } from "@/components/ui/Button";
 export type { ButtonProps, ButtonVariant } from "@/components/ui/Button";
+export { BackButton, canUseInAppHistory } from "@/components/ui/BackButton";
+export type { BackButtonProps } from "@/components/ui/BackButton";
 export { ChoiceCard } from "@/components/ui/ChoiceCard";
 export type { ChoiceCardProps } from "@/components/ui/ChoiceCard";
 export { DateWheelPicker } from "@/components/ui/DateWheelPicker";
