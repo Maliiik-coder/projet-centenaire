@@ -23,7 +23,7 @@ Principes :
 - alimentation, tabac, mouvement et santé globale à terme ;
 - l’application doit rester simple à renseigner.
 
-## 2. Statut actuel — socle V0.7.1, refonte mobile en cours
+## 2. Statut actuel — socle V0.7.1, refonte mobile et métier en cours
 
 Le socle technique de Haru reste la V0.7.1. L'interface et plusieurs parcours
 fonctionnels sont désormais en refonte progressive, écran par écran.
@@ -46,8 +46,9 @@ fonctionnels sont désormais en refonte progressive, écran par écran.
 - pages Aujourd'hui et Carnet validées dans leur structure actuelle ;
 - page Aujourd'hui restructurée autour d'une saisie de poids intégrée et d'un
   repère neutre pendant les sept premiers jours ;
-- tunnel repas V2 structuré localement, sans affichage de calories ni connexion
-  Ciqual à ce stade ;
+- tunnel repas V2 structuré et livré, sans affichage de calories ;
+- connexion Ciqual 2025, contrat d'analyse Repas et sécurisation des portions
+  intégrés et validés localement avant publication ;
 - Carnet réorganisé en lectures Jours et Semaines ; l'onglet Constats autonome
   est retiré de la navigation et remplacé par Recettes ;
 - route `/recipes` et frontière `src/features/recipes/` créées avec un écran
@@ -55,6 +56,15 @@ fonctionnels sont désormais en refonte progressive, écran par écran.
 - module Sport accessible par une cinquième entrée de navigation.
 - module Sport fonctionnel mais encore à enrichir et à peaufiner ;
 - Profil identifié comme prochaine refonte fonctionnelle et visuelle complète.
+
+État Git de référence au 20 juillet 2026 :
+
+- production et branches distantes : `d6ac8e6` — `Refine meal autocomplete
+  selection flow` ;
+- checkout local : lot consolidé Repas/Ciqual, Profil, contrat Tabac, maquette
+  Admin et nouvelle identité Haru validé avant commit ;
+- Sport, Recettes et abonnements restent sous pilotage produit direct et ne
+  doivent pas être modifiés par un chantier transversal sans demande explicite.
 
 Commit de référence :
 - `a6641db` — `Prepare V0.6.1 production fixes`
@@ -67,16 +77,20 @@ Commit de référence :
 
 - Nom public définitif : Haru. « Projet Centenaire » reste le nom historique du projet et du dépôt.
 - Kit de marque officiel :
-  - `public/brand/haru-wordmark-7px.png` : mot-symbole horizontal pour les en-têtes ;
-  - `public/brand/haru-mark-7px.png` : monogramme pour l’icône PWA et mobile ;
-  - `public/brand/haru-full-7px.png` : signature « Un jour à la fois. » pour le démarrage et l’accueil de l’onboarding ;
-  - les trois masters sont transparents et recadrés au contenu utile.
+  - `public/brand/haru-wordmark-heart-v2.png` : mot-symbole rond et lié, avec cœur bleu en signature devant le H ;
+  - `public/brand/haru-mark-heart-v2.png` : monogramme cœur + H pour l’icône PWA, le mobile et les chargements ;
+  - la signature « Un jour à la fois. » est composée dans l’interface sous le mot-symbole ;
+  - les deux masters sont transparents et recadrés à 18 px du contenu utile ;
+  - les icônes installables V4 utilisent le nouveau monogramme et une zone de sécurité dédiée à la variante maskable.
 - Direction artistique : interface mobile claire, calme et humaine, pensée comme un compagnon du quotidien.
 - Structure visuelle : succession de fenêtres mobiles plein format, avec grands espaces, surfaces blanches, progression courte et action principale basse.
 - Palette active : fond blanc ou bleu brume très clair, texte noir et actions allant du bleu pastel au bleu profond.
 - Typographie d'interface : Nunito Sans variable, choisie pour une présence plus ronde, mobile et chaleureuse ; le futur mot-symbole reste indépendant.
 - Un module Sport est désormais approuvé. Il reste privé, progressif, sans calories brûlées, sans compétition et sans logique de compensation alimentaire.
-- Un module Recettes est désormais approuvé. Sa dimension communautaire est limitée au partage contrôlé de recettes publiques, aux favoris, à la duplication et au signalement ; aucun fil social, commentaire ou messagerie n’est prévu dans le MVP.
+- Un module Recettes est désormais approuvé. Sa dimension communautaire est
+  limitée au partage contrôlé de recettes publiques, aux favoris, à la
+  duplication et au signalement ; aucun fil social, commentaire ou messagerie
+  n’est prévu dans le MVP.
 - Ciqual doit servir de base alimentaire officielle pour structurer les ingrédients, estimer les recettes et préparer une analyse qualitative plus fiable des repas.
 - Les données nutritionnelles ne doivent jamais être inventées lorsqu’un aliment ou une conversion n’est pas fiable.
 - Les portions usuelles constituent une couche séparée de Ciqual, versionnée,
@@ -111,7 +125,10 @@ Commit de référence :
 - L'IA conversationnelle et analytique est prévue, mais seulement après
   stabilisation des modèles de données et des règles déterministes.
 - Un backend d'administration séparé sera nécessaire pour les contenus, les
-  signalements, le catalogue et le support. Sa forme exacte reste à cadrer.
+  signalements, le catalogue et le support. La cible validée est une application
+  web d'administration séparée et sécurisée ; le contrat est décrit dans
+  `docs/ADMIN_BACKOFFICE.md`, mais aucune interface ou plomberie réelle n'est
+  encore livrée.
 
 ### Coordination des chantiers parallèles
 
@@ -155,6 +172,139 @@ Commit de référence :
   chargée automatiquement dans un compte.
 - la vue Jours du Carnet simplifie les détails de portions et termine par une
   lecture factuelle de la journée, sans score ni jugement.
+
+### Audit global du 20 juillet 2026
+
+Lecture réaliste de l'avancement vers la vision produit complète :
+
+- produit global : environ 43 % ;
+- socle technique, stockage, synchronisation et PWA : environ 82 % ;
+- coeur gratuit des sept premiers jours : environ 70 % ;
+- fonctions payantes et exploitation : environ 10 %.
+
+État fonctionnel :
+
+- Démarrage/Auth : opérationnel avec Google, lien email et mode local ; Apple
+  existe dans le code mais n'est pas activé ni validé ;
+- Onboarding : première version testable complète ; la branche Tabac reste trop
+  courte pour préparer un accompagnement dédié ;
+- Aujourd'hui : saisies et fil factuel utilisables ; le vrai bilan quotidien
+  reste à brancher ;
+- Carnet : vues Jours/Semaines abouties dans leur structure ; l'analyse repose
+  encore sur l'ancien moteur ;
+- Profil : fonctionnel mais à reprendre visuellement et dans ses validations ;
+- Sport : verticale Renforcement testable, mais paiement et cloud réels absents ;
+- Recettes : route et écran temporaire uniquement ;
+- Tabac : saisie quotidienne stabilisée, pas encore de module d'accompagnement ;
+- Admin : maquette locale sous `/admin`, fermée en production par défaut,
+  alimentée uniquement par des fixtures et sans branchement métier réel ;
+- IA : aucun modèle branché.
+
+Alertes techniques prioritaires :
+
+1. L'index de recherche Ciqual et les nutriments détaillés sont désormais
+   séparés. Un test de graphe d'import interdit leur retour dans les surfaces
+   client.
+2. L'import Ciqual est reproductible et documente ses sources, versions,
+   empreintes et date d'import stable.
+3. Le contrat `src/lib/mealAnalysisContract.ts` est testé mais n'est encore
+   appelé par aucun écran ou service. Il doit remplacer progressivement les
+   anciens constats sans créer deux sources de vérité.
+4. Le catalogue de portions usuelles reste trop réduit pour convertir de manière
+   fiable la majorité des aliments reconnus.
+5. Plusieurs fichiers domaine restent très volumineux : Sport, session/offline,
+   Carnet et analyse Repas devront continuer à être découpés lorsque leurs
+   contrats seront stabilisés.
+
+Ordre de travail validé après audit :
+
+1. alléger et rendre reproductible l'intégration Ciqual ;
+2. brancher le contrat d'analyse sur Repas, puis Aujourd'hui et Carnet ;
+3. élargir prudemment la couche de portions usuelles, avec sources, fourchettes
+   et niveaux de confiance explicites ;
+4. reprendre Profil ;
+5. cadrer puis développer le module Tabac ;
+6. laisser Sport, Recettes et abonnements sous pilotage produit direct.
+
+### File de chantiers coordonnée après l'audit
+
+Les travaux transversaux sont séquencés afin d'éviter plusieurs modifications
+concurrentes du tunnel Repas et de ses contrats :
+
+1. **Ciqual mobile et reproductibilité — validé et intégré localement** :
+   l'index de recherche est séparé des nutriments détaillés, l'import est
+   reproductible et les surfaces client ne chargent pas les données
+   nutritionnelles détaillées.
+2. **Contrat d'analyse — pré-audit terminé** : les anciens appels, le mapping,
+   l'ordre de bascule et les risques de collision sont inventoriés. Son
+   implémentation reste en attente de la livraison Ciqual, puis connectera la
+   lecture déterministe aux données Repas, aux vues Aujourd'hui et Carnet, sans
+   afficher calories ou macros et sans maintenir deux moteurs concurrents.
+3. **Portions usuelles — première sécurisation intégrée** : les références
+   éditoriales ne produisent plus d'estimation active, les volumes restent
+   distincts des grammes et une conversion incertaine reste inconnue.
+4. **Profil — stabilisation validée et intégrée localement** : un brouillon
+   ancien ne peut plus écraser les préférences ou le portrait courant ; les
+   sauvegardes sans modification sont ignorées et les tests ciblés couvrent ces
+   garanties.
+5. **Tabac — contrat V0.3 validé et intégré** : modèle, compatibilité,
+   confidentialité, phase descriptive et scénarios d'acceptation sont cadrés.
+   Aucun écran, schéma ou branchement V2 n'est encore développé.
+
+Critères de sortie :
+
+- **Ciqual** : aucun artefact nutriments dans le graphe client de recherche,
+  route `/` sensiblement allégée, import identique pour des sources identiques,
+  validations complètes et mesures avant/après documentées ;
+- **Analyse** : une seule source déterministe pour Repas, Jour et Semaine,
+  résultats descriptifs pendant les sept premiers jours, aucune nutrition
+  visible dans le carnet, compatibilité des anciennes observations ;
+- **Portions** : chaque conversion porte une source, une version, une
+  fourchette et un niveau de confiance ; l'absence de référence produit
+  `unknown` plutôt qu'une estimation inventée ;
+- **Profil** : édition mobile claire, validations explicites, préférences et
+  compte correctement séparés, options techniques maintenues au second plan ;
+- **Tabac** : contrat validé avant développement, distinction stricte entre
+  non-renseigné, aucun, envie et cigarette, lecture quotidienne et hebdomadaire
+  neutre, aucune logique médicale ou culpabilisante.
+
+La première maquette **Admin** est intégrée sous `/admin`. Elle reste fermée en
+production sans activation serveur explicite, utilise uniquement des fixtures et
+ne contient ni Supabase, paiement, rôle réel, mutation, secret ou donnée
+utilisateur. Cette maquette ne constitue pas encore le back-office sécurisé de
+production.
+
+Périmètres réservés au pilotage produit direct :
+
+- Sport ;
+- Recettes ;
+- abonnements, paiements et droits d'accès.
+
+Aucun chantier transversal ne doit modifier ces trois domaines sans nouvelle
+instruction explicite. Recettes et Sport n'ont reçu aucun changement dans cette
+passe.
+
+État de coordination au 20 juillet 2026 :
+
+- chantier Ciqual mobile/reproductibilité contrôlé, corrigé puis intégré dans le
+  checkout principal ;
+- pré-audit du branchement Analyse terminé en lecture seule ; aucune
+  modification applicative ne commencera avant la livraison et le contrôle du
+  chantier Ciqual ;
+- pré-audit Portions terminé en lecture seule ; son implémentation reste en
+  attente du contrat d'analyse stabilisé ;
+- stabilisation Profil contrôlée puis intégrée avec ses tests ciblés ;
+- contrat Tabac V0.3 contrôlé puis intégré dans
+  `docs/TABAC_MODULE_CONTRACT.md` ; aucun écran, stockage, schéma Supabase ou
+  branchement applicatif n'a été ajouté ;
+- maquette Admin intégrée sélectivement ; `/admin` reste réseau seul côté
+  service worker et fermé en production par défaut ;
+- le contrat déterministe Repas est rédigé localement, mais aucun moteur d'IA ni
+  code d'exécution externe n'est branché ;
+- Sport, Recettes, abonnements, paiements et droits d'accès restent sous
+  pilotage produit direct ;
+- les futures reprises sont coordonnées depuis la conversation principale,
+  sans délégation à des sous-agents.
 
 ## 4. Retours terrain
 
@@ -441,7 +591,7 @@ Itérations suivantes :
 
 Statut : route et frontière de module créées ; écran temporaire « En
 développement » actif. Le cadrage fonctionnel et l’architecture de données
-restent à découper en tranches verticales dans la conversation principale.
+restent à découper en tranches verticales sous pilotage produit direct.
 
 Objectifs :
 - catalogue, recherche et fiches recettes ;
@@ -511,6 +661,11 @@ Pistes :
 Objectif :
 Transformer le tabac en vrai module d’accompagnement.
 
+Statut :
+- contrat produit et technique V0.3 validé et intégré à la documentation ;
+- aucune interface finale, migration ou intégration applicative lancée ;
+- prochaine étape : modèle V2 pur et adaptateur V1 en lecture seule.
+
 Pistes :
 - jours sans cigarette ;
 - cigarettes fumées ;
@@ -548,8 +703,9 @@ l’utilisateur dans une catégorie fixe.
 
 Spécification de travail : [ONBOARDING_V1.md](ONBOARDING_V1.md).
 
-Statut : contrat produit rédigé le 16 juillet 2026, en attente de validation
-humaine écran par écran avant implémentation.
+Statut : contrat produit implémenté dans une première version testable. Les
+retouches finales, l'enrichissement de la branche Tabac et la validation terrain
+restent à mener.
 
 Pistes :
 - expliquer que la première semaine sert à observer sans corriger brutalement ;
@@ -609,7 +765,9 @@ Ne pas ajouter pour l’instant :
 - Faut-il une semaine d’observation obligatoire avant recommandations ?
 - Quelle quantité de données nutritionnelles afficher hors des fiches recettes ?
 - Comment relier une recette au tunnel repas sans transformer la saisie en formulaire nutritionnel ?
-- Quelle stratégie d’import, de versionnement et de mise à jour retenir pour Ciqual ?
+- Comment distribuer et mettre à jour Ciqual sans charger les nutriments dans le
+  bundle initial mobile ?
 - Quel fournisseur de paiement et quel modèle de droits utiliser pour Recettes,
   Sport et le bundle ?
-- Quel périmètre donner au premier backend d'administration ?
+- Quel premier lot du back-office brancher après validation du contrat
+  `docs/ADMIN_BACKOFFICE.md` ?

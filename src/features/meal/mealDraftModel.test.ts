@@ -118,19 +118,19 @@ describe("mealDraftModel", () => {
     const nextDraft = addMealFoodSelection(draft, suggestion);
 
     expect(nextDraft.freeText).toBe("sauce maison");
-    expect(nextDraft.selectedFoods).toEqual([
-      {
-        id: "steak",
-        rawText: "steak",
-        rawTexts: ["steak"],
-        canonicalName: "Steak",
-        ciqualCode: null,
-        confidence: 1,
-        source: "haru-food-seed-v0",
-        count: 1,
-        defaultUnit: "piece",
-      },
-    ]);
+    expect(nextDraft.selectedFoods[0]).toMatchObject({
+      id: suggestion.ciqualCode,
+      rawText: "steak",
+      rawTexts: ["steak"],
+      ciqualCode: suggestion.ciqualCode,
+      source: "ciqual-2025",
+      sourceVersion: "2025",
+      count: 1,
+      defaultUnit: "piece",
+    });
+    expect(nextDraft.selectedFoods[0]?.canonicalName.toLowerCase()).toContain(
+      "steak",
+    );
   });
 
   it("vide le champ quand tout le segment actif est confirmé", () => {
@@ -144,7 +144,10 @@ describe("mealDraftModel", () => {
     );
 
     expect(nextDraft.freeText).toBe("");
-    expect(nextDraft.selectedFoods[0]?.canonicalName).toBe("Steak");
+    expect(nextDraft.selectedFoods[0]?.canonicalName.toLowerCase()).toContain(
+      "steak",
+    );
+    expect(nextDraft.selectedFoods[0]?.ciqualCode).toMatch(/^\d+$/);
   });
 
   it("incrémente le même aliment plutôt que de créer deux pastilles", () => {
@@ -166,13 +169,15 @@ describe("mealDraftModel", () => {
     expect(secondDraft.freeText).toBe("");
     expect(secondDraft.selectedFoods).toHaveLength(1);
     expect(secondDraft.selectedFoods[0]).toMatchObject({
-      id: "steak",
-      canonicalName: "Steak",
       rawText: "steak, steak",
       rawTexts: ["steak", "steak"],
       count: 2,
       defaultUnit: "piece",
     });
+    expect(secondDraft.selectedFoods[0]?.ciqualCode).toMatch(/^\d+$/);
+    expect(secondDraft.selectedFoods[0]?.canonicalName.toLowerCase()).toContain(
+      "steak",
+    );
   });
 
   it("restaure le texte d’origine quand une pastille est retirée", () => {
@@ -184,7 +189,7 @@ describe("mealDraftModel", () => {
       searchFoodAutocomplete("riz")[0]!,
     );
 
-    const nextDraft = removeMealFoodSelection(draft, "rice");
+    const nextDraft = removeMealFoodSelection(draft, draft.selectedFoods[0]!.id);
 
     expect(nextDraft.freeText).toBe("riz");
     expect(nextDraft.selectedFoods).toEqual([]);
@@ -205,8 +210,9 @@ describe("mealDraftModel", () => {
       },
       searchFoodAutocomplete("steak")[0]!,
     );
-    const decrementedDraft = removeMealFoodSelection(secondDraft, "steak");
-    const removedDraft = removeMealFoodSelection(decrementedDraft, "steak");
+    const foodId = secondDraft.selectedFoods[0]!.id;
+    const decrementedDraft = removeMealFoodSelection(secondDraft, foodId);
+    const removedDraft = removeMealFoodSelection(decrementedDraft, foodId);
 
     expect(decrementedDraft.freeText).toBe("steak");
     expect(decrementedDraft.selectedFoods[0]).toMatchObject({
@@ -218,7 +224,7 @@ describe("mealDraftModel", () => {
     expect(removedDraft.selectedFoods).toEqual([]);
   });
 
-  it("persiste les aliments sélectionnés comme items confirmés sans code Ciqual", () => {
+  it("persiste les aliments sélectionnés comme items confirmés avec un vrai code Ciqual", () => {
     const firstDraft = addMealFoodSelection(
       {
         ...createEmptyMealDraft("2026-07-16", "12:30"),
@@ -240,12 +246,12 @@ describe("mealDraftModel", () => {
 
     expect(meal.freeText).toBe("");
     expect(firstItem).toMatchObject({
-      id: "steak",
+      id: draft.selectedFoods[0]?.ciqualCode,
       rawText: "steak, steak",
       recognitionStatus: "confirmed",
-      canonicalName: "Steak",
-      ciqualCode: null,
-      confidence: 1,
+      ciqualCode: draft.selectedFoods[0]?.ciqualCode,
+      source: "ciqual-2025",
+      sourceVersion: "2025",
       quantity: {
         amount: 2,
         unit: "piece",
@@ -253,13 +259,38 @@ describe("mealDraftModel", () => {
         confidence: "medium",
       },
     });
+    expect(firstItem?.canonicalName?.toLowerCase()).toContain("steak");
+    expect(firstItem?.confidence).toBeGreaterThan(0);
 
     expect(mealDraftFromEntry(meal).selectedFoods[0]).toMatchObject({
-      id: "steak",
+      id: draft.selectedFoods[0]?.ciqualCode,
       rawText: "steak, steak",
       rawTexts: ["steak", "steak"],
       count: 2,
       defaultUnit: "piece",
+      source: "ciqual-2025",
+      sourceVersion: "2025",
+    });
+  });
+
+  it("conserve un texte libre non reconnu sans inventer de code", () => {
+    const meal = mealEntryFromDraft(
+      {
+        ...createEmptyMealDraft("2026-07-16", "12:30"),
+        freeText: "truc maison introuvable",
+      },
+      null,
+    );
+    const firstItem = meal.mealStructure?.sections
+      .find((section) => section.kind === "main")
+      ?.passages[0]?.items[0];
+
+    expect(firstItem).toMatchObject({
+      rawText: "truc maison introuvable",
+      recognitionStatus: "unprocessed",
+      canonicalName: null,
+      ciqualCode: null,
+      confidence: null,
     });
   });
 });

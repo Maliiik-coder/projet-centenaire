@@ -10,13 +10,31 @@ export type AdminDataSensitivity =
 
 export type AdminActionMode = "disabled" | "simulation";
 
+export type AdminActionSensitivity = "routine" | "sensitive";
+
+export type AdminPermissionId =
+  | "overview.read"
+  | "users.read_stub"
+  | "subscriptions.read_stub"
+  | "recipes.read"
+  | "recipes.publish"
+  | "recipes.moderate"
+  | "sport.read"
+  | "sport.publish"
+  | "analysis.synthetic_run"
+  | "analysis.rollout"
+  | "operations.read"
+  | "operations.retry"
+  | "audit.read"
+  | "exports.simulate";
+
 export type AdminModuleId =
   | "overview"
   | "users"
   | "subscriptions"
   | "recipes"
   | "sport"
-  | "community"
+  | "recipe-moderation"
   | "ai"
   | "operations"
   | "audit";
@@ -41,6 +59,21 @@ export interface AdminAction {
   label: string;
   mode: AdminActionMode;
   reason: string;
+  requiredPermission: AdminPermissionId;
+  sensitivity: AdminActionSensitivity;
+  auditContract: {
+    actorRequired: true;
+    targetRequired: true;
+    reasonRequired: true;
+    correlationIdRequired: true;
+  };
+}
+
+export interface AdminRoleFixture {
+  id: string;
+  label: string;
+  scope: string;
+  permissions: AdminPermissionId[];
 }
 
 export interface AdminTableColumn {
@@ -108,13 +141,14 @@ export interface AdminContentFixture {
   tone: AdminTone;
 }
 
-export interface AdminCommunityFixture {
+export interface AdminRecipeReportFixture {
   id: string;
   reportType: string;
-  target: string;
+  recipeId: string;
+  recipeTitle: string;
   priority: string;
   queueAge: string;
-  decisionState: string;
+  reviewState: string;
   tone: AdminTone;
 }
 
@@ -141,9 +175,14 @@ export interface AdminOperationFixture {
 export interface AdminAuditFixture {
   id: string;
   actor: string;
+  actorRole: string;
   action: string;
-  target: string;
+  requiredPermission: AdminPermissionId;
+  targetType: string;
+  targetId: string;
+  targetLabel: string;
   reason: string;
+  correlationId: string;
   createdAt: string;
   metadata: string;
   tone: AdminTone;

@@ -41,10 +41,10 @@ Il n'accede pas aux donnees personnelles des utilisateurs.
 Recherche un compte, consulte son etat technique et traite les demandes de compte.
 L'acces exceptionnel a une donnee personnelle doit etre motive, limite et audite.
 
-### Moderateur
+### Relecteur de recettes publiques
 
-Traite les contenus communautaires et les signalements. Il ne peut pas administrer
-les paiements, les roles ou les donnees de sante.
+Traite uniquement les recettes publiques et leurs signalements de contenu. Il ne
+peut pas administrer les comptes, les paiements, les roles ou les donnees de sante.
 
 La premiere version peut n'activer que `super_admin` et `read_only`, mais le modele
 doit pouvoir accueillir les roles cibles sans refonte.
@@ -58,7 +58,7 @@ doit pouvoir accueillir les roles cibles sans refonte.
 - Afficher la version deployee et l'etat des services essentiels.
 - Signaler les echecs de synchronisation et incidents connus.
 - Afficher des indicateurs agreges, jamais le contenu personnel des carnets.
-- A terme, activer des fonctionnalites pilotes et publier un message d'information.
+- A terme, activer des fonctionnalites pilotes et publier une information produit.
 
 ### Utilisateurs et support
 
@@ -66,7 +66,6 @@ doit pouvoir accueillir les roles cibles sans refonte.
 - Voir l'etat du compte, la fin de l'onboarding et la derniere activite.
 - Voir l'etat de synchronisation et les droits gratuits ou payants.
 - Debloquer une situation technique explicitement prise en charge.
-- Desactiver temporairement un compte apres confirmation.
 - Traiter une demande d'export ou de suppression.
 - Conserver la trace de la personne, de la date et de la raison de chaque action.
 
@@ -91,7 +90,7 @@ carte ni les donnees bancaires.
 - Creer, modifier, previsualiser, publier et archiver une recette.
 - Gerer ingredients, quantites, portions, etapes, categories et allergenes.
 - Associer ou corriger les correspondances avec CIQUAL.
-- Examiner les recettes proposees par la communaute.
+- Examiner les recettes publiques proposees par les utilisateurs.
 - Valider, refuser, demander une correction ou retirer une recette.
 - Traiter les signalements et mettre certains contenus en avant.
 
@@ -104,14 +103,12 @@ carte ni les donnees bancaires.
 - Construire des seances et programmes.
 - A terme, regler et controler les regles de proposition d'exercices adaptes.
 
-### Communaute
+### Signalements de recettes publiques
 
-- Consulter et prioriser les signalements.
-- Masquer, restaurer ou supprimer un contenu avec justification.
-- Avertir, suspendre ou bannir un compte selon les droits du moderateur.
-- Conserver l'historique des decisions et traiter les contestations.
-
-Cette partie ne sera implementee qu'avec la fonctionnalite communautaire.
+- Consulter et prioriser les signalements portant sur une recette publique.
+- Qualifier le motif : droits d'utilisation, allergene, qualite ou hors sujet.
+- Preparer une decision editoriale motivee et auditee.
+- Exclure toute action generale sur le compte depuis cette surface.
 
 ### Analyse et intelligence artificielle
 
@@ -195,9 +192,9 @@ ni secret, ni donnee bancaire.
 - Bibliotheque Recettes et associations CIQUAL.
 - Brouillons, previsualisation, publication et archivage.
 
-### Lot 4 - Moderation et exploitation avancee
+### Lot 4 - Signalements recettes et exploitation avancee
 
-- Moderation communautaire.
+- Revue des signalements de recettes publiques.
 - Indicateurs d'exploitation.
 - Regles d'analyse, prompts et deploiements progressifs.
 
@@ -207,7 +204,7 @@ ni secret, ni donnee bancaire.
 - Consultation des carnets personnels.
 - Modification des donnees de sante ou de comportement.
 - Gestion complete des recettes ou du sport.
-- Moderation communautaire.
+- Revue des signalements de recettes publiques.
 - Configuration de l'intelligence artificielle.
 - Actions destructives de masse.
 - Application native pour macOS.
@@ -223,4 +220,3 @@ ni secret, ni donnee bancaire.
 - Les nouvelles tables ont RLS active et aucune politique publique permissive.
 - La migration est locale uniquement tant qu'elle n'a pas ete controlee.
 - Typecheck, lint, tests et build passent avant integration.
-

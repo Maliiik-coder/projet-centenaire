@@ -10,10 +10,10 @@ export function LogoMark({ className, priority = false }: LogoProps) {
     <Image
       alt="Haru"
       className={className ?? "h-8 w-auto"}
-      height={335}
+      height={952}
       priority={priority}
-      src="/brand/haru-mark-7px.png"
-      width={433}
+      src="/brand/haru-mark-heart-v2.png"
+      width={955}
     />
   );
 }
@@ -23,23 +23,25 @@ export function LogoHorizontal({ className, priority = false }: LogoProps) {
     <Image
       alt="Haru"
       className={className ?? "h-9 w-auto"}
-      height={322}
+      height={651}
       priority={priority}
-      src="/brand/haru-wordmark-7px.png"
-      width={1112}
+      src="/brand/haru-wordmark-heart-v2.png"
+      width={1544}
     />
   );
 }
 
 export function LogoFull({ className, priority = false }: LogoProps) {
   return (
-    <Image
-      alt="Haru, un jour à la fois."
-      className={className ?? "h-auto w-52"}
-      height={357}
-      priority={priority}
-      src="/brand/haru-full-7px.png"
-      width={739}
-    />
+    <span
+      className={`inline-flex flex-col items-center justify-center ${
+        className ?? "h-auto w-52"
+      }`}
+    >
+      <LogoHorizontal className="h-auto w-full" priority={priority} />
+      <span className="mt-1.5 text-center text-sm font-semibold text-[var(--pc-color-text-muted)]">
+        Un jour à la fois.
+      </span>
+    </span>
   );
 }

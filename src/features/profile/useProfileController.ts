@@ -6,6 +6,7 @@ import { mergeImportedData } from "@/lib/importData";
 import {
   buildProfilePatch,
   createProfilePatchMutationDraft,
+  hasProfilePatch,
 } from "@/lib/nonMealData";
 import { legacyFrictionFromAssessment } from "@/lib/onboarding";
 import type {
@@ -14,6 +15,7 @@ import type {
   Profile,
 } from "@/lib/types";
 import type { SaveAppData } from "@/features/session/useAppDataSession";
+import { applyEditableProfileDraft } from "@/features/profile/profileModel";
 import { createMealUpsertMutation } from "@/services/offlineSyncService";
 
 type ProfileControllerOptions = {
@@ -75,15 +77,24 @@ export function useProfileController({
       "Portrait initial mis à jour.",
       mutation ? [mutation] : [],
     );
-    setProfileDraft(nextProfile);
+    setProfileDraft((draft) =>
+      draft ? applyEditableProfileDraft(nextProfile, draft) : null,
+    );
     setBehaviorEditorOpen(false);
   };
 
-  const saveProfileChanges = (nextProfile: Profile) => {
+  const saveProfileChanges = (draft: Profile) => {
     if (!data || !profile) return;
 
+    const nextProfile = applyEditableProfileDraft(profile, draft);
     const patch = buildProfilePatch(profile, nextProfile);
     const mutation = createProfilePatchMutationDraft(patch);
+
+    if (!hasProfilePatch(patch)) {
+      setProfileDraft(null);
+      setProfileEditorOpen(false);
+      return;
+    }
 
     saveData(
       { ...data, profile: nextProfile },

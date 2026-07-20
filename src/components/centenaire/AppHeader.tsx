@@ -22,7 +22,7 @@ export function AppHeader({
       {variant === "signature" ? (
         <LogoFull className="h-auto w-52 max-w-[72vw] shrink-0" priority />
       ) : (
-        <LogoHorizontal className="h-9 w-auto max-w-[52vw] shrink-0" priority />
+        <LogoHorizontal className="h-10 w-auto max-w-[52vw] shrink-0" priority />
       )}
     </header>
   );

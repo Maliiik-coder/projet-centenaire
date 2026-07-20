@@ -50,6 +50,9 @@ function createHarness() {
   const listeners = new Map<string, WorkerListener>();
   const cachePut = vi.fn().mockResolvedValue(undefined);
   const cacheMatch = vi.fn().mockResolvedValue(undefined);
+  const cacheOpen = vi
+    .fn()
+    .mockResolvedValue({ match: cacheMatch, put: cachePut });
   const cacheDelete = vi.fn().mockResolvedValue(true);
   const cacheKeys = vi.fn().mockResolvedValue([
     "projet-centenaire-fieldbook-v2",
@@ -64,7 +67,7 @@ function createHarness() {
     Response,
     fetch: fetchMock,
     caches: {
-      open: vi.fn().mockResolvedValue({ match: cacheMatch, put: cachePut }),
+      open: cacheOpen,
       keys: cacheKeys,
       delete: cacheDelete,
     },
@@ -90,6 +93,7 @@ function createHarness() {
   return {
     cacheDelete,
     cacheMatch,
+    cacheOpen,
     cachePut,
     clientsClaim,
     fetchMock,
@@ -100,7 +104,7 @@ function createHarness() {
 }
 
 describe("politique de cache du service worker", () => {
-  it.each(["/account", "/login", "/auth/callback", "/health"])(
+  it.each(["/account", "/login", "/auth/callback", "/health", "/admin"])(
     "ne considère jamais %s comme une navigation cacheable",
     (pathname) => {
       const { policy } = createHarness();
@@ -111,6 +115,34 @@ describe("politique de cache du service worker", () => {
       ).toBe(false);
     },
   );
+
+  it("traite toute navigation admin en réseau seul", async () => {
+    const { cacheOpen, fetchMock, listeners } = createHarness();
+    const fetchListener = listeners.get("fetch");
+    if (!fetchListener) throw new Error("Listener fetch manquant.");
+
+    const request = {
+      method: "GET",
+      mode: "navigate",
+      url: "https://app.test/admin/users",
+    };
+    const networkResponse = htmlResponse(request.url);
+    let responsePromise: Promise<unknown> | null = null;
+    fetchMock.mockResolvedValue(networkResponse);
+
+    fetchListener({
+      request,
+      respondWith(value: Promise<unknown>) {
+        responsePromise = value;
+      },
+    });
+
+    if (!responsePromise) throw new Error("Réponse admin non enregistrée.");
+
+    await expect(responsePromise).resolves.toBe(networkResponse);
+    expect(fetchMock).toHaveBeenCalledWith(request);
+    expect(cacheOpen).not.toHaveBeenCalled();
+  });
 
   it("refuse aussi les paramètres OAuth sur la racine", () => {
     const { policy } = createHarness();
@@ -231,7 +263,7 @@ describe("politique de cache du service worker", () => {
 
   it("n’emploie plus l’ancien cache dangereux", () => {
     const { source } = createHarness();
-    expect(source).toContain('const CACHE_NAME = `${CACHE_PREFIX}v8`;');
+    expect(source).toContain('const CACHE_NAME = `${CACHE_PREFIX}v9`;');
     expect(source).not.toContain('"projet-centenaire-fieldbook-v2"');
     expect(source).not.toContain('cachePut("/", response)');
   });

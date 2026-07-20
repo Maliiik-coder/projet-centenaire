@@ -1,20 +1,21 @@
 const CACHE_PREFIX = "projet-centenaire-fieldbook-";
-const CACHE_NAME = `${CACHE_PREFIX}v8`;
+const CACHE_NAME = `${CACHE_PREFIX}v9`;
+const ADMIN_PATH_PREFIX = "/admin";
 const PUBLIC_NAVIGATION_PATHS = ["/", "/offline"];
 const PRECACHED_ASSET_PATHS = [
-  "/brand/haru-wordmark-7px.png",
-  "/brand/haru-mark-7px.png",
-  "/brand/haru-full-7px.png",
-  "/icon-192-v3.png",
-  "/icon-512-v3.png",
-  "/icon-maskable-512-v3.png",
-  "/apple-touch-icon-v3.png",
+  "/brand/haru-wordmark-heart-v2.png",
+  "/brand/haru-mark-heart-v2.png",
+  "/icon-192-v4.png",
+  "/icon-512-v4.png",
+  "/icon-maskable-512-v4.png",
+  "/apple-touch-icon-v4.png",
 ];
 const APP_SHELL_PATHS = [
   ...PUBLIC_NAVIGATION_PATHS,
   ...PRECACHED_ASSET_PATHS,
 ];
 const SENSITIVE_PATH_PREFIXES = [
+  ADMIN_PATH_PREFIX,
   "/account",
   "/login",
   "/auth",
@@ -211,6 +212,14 @@ self.addEventListener("fetch", (event) => {
     url.origin !== self.location.origin ||
     url.pathname === "/sw.js"
   ) {
+    return;
+  }
+
+  if (
+    request.mode === "navigate" &&
+    matchesPathPrefix(url.pathname, ADMIN_PATH_PREFIX)
+  ) {
+    event.respondWith(fetch(request));
     return;
   }
 

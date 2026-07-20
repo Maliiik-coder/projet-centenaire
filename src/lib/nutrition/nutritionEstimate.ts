@@ -4,10 +4,11 @@ import {
   type NumericFoodValue,
   nutrientValuePerQuantity,
 } from "@/lib/nutrition/foodReference";
-import type {
-  GramRange,
-  PortionConfidence,
-  UsualPortionReference,
+import {
+  isNutritionEstimablePortion,
+  type GramRange,
+  type PortionConfidence,
+  type UsualPortionReference,
 } from "@/lib/nutrition/portionCatalog";
 
 export interface NutrientRangeEstimate {
@@ -39,6 +40,7 @@ export function estimateNutritionForPortion({
   multiplier?: number;
 }): InternalNutritionEstimate | null {
   if (!Number.isFinite(multiplier) || multiplier <= 0) return null;
+  if (!isNutritionEstimablePortion(portion) || !portion.gramRange) return null;
 
   const gramRange = {
     low: roundGram(portion.gramRange.low * multiplier),

@@ -7,41 +7,69 @@ import {
 import { estimateNutritionForPortion } from "@/lib/nutrition/nutritionEstimate";
 import { initialUsualPortionCatalog } from "@/lib/nutrition/portionCatalog";
 
-const pastaReference: CiqualFoodReference = {
+const appleReference: CiqualFoodReference = {
   source: CIQUAL_2025_SOURCE.id,
   sourceVersion: "2025",
-  ciqualCode: "sample-pasta",
-  name: "Pâtes alimentaires cuites",
-  groupName: "produits céréaliers",
+  ciqualCode: "sample-apple",
+  name: "Pomme",
+  groupName: "fruits, légumes, légumineuses et oléagineux",
   subGroupName: null,
   subSubGroupName: null,
   nutrientsPer100g: {
     ...EMPTY_NUTRIENTS_PER_100G,
-    energyKcal: { value: 150, qualifier: "exact" },
-    proteinsG: { value: 5, qualifier: "exact" },
-    fiberG: { value: 2, qualifier: "exact" },
+    energyKcal: { value: 52, qualifier: "exact" },
+    fiberG: { value: 2.4, qualifier: "exact" },
   },
 };
 
 describe("nutritionEstimate", () => {
-  it("calcule une fourchette interne à partir de Ciqual et d’une portion", () => {
+  it("calcule une fourchette interne à partir de Ciqual et d’une portion massique institutionnelle", () => {
     const portion = initialUsualPortionCatalog.find(
-      (item) => item.id === "cooked-pasta-plate",
+      (item) => item.id === "fruit-veg-adult-portion",
     );
 
     expect(portion).toBeDefined();
     const estimate = estimateNutritionForPortion({
-      food: pastaReference,
+      food: appleReference,
       portion: portion!,
     });
 
     expect(estimate?.displayPolicy).toBe("internal_only");
-    expect(estimate?.confidence).toBe("low");
+    expect(estimate?.confidence).toBe("high");
     expect(estimate?.nutrients.energyKcal).toEqual({
-      low: { value: 270, qualifier: "exact" },
-      central: { value: 375, qualifier: "exact" },
-      high: { value: 480, qualifier: "exact" },
+      low: { value: 41.6, qualifier: "exact" },
+      central: { value: 46.8, qualifier: "exact" },
+      high: { value: 52, qualifier: "exact" },
     });
+  });
+
+  it("refuse les repères éditoriaux Haru pour une estimation active", () => {
+    const portion = initialUsualPortionCatalog.find(
+      (item) => item.id === "cooked-pasta-plate",
+    );
+
+    expect(portion?.source.kind).toBe("haru_editorial_seed");
+    expect(
+      estimateNutritionForPortion({
+        food: appleReference,
+        portion: portion!,
+      }),
+    ).toBeNull();
+  });
+
+  it("refuse un volume en ml sans densité sourcée", () => {
+    const portion = initialUsualPortionCatalog.find(
+      (item) => item.id === "soup-bowl",
+    );
+
+    expect(portion?.milliliterRange?.central).toBe(250);
+    expect(portion?.gramRange).toBeNull();
+    expect(
+      estimateNutritionForPortion({
+        food: appleReference,
+        portion: portion!,
+      }),
+    ).toBeNull();
   });
 
   it("refuse un multiplicateur invalide", () => {
@@ -49,7 +77,7 @@ describe("nutritionEstimate", () => {
 
     expect(
       estimateNutritionForPortion({
-        food: pastaReference,
+        food: appleReference,
         portion,
         multiplier: 0,
       }),

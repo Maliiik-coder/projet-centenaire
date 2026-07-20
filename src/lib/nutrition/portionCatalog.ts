@@ -16,6 +16,12 @@ export interface GramRange {
   high: number;
 }
 
+export interface MilliliterRange {
+  low: number;
+  central: number;
+  high: number;
+}
+
 export interface PortionReferenceSource {
   kind: PortionReferenceKind;
   name: string;
@@ -29,7 +35,8 @@ export interface UsualPortionReference {
   label: string;
   aliases: string[];
   units: string[];
-  gramRange: GramRange;
+  gramRange: GramRange | null;
+  milliliterRange: MilliliterRange | null;
   confidence: PortionConfidence;
   source: PortionReferenceSource;
   note: string;
@@ -63,9 +70,10 @@ export const initialUsualPortionCatalog: UsualPortionReference[] = [
     id: "fruit-veg-adult-portion",
     version: PORTION_CATALOG_VERSION,
     label: "portion adulte de fruit ou légume",
-    aliases: ["fruit", "legume", "légume", "crudites", "crudités"],
-    units: ["portion", "piece", "bowl"],
+    aliases: ["fruit", "pomme", "legume", "légume", "crudites", "crudités"],
+    units: ["portion", "piece"],
     gramRange: { low: 80, central: 90, high: 100 },
+    milliliterRange: null,
     confidence: "high",
     source: portionSources.mangerBougerFruitVeg,
     note: "Repère de santé publique ; ce n’est pas une portion personnalisée.",
@@ -76,10 +84,11 @@ export const initialUsualPortionCatalog: UsualPortionReference[] = [
     label: "bol de soupe",
     aliases: ["soupe", "bol de soupe"],
     units: ["bowl"],
-    gramRange: { low: 200, central: 250, high: 300 },
+    gramRange: null,
+    milliliterRange: { low: 200, central: 250, high: 300 },
     confidence: "medium",
     source: portionSources.ameliFruitVegSoup,
-    note: "La source parle en ml ; Haru conserve une fourchette interne en grammes pour l’estimation.",
+    note: "La source parle en ml ; Haru ne convertit pas ce volume en grammes sans densité sourcée.",
   },
   {
     id: "yogurt-pot",
@@ -88,6 +97,7 @@ export const initialUsualPortionCatalog: UsualPortionReference[] = [
     aliases: ["yaourt", "yogourt", "skyr", "fromage blanc"],
     units: ["piece", "portion"],
     gramRange: { low: 100, central: 125, high: 150 },
+    milliliterRange: null,
     confidence: "medium",
     source: portionSources.haruEditorialSeed,
     note: "Repère courant à valider avec les contenants réels ou les recettes.",
@@ -99,6 +109,7 @@ export const initialUsualPortionCatalog: UsualPortionReference[] = [
     aliases: ["pates", "pâtes", "assiette de pates", "assiette de pâtes"],
     units: ["plate", "portion"],
     gramRange: { low: 180, central: 250, high: 320 },
+    milliliterRange: null,
     confidence: "low",
     source: portionSources.haruEditorialSeed,
     note: "Repère de tendance seulement ; une assiette de pâtes varie fortement selon la personne et le service.",
@@ -110,6 +121,7 @@ export const initialUsualPortionCatalog: UsualPortionReference[] = [
     aliases: ["riz", "assiette de riz"],
     units: ["plate", "portion"],
     gramRange: { low: 170, central: 230, high: 300 },
+    milliliterRange: null,
     confidence: "low",
     source: portionSources.haruEditorialSeed,
     note: "Repère de tendance seulement ; à remplacer par une source plus robuste si disponible.",
@@ -136,6 +148,15 @@ export function findUsualPortionReferences(
       )
     );
   });
+}
+
+export function isNutritionEstimablePortion(
+  reference: UsualPortionReference,
+): boolean {
+  return (
+    reference.source.kind !== "haru_editorial_seed" &&
+    reference.gramRange !== null
+  );
 }
 
 export function combineGramRanges(

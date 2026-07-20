@@ -1,4 +1,9 @@
 import { normalizeFoodText } from "@/lib/foodDetection";
+import {
+  type CiqualFoodSearchResult,
+  searchCiqualFoods,
+} from "@/lib/nutrition/ciqualFoods";
+import { CIQUAL_2025_SOURCE } from "@/lib/nutrition/foodReference";
 import type { MealQuantityUnit } from "@/lib/types";
 
 export const FOOD_AUTOCOMPLETE_SOURCE = "haru-food-seed-v0";
@@ -20,7 +25,7 @@ export interface FoodAutocompleteEntry {
   category: FoodAutocompleteCategory;
   defaultUnit: MealQuantityUnit;
   imageSrc: string;
-  ciqualCode: null;
+  ciqualCode: string | null;
   source: typeof FOOD_AUTOCOMPLETE_SOURCE;
 }
 
@@ -30,8 +35,11 @@ export interface FoodAutocompleteSuggestion {
   category: FoodAutocompleteCategory;
   defaultUnit: MealQuantityUnit;
   imageSrc: string;
-  ciqualCode: null;
-  source: typeof FOOD_AUTOCOMPLETE_SOURCE;
+  ciqualCode: string | null;
+  source: typeof FOOD_AUTOCOMPLETE_SOURCE | typeof CIQUAL_2025_SOURCE.id;
+  sourceVersion: string | null;
+  matchStatus: CiqualFoodSearchResult["matchStatus"];
+  confidence: number;
   matchedText: string;
 }
 
@@ -71,27 +79,26 @@ export function searchFoodAutocomplete(
   text: string,
   limit = 4,
 ): FoodAutocompleteSuggestion[] {
-  const query = foodAutocompleteQuery(text);
-  if (query.normalized.length < 2) return [];
+  const segment = activeFoodSegment(text);
+  if (foodAutocompleteQuery(segment.raw).normalized.length < 2) return [];
 
-  return foodAutocompleteSeed
-    .map((entry) => ({
-      entry,
-      match: bestMatch(entry, query.normalized),
-    }))
-    .filter((item) => item.match.score > 0)
-    .sort((a, b) => b.match.score - a.match.score || a.entry.label.localeCompare(b.entry.label))
-    .slice(0, limit)
-    .map(({ entry, match }) => ({
-      id: entry.id,
-      label: entry.label,
-      category: entry.category,
-      defaultUnit: entry.defaultUnit,
-      imageSrc: entry.imageSrc,
-      ciqualCode: entry.ciqualCode,
-      source: entry.source,
-      matchedText: match.alias,
-    }));
+  return searchCiqualFoods(segment.raw, limit).map((result) => {
+    const metadata = foodUxMetadata(result);
+
+    return {
+      id: result.ciqualCode,
+      label: result.canonicalName,
+      category: metadata.category,
+      defaultUnit: metadata.defaultUnit,
+      imageSrc: metadata.imageSrc,
+      ciqualCode: result.ciqualCode,
+      source: result.source,
+      sourceVersion: result.sourceVersion,
+      matchStatus: result.matchStatus,
+      confidence: result.confidence,
+      matchedText: segment.raw || result.matchedText,
+    };
+  });
 }
 
 export function activeFoodSegment(text: string): {
@@ -168,21 +175,28 @@ function foodAutocompleteQuery(text: string): { raw: string; normalized: string 
   };
 }
 
-function bestMatch(
-  entry: FoodAutocompleteEntry,
-  query: string,
-): { alias: string; score: number } {
-  return entry.aliases.reduce(
-    (best, alias) => {
-      const normalizedAlias = normalizeFoodText(alias);
-      let score = 0;
-
-      if (normalizedAlias === query) score = 100;
-      else if (normalizedAlias.startsWith(query)) score = 80;
-      else if (normalizedAlias.includes(query)) score = 45;
-
-      return score > best.score ? { alias, score } : best;
-    },
-    { alias: "", score: 0 },
+function foodUxMetadata(result: CiqualFoodSearchResult): {
+  category: FoodAutocompleteCategory;
+  defaultUnit: MealQuantityUnit;
+  imageSrc: string;
+} {
+  const normalized = normalizeFoodText(
+    [
+      result.canonicalName,
+      result.groupName,
+      result.subGroupName,
+      result.subSubGroupName,
+    ]
+      .filter(Boolean)
+      .join(" "),
   );
+  const seed = foodAutocompleteSeed.find((entry) =>
+    entry.aliases.some((alias) => normalized.includes(normalizeFoodText(alias))),
+  );
+
+  return {
+    category: seed?.category ?? "prepared",
+    defaultUnit: seed?.defaultUnit ?? "portion",
+    imageSrc: seed?.imageSrc ?? "/food-autocomplete/fallback.png",
+  };
 }

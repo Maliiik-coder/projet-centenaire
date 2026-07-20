@@ -55,6 +55,7 @@ export interface MealDraftFoodSelection {
   ciqualCode: string | null;
   confidence: number;
   source: string;
+  sourceVersion: string | null;
   count: number;
   defaultUnit: MealQuantityUnit;
 }
@@ -437,8 +438,9 @@ export function addMealFoodSelection(
         rawTexts: [rawSegment || suggestion.matchedText || suggestion.label],
         canonicalName: suggestion.label,
         ciqualCode: suggestion.ciqualCode,
-        confidence: 1,
+        confidence: suggestion.confidence,
         source: suggestion.source,
+        sourceVersion: suggestion.sourceVersion,
         count: 1,
         defaultUnit: suggestion.defaultUnit,
       },
@@ -823,6 +825,8 @@ function createSelectedMealItem(selection: MealDraftFoodSelection): MealItemV2 {
     canonicalName: selection.canonicalName,
     ciqualCode: selection.ciqualCode,
     confidence: selection.confidence,
+    source: selection.source,
+    sourceVersion: selection.sourceVersion,
     quantity: {
       amount: selection.count,
       unit: selection.defaultUnit,
@@ -888,7 +892,8 @@ function selectedFoodsFromEntry(meal: MealEntry): MealDraftFoodSelection[] {
         canonicalName: item.canonicalName ?? item.rawText,
         ciqualCode: item.ciqualCode,
         confidence: item.confidence ?? 1,
-        source: item.ciqualCode ? "ciqual_2025" : "meal_structure",
+        source: item.source ?? (item.ciqualCode ? "ciqual-2025" : "meal_structure"),
+        sourceVersion: item.sourceVersion ?? (item.ciqualCode ? "2025" : null),
         count: mealItemCount(item),
         defaultUnit: item.quantity?.unit ?? "portion",
       })) ?? []

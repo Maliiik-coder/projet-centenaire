@@ -208,6 +208,8 @@ export interface MealItemV2 {
   canonicalName: string | null;
   ciqualCode: string | null;
   confidence: number | null;
+  source?: string | null;
+  sourceVersion?: string | null;
   quantity: MealQuantityEstimate | null;
 }
 
