@@ -15,7 +15,7 @@ export function TopBar({ className, label }: TopBarProps) {
       )}
     >
       <LogoHorizontal
-        className="h-10 w-auto max-w-[46vw] shrink-0"
+        className="h-20 w-auto max-w-[72vw] shrink-0"
         priority
       />
       <p className="shrink-0 text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-text-muted)]">

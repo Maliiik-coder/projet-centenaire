@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SPORT_ENGINE_VERSION } from "@/lib/sport/config";
+import { getExerciseById, getVariantById } from "@/lib/sport/exerciseLibrary";
 import { generateWorkout } from "@/lib/sport/workoutGenerator";
 import type {
   BodyZone,
@@ -7,6 +8,7 @@ import type {
   FeedbackCompletion,
   FeedbackDifficulty,
   GeneratedWorkoutSession,
+  MovementPattern,
   SportGenerationInput,
   SportOnboardingDraft,
   UserLimitation,
@@ -82,6 +84,16 @@ function effortSteps(session: GeneratedWorkoutSession) {
   return session.steps.filter((step) => step.type === "effort");
 }
 
+function effortStepForPattern(
+  session: GeneratedWorkoutSession,
+  pattern: MovementPattern,
+) {
+  return effortSteps(session).find((step) => {
+    const exercise = step.exerciseId ? getExerciseById(step.exerciseId) : null;
+    return exercise?.movementPattern === pattern;
+  });
+}
+
 function stepDurationTotal(session: GeneratedWorkoutSession): number {
   return session.steps.reduce(
     (total, step) => total + (step.durationSeconds ?? 0),
@@ -95,8 +107,12 @@ describe("generateWorkout", () => {
 
     expect(session.activity).toBe("strength");
     expect(effortSteps(session).length).toBeGreaterThanOrEqual(2);
-    expect(session.reasons.some((reason) => reason.code === "equipment_excluded"))
-      .toBe(true);
+    expect(
+      effortSteps(session).every((step) => {
+        const variantItem = step.variantId ? getVariantById(step.variantId) : null;
+        return variantItem?.requiredEquipment.length === 0;
+      }),
+    ).toBe(true);
   });
 
   it("n'inclut pas un mouvement qui requiert du materiel absent", () => {
@@ -107,7 +123,7 @@ describe("generateWorkout", () => {
     );
   });
 
-  it("inclut le tirage quand un elastique et une capacite de tirage existent", () => {
+  it("inclut un tirage compatible quand une capacite de tirage existe", () => {
     const session = expectSession(
       generateWorkout(
         inputFromDraft(
@@ -120,9 +136,17 @@ describe("generateWorkout", () => {
       ),
     );
 
-    expect(effortSteps(session).map((step) => step.exerciseId)).toContain(
-      "band_row",
-    );
+    const pullStep = effortStepForPattern(session, "pull");
+    const pullVariant = pullStep?.variantId
+      ? getVariantById(pullStep.variantId)
+      : null;
+
+    expect(pullStep).toBeDefined();
+    expect(
+      pullVariant?.requiredEquipment.every((equipment) =>
+        ["resistance_band"].includes(equipment),
+      ),
+    ).toBe(true);
   });
 
   it("exclut les mouvements lies a une limitation active", () => {
@@ -142,6 +166,12 @@ describe("generateWorkout", () => {
     );
     expect(session.reasons.some((reason) => reason.code === "limitation_excluded"))
       .toBe(true);
+    expect(
+      effortSteps(session).every((step) => {
+        const exercise = step.exerciseId ? getExerciseById(step.exerciseId) : null;
+        return !exercise?.cautionZones.includes("knees");
+      }),
+    ).toBe(true);
   });
 
   it("choisit une variante prudente selon la capacite de poussee", () => {
@@ -156,8 +186,14 @@ describe("generateWorkout", () => {
       ),
     );
 
-    expect(effortSteps(session).find((step) => step.exerciseId === "push_up_family")?.variantId)
-      .toBe("push_wall");
+    const pushStep = effortStepForPattern(session, "push");
+    const pushVariant = pushStep?.variantId
+      ? getVariantById(pushStep.variantId)
+      : null;
+
+    expect(pushStep).toBeDefined();
+    expect(pushVariant?.difficulty).toBe(0);
+    expect(pushVariant?.requiredEquipment).toEqual([]);
   });
 
   it("choisit une variante plus avancee quand capacite et materiel le permettent", () => {
@@ -172,8 +208,14 @@ describe("generateWorkout", () => {
       ),
     );
 
-    expect(effortSteps(session).find((step) => step.exerciseId === "push_up_family")?.variantId)
-      .toBe("push_knees");
+    const pushStep = effortStepForPattern(session, "push");
+    const pushVariant = pushStep?.variantId
+      ? getVariantById(pushStep.variantId)
+      : null;
+
+    expect(pushStep).toBeDefined();
+    expect(pushVariant?.difficulty).toBeGreaterThanOrEqual(1);
+    expect(pushVariant?.difficulty).toBeLessThanOrEqual(2);
   });
 
   it("respecte la duree demandee", () => {

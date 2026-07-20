@@ -9,7 +9,7 @@ export function LogoMark({ className, priority = false }: LogoProps) {
   return (
     <Image
       alt="Haru"
-      className={className ?? "h-8 w-auto"}
+      className={className ?? "h-16 w-auto"}
       height={952}
       priority={priority}
       src="/brand/haru-mark-heart-v2.png"
@@ -22,7 +22,7 @@ export function LogoHorizontal({ className, priority = false }: LogoProps) {
   return (
     <Image
       alt="Haru"
-      className={className ?? "h-9 w-auto"}
+      className={className ?? "h-18 w-auto"}
       height={651}
       priority={priority}
       src="/brand/haru-wordmark-heart-v2.png"
@@ -35,7 +35,7 @@ export function LogoFull({ className, priority = false }: LogoProps) {
   return (
     <span
       className={`inline-flex flex-col items-center justify-center ${
-        className ?? "h-auto w-52"
+        className ?? "h-auto w-96"
       }`}
     >
       <LogoHorizontal className="h-auto w-full" priority={priority} />

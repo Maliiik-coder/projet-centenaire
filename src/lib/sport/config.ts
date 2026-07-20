@@ -3,7 +3,7 @@ import type {
   ProgressionAdjustment,
 } from "@/lib/sport/types";
 
-export const SPORT_ENGINE_VERSION = "sport-strength-mvp-2026-07-15.1";
+export const SPORT_ENGINE_VERSION = "sport-strength-mvp-2026-07-20.1";
 
 export const SPORT_LOCAL_STORAGE_KEY = "haru-sport-isolated-v1";
 
@@ -30,6 +30,7 @@ export const STRENGTH_WORKOUT_CONFIG = {
     "bridge",
     "core",
     "pull",
+    "locomotion",
   ],
   levelTiming: {
     0: { effortSeconds: 20, recoverySeconds: 45, rounds: 1 },

@@ -7,7 +7,7 @@ export function OnboardingPreparationScreen() {
     <main className="pc-screen pc-motion-safe">
       <div className="pc-screen-inner mx-auto flex items-center justify-center">
         <div className="flex flex-col items-center gap-7">
-          <LogoMark className="h-auto w-28 max-w-[34vw]" priority />
+          <LogoMark className="h-auto w-56 max-w-[68vw]" priority />
           <div
             aria-label="Préparation de ton bilan"
             className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--pc-color-border)]"

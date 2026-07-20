@@ -51,18 +51,21 @@ fonctionnels sont désormais en refonte progressive, écran par écran.
   intégrés et validés localement avant publication ;
 - Carnet réorganisé en lectures Jours et Semaines ; l'onglet Constats autonome
   est retiré de la navigation et remplacé par Recettes ;
-- route `/recipes` et frontière `src/features/recipes/` créées avec un écran
-  temporaire « En développement » ;
-- module Sport accessible par une cinquième entrée de navigation.
-- module Sport fonctionnel mais encore à enrichir et à peaufiner ;
+- route `/recipes` et frontière `src/features/recipes/` actives avec un premier
+  MVP local : catalogue, recherche, fiches, recettes personnelles et favoris ;
+- module Sport accessible par une cinquième entrée de navigation ;
+- navigation basse, thème et retours sont désormais partagés entre le cœur de
+  l'application, Recettes et Sport, sans rechargement complet volontaire ;
+- catalogue Sport enrichi à 36 familles et 101 variantes, avec sélection
+  déterministe adaptée aux capacités ; le contenu reste à valider et peaufiner ;
 - Profil identifié comme prochaine refonte fonctionnelle et visuelle complète.
 
 État Git de référence au 20 juillet 2026 :
 
-- production et branches distantes : `d6ac8e6` — `Refine meal autocomplete
-  selection flow` ;
-- checkout local : lot consolidé Repas/Ciqual, Profil, contrat Tabac, maquette
-  Admin et nouvelle identité Haru validé avant commit ;
+- production avant la présente intégration : `14e8173` — `Trigger Vercel
+  deployment for Haru branding` ;
+- checkout local : navigation et thème partagés, branding agrandi, MVP Recettes
+  et catalogue Sport enrichi validés avant commit ;
 - Sport, Recettes et abonnements restent sous pilotage produit direct et ne
   doivent pas être modifiés par un chantier transversal sans demande explicite.
 
@@ -193,8 +196,10 @@ Lecture réaliste de l'avancement vers la vision produit complète :
 - Carnet : vues Jours/Semaines abouties dans leur structure ; l'analyse repose
   encore sur l'ancien moteur ;
 - Profil : fonctionnel mais à reprendre visuellement et dans ses validations ;
-- Sport : verticale Renforcement testable, mais paiement et cloud réels absents ;
-- Recettes : route et écran temporaire uniquement ;
+- Sport : verticale Renforcement testable et catalogue fortement enrichi, mais
+  paiement, cloud réel et validation éditoriale des exercices absents ;
+- Recettes : premier MVP local utilisable avec catalogue, fiche, création,
+  modification, suppression et favoris ; cloud, Ciqual et droits payants absents ;
 - Tabac : saisie quotidienne stabilisée, pas encore de module d'accompagnement ;
 - Admin : maquette locale sous `/admin`, fermée en production par défaut,
   alimentée uniquement par des fixtures et sans branchement métier réel ;
@@ -568,12 +573,15 @@ Décisions :
 ### Chantier parallèle — Sport
 
 Statut : première tranche isolée développée, validée et reliée à la navigation
-principale par la route `/sport`.
+principale par la route `/sport`. Le catalogue renforcé comprend désormais 36
+familles et 101 variantes ; ces contenus restent `draft_unreviewed` jusqu'à leur
+validation éditoriale et sécurité.
 
 Première tranche validée :
 - questionnaire dédié à la première ouverture de Sport ;
 - profil, matériel, limitations et capacités multidimensionnelles ;
-- bibliothèque initiale de renforcement avec variantes ;
+- bibliothèque étendue de renforcement, mobilité, équilibre, chaîne postérieure
+  et conditionnement à faible impact, majoritairement sans matériel ;
 - génération déterministe, versionnée et explicable ;
 - aperçu, chronomètre, pause, reprise et fin de séance ;
 - retour neutre, adaptation d’une seule variable à la fois et historique basique ;
@@ -589,12 +597,16 @@ Itérations suivantes :
 
 ### Chantier principal — Recettes et Ciqual
 
-Statut : route et frontière de module créées ; écran temporaire « En
-développement » actif. Le cadrage fonctionnel et l’architecture de données
-restent à découper en tranches verticales sous pilotage produit direct.
+Statut : premier MVP local livré dans une frontière de module dédiée. Il permet
+de consulter le catalogue initial, ouvrir une fiche, créer, modifier et supprimer
+une recette personnelle privée, et gérer les favoris. La persistance reste
+isolée par invité/utilisateur sur l'appareil ; aucun cloud, paiement, partage
+public ou calcul nutritionnel n'est encore branché.
 
 Objectifs :
-- catalogue, recherche et fiches recettes ;
+- [x] catalogue initial, recherche et fiches recettes ;
+- [x] recettes personnelles privées locales ;
+- [x] favoris locaux ;
 - recettes privées et publiques avec propriété et RLS ;
 - ingrédients structurés et import Ciqual reproductible ;
 - adaptation des quantités au nombre de portions ;

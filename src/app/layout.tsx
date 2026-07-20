@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Nunito_Sans } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { HARU_THEME_BOOTSTRAP_SCRIPT } from "@/lib/themePreference";
 import "./globals.css";
 
 const nunitoSans = Nunito_Sans({
@@ -41,7 +42,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${nunitoSans.variable} h-full antialiased`}>
+    <html
+      lang="fr"
+      className={`${nunitoSans.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: HARU_THEME_BOOTSTRAP_SCRIPT }}
+          id="haru-theme-bootstrap"
+        />
+      </head>
       <body className="min-h-full bg-background text-foreground">
         <ServiceWorkerRegistration />
         {children}

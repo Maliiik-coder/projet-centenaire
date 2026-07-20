@@ -28,7 +28,7 @@ export function OnboardingLayout({
         {backAction || showProgress ? (
           <header className="pt-1">
             <div className="flex min-h-10 items-center justify-center">
-              <LogoHorizontal className="h-9 w-auto max-w-[44vw] shrink-0" priority />
+              <LogoHorizontal className="h-18 w-auto max-w-[72vw] shrink-0" priority />
             </div>
             <div className="grid min-h-14 grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-center gap-4">
               <div>{backAction}</div>

@@ -14,15 +14,15 @@ export function AppHeader({
     <header
       className={cx(
         variant === "signature"
-          ? "flex min-h-24 items-center justify-center py-2"
-          : "flex min-h-14 items-center justify-center py-1",
+          ? "flex min-h-40 items-center justify-center py-2"
+          : "flex min-h-24 items-center justify-center py-1",
         className,
       )}
     >
       {variant === "signature" ? (
-        <LogoFull className="h-auto w-52 max-w-[72vw] shrink-0" priority />
+        <LogoFull className="h-auto w-96 max-w-[92vw] shrink-0" priority />
       ) : (
-        <LogoHorizontal className="h-10 w-auto max-w-[52vw] shrink-0" priority />
+        <LogoHorizontal className="h-20 w-auto max-w-[78vw] shrink-0" priority />
       )}
     </header>
   );

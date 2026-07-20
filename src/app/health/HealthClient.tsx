@@ -67,7 +67,7 @@ export function HealthClient({ status }: { status: HealthStatus }) {
         <BackButton label="Retour au carnet" />
         <header className="flex items-center justify-between gap-4">
           <LogoHorizontal
-            className="h-10 w-auto max-w-[50vw] shrink-0"
+            className="h-20 w-auto max-w-[78vw] shrink-0"
             priority
           />
           <span className="rounded-full border border-[#D7CEC0] bg-[#FAF8F1] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#7A7166]">

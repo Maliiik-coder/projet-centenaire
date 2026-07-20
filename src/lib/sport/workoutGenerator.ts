@@ -32,21 +32,57 @@ interface SelectedMovement {
 }
 
 const MAIN_MOVEMENT_ORDER: MovementPattern[] = [
+  "mobility",
   "squat",
   "push",
   "hinge",
   "bridge",
   "core",
   "pull",
+  "locomotion",
 ];
 
-function hashText(value: string): string {
+function hashNumber(value: string): number {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
     hash = (hash * 31 + value.charCodeAt(index)) | 0;
   }
 
-  return Math.abs(hash).toString(36);
+  return Math.abs(hash);
+}
+
+function hashText(value: string): string {
+  return hashNumber(value).toString(36);
+}
+
+function rotationOffset(
+  input: SportGenerationInput,
+  pattern: MovementPattern,
+  itemCount: number,
+): number {
+  if (itemCount <= 1) {
+    return 0;
+  }
+
+  return (
+    hashNumber(
+      JSON.stringify({
+        userId: input.userId,
+        requestedDurationMinutes: input.requestedDurationMinutes,
+        now: input.now,
+        seed: input.seed ?? "",
+        pattern,
+      }),
+    ) % itemCount
+  );
+}
+
+function rotateByOffset<T>(items: T[], offset: number): T[] {
+  if (items.length <= 1 || offset === 0) {
+    return items;
+  }
+
+  return [...items.slice(offset), ...items.slice(0, offset)];
 }
 
 function stepId(sessionId: string, order: number, type: string): string {
@@ -148,6 +184,8 @@ function chooseVariant(args: {
   availableEquipment: Set<EquipmentType>;
   capabilityLevel: CapabilityLevel;
   reasons: SportEngineReason[];
+  allowFallback?: boolean;
+  recordReason?: boolean;
 }): ExerciseVariant | null {
   const compatibleVariants = args.exercise.variants.filter((variant) =>
     hasRequiredEquipment(variant.requiredEquipment, args.availableEquipment),
@@ -170,12 +208,13 @@ function chooseVariant(args: {
 
   const selected =
     safeVariants[0] ??
-    compatibleVariants.sort(
-      (a, b) => a.difficulty - b.difficulty || a.id.localeCompare(b.id),
-    )[0] ??
-    null;
+    (args.allowFallback === false
+      ? null
+      : compatibleVariants.sort(
+          (a, b) => a.difficulty - b.difficulty || a.id.localeCompare(b.id),
+        )[0] ?? null);
 
-  if (selected) {
+  if (selected && args.recordReason !== false) {
     args.reasons.push({
       code: "capability_variant",
       message: `${selected.name} choisi selon la capacite declaree pour ${args.exercise.capabilityDimension}.`,
@@ -206,11 +245,16 @@ function selectMovements(
   const selected: SelectedMovement[] = [];
 
   for (const pattern of MAIN_MOVEMENT_ORDER) {
-    const exercisesForPattern = STRENGTH_EXERCISES.filter(
+    const sortedExercisesForPattern = STRENGTH_EXERCISES.filter(
       (exercise) => exercise.active && exercise.movementPattern === pattern,
     ).sort((a, b) => a.id.localeCompare(b.id));
+    const exercisesForPattern = rotateByOffset(
+      sortedExercisesForPattern,
+      rotationOffset(input, pattern, sortedExercisesForPattern.length),
+    );
 
     let foundForPattern: SelectedMovement | null = null;
+    let fallbackForPattern: SelectedMovement | null = null;
 
     for (const exercise of exercisesForPattern) {
       if (!hasRequiredEquipment(exercise.requiredEquipment, availableEquipment)) {
@@ -259,16 +303,48 @@ function selectMovements(
         availableEquipment,
         capabilityLevel,
         reasons,
+        allowFallback: false,
       });
 
       if (variant) {
         foundForPattern = { exercise, variant, capabilityLevel };
         break;
       }
+
+      if (!fallbackForPattern) {
+        const fallbackVariant = chooseVariant({
+          exercise,
+          availableEquipment,
+          capabilityLevel,
+          reasons,
+          recordReason: false,
+        });
+
+        if (fallbackVariant) {
+          fallbackForPattern = {
+            exercise,
+            variant: fallbackVariant,
+            capabilityLevel,
+          };
+        }
+      }
     }
 
     if (foundForPattern) {
       selected.push(foundForPattern);
+    } else if (fallbackForPattern) {
+      reasons.push({
+        code: "capability_variant",
+        message: `${fallbackForPattern.variant.name} choisi en variante minimale disponible pour ${fallbackForPattern.exercise.capabilityDimension}.`,
+        severity: "caution",
+        exerciseId: fallbackForPattern.exercise.id,
+        variantId: fallbackForPattern.variant.id,
+        details: {
+          capabilityLevel: fallbackForPattern.capabilityLevel,
+          variantDifficulty: fallbackForPattern.variant.difficulty,
+        },
+      });
+      selected.push(fallbackForPattern);
     }
   }
 

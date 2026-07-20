@@ -1,36 +1,18 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
-import {
-  BookOpen,
-  ChefHat,
-  Dumbbell,
-  PenLine,
-  Settings2,
-} from "lucide-react";
 import { appResumePath } from "@/lib/entryMode";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { AppHeader } from "@/components/centenaire/AppHeader";
 import { BottomNav } from "@/components/centenaire/BottomNav";
+import {
+  HARU_NAVIGATION_ITEMS,
+  isHaruCoreTab,
+  type HaruCoreTabId,
+  type HaruNavigationTabId,
+} from "@/components/centenaire/appNavigation";
 
-export type AppTabId = "today" | "journal" | "profile";
-type NavigationTabId = AppTabId | "recipes" | "sport";
-
-type TabDefinition = {
-  accessibleLabel?: string;
-  id: NavigationTabId;
-  label: string;
-  icon: LucideIcon;
-};
-
-const tabs: TabDefinition[] = [
-  { id: "today", label: "Jour", accessibleLabel: "Page du jour", icon: PenLine },
-  { id: "journal", label: "Carnet", icon: BookOpen },
-  { id: "recipes", label: "Recettes", icon: ChefHat },
-  { id: "sport", label: "Sport", icon: Dumbbell },
-  { id: "profile", label: "Profil", icon: Settings2 },
-];
+export type AppTabId = HaruCoreTabId;
 
 type HaruAppShellProps = {
   activeTab: AppTabId;
@@ -87,17 +69,18 @@ export function HaruAppShell({
 
       {overlays}
 
-      <BottomNav<NavigationTabId>
+      <BottomNav<HaruNavigationTabId>
         activeId={activeTab}
-        items={tabs}
+        items={HARU_NAVIGATION_ITEMS.map((item) =>
+          isHaruCoreTab(item.id) ? { ...item, href: undefined } : item,
+        )}
         onChange={(nextTab) => {
-          if (nextTab === "recipes" || nextTab === "sport") {
-            window.history.replaceState(null, "", appResumePath(activeTab));
-            window.location.assign(nextTab === "recipes" ? "/recipes" : "/sport");
+          if (isHaruCoreTab(nextTab)) {
+            onTabChange(nextTab);
             return;
           }
 
-          onTabChange(nextTab);
+          window.history.replaceState(null, "", appResumePath(activeTab));
         }}
       />
     </main>

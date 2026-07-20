@@ -10,7 +10,9 @@ Cette tranche expose une route isolee `/sport`, sans integration dans le shell p
 - evaluation guidee ouverte volontairement depuis le tableau de bord ;
 - test sequentiel en feuille : variante, illustration depart/fin, bouton pret, compte a rebours 3 s, effort 20 s, reponse oui/non ;
 - capacites multidimensionnelles calibrees depuis le niveau de variante tenu ;
-- bibliotheque initiale de mouvements de renforcement dans `src/lib/sport/exerciseLibrary.ts` ;
+- bibliotheque enrichie de renforcement dans `src/lib/sport/exerciseLibrary.ts` :
+  environ 25 familles de mouvements et plus de 60 variantes utiles, avec une
+  priorite aux options sans materiel ;
 - tableau de bord `/sport` avec choix d'activite, seances faites et jauges de progression ;
 - illustrations fournies pour toutes les variantes de l'evaluation guidee actuelle ;
 - moteur deterministe et versionne dans `src/lib/sport/workoutGenerator.ts` ;
@@ -20,13 +22,15 @@ Cette tranche expose une route isolee `/sport`, sans integration dans le shell p
 
 Marche/course et natation sont representees dans les types du profil et dans le selecteur du tableau de bord, avec la mention "En developpement". Leur generation autonome n'est pas implementee dans cette tranche. La marche/course est une seule progression : une personne visant la course peut commencer par marcher, et une preference "marche seulement" pourra etre ajoutee dans l'arbre dedie.
 
-La progression de renforcement privilegie les variantes sans materiel obligatoire. Exemple pour les pompes : mur, genoux, sol, puis pieds sureleves. Le dashboard ne liste pas toutes les variantes ; il affiche une visualisation globale par axes. Le moteur ne doit augmenter qu'une seule variable a la fois.
+La progression de renforcement privilegie les variantes sans materiel obligatoire. Exemple pour les pompes : mur, genoux, sol, puis pieds sureleves. Le catalogue couvre aussi jambes, chaine posterieure, gainage anti-extension et anti-rotation, mobilite, equilibre, conditionnement a faible impact, et alternatives de tirage sans materiel basees sur le controle des omoplates et du haut du dos.
+
+Le dashboard ne liste pas toutes les variantes ; il affiche une visualisation globale par axes. Le moteur ne doit augmenter qu'une seule variable a la fois. Depuis la version `sport-strength-mvp-2026-07-20.1`, la selection des exercices compatibles tourne de facon deterministe selon l'entree de generation, pour eviter que le meme premier exercice alphabetique soit toujours choisi.
 
 ## Architecture
 
 - `src/lib/sport/types.ts` : modeles domaine Sport.
 - `src/lib/sport/config.ts` : version moteur et parametres configurables.
-- `src/lib/sport/exerciseLibrary.ts` : catalogue initial, medias en emplacements reserves.
+- `src/lib/sport/exerciseLibrary.ts` : catalogue renforcement, medias en emplacements reserves.
 - `src/lib/sport/progression.ts` : adaptation a partir des retours.
 - `src/lib/sport/workoutGenerator.ts` : generation pure et reproductible.
 - `src/lib/sport/workoutTimer.ts` : chronometre pur fonde sur des horodatages.
@@ -69,6 +73,8 @@ Aucun `supabase db push` n'a ete execute pour cette tranche.
 3. Fournir deux a quatre variantes avec difficultes 0 a 4 et liens easier/harder.
 4. Garder `validationStatus: "draft_unreviewed"` tant que le contenu n'est pas relu.
 5. Ajouter un test si l'exercice influence une selection critique.
+6. Garder `requiredEquipment: []` uniquement si la variante est reellement faisable sans accessoire.
+7. Pour les tirages sans materiel, rester sur des alternatives originales Haru de controle scapulaire et dorsal ; ne pas copier de noms, sequences, textes ou structures de methodes proprietaires.
 
 ## Ajouter une regle moteur
 

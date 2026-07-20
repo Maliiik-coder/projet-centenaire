@@ -16,6 +16,10 @@ import {
   userStorageScope,
 } from "@/lib/storage";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  applyThemePreference,
+  writeThemePreference,
+} from "@/lib/themePreference";
 import type {
   AppData,
   ISODate,
@@ -556,10 +560,14 @@ export function useAppDataSession(currentDate: ISODate) {
   }, [notice, error]);
 
   useEffect(() => {
-    document.documentElement.dataset.pcTheme = data?.profile?.darkMode
-      ? "dark"
-      : "light";
-  }, [data?.profile?.darkMode]);
+    if (!data) {
+      return;
+    }
+
+    const theme = data.profile?.darkMode ? "dark" : "light";
+    applyThemePreference(theme);
+    writeThemePreference(theme);
+  }, [data]);
 
   const persistData = async (
     normalized: AppData,

@@ -22,4 +22,30 @@ describe("BottomNav", () => {
     expect(html).toContain(">sport<");
     expect(html).toContain(">recipes<");
   });
+
+  it("rend les destinations de route avec des liens Next préchargeables", () => {
+    const html = renderToStaticMarkup(
+      <BottomNav
+        activeId="recipes"
+        items={[
+          {
+            href: "/recipes",
+            icon: Dumbbell,
+            id: "recipes",
+            label: "Recettes",
+          },
+          {
+            href: "/sport",
+            icon: Dumbbell,
+            id: "sport",
+            label: "Sport",
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain('href="/recipes"');
+    expect(html).toContain('href="/sport"');
+    expect(html).toContain('aria-current="page"');
+  });
 });

@@ -1,8 +1,10 @@
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { cx } from "@/components/ui/styles";
 
 export type BottomNavItem<T extends string> = {
   accessibleLabel?: string;
+  href?: string;
   icon: LucideIcon;
   id: T;
   label: string;
@@ -10,8 +12,8 @@ export type BottomNavItem<T extends string> = {
 
 export type BottomNavProps<T extends string> = {
   activeId: T;
-  items: BottomNavItem<T>[];
-  onChange: (id: T) => void;
+  items: readonly BottomNavItem<T>[];
+  onChange?: (id: T) => void;
 };
 
 export function BottomNav<T extends string>({
@@ -33,21 +35,14 @@ export function BottomNav<T extends string>({
         {items.map((item) => {
           const Icon = item.icon;
           const selected = item.id === activeId;
-
-          return (
-            <button
-              aria-label={item.accessibleLabel ?? item.label}
-              aria-current={selected ? "page" : undefined}
-              className={cx(
-                "pc-focus-ring pc-motion-safe relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[var(--pc-radius-card)] px-1 py-1 text-center transition-[color,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] active:translate-y-px",
-                selected
-                  ? "text-[var(--pc-color-primary)]"
-                  : "text-[var(--pc-color-text-muted)] hover:text-[var(--pc-color-text)]",
-              )}
-              key={item.id}
-              type="button"
-              onClick={() => onChange(item.id)}
-            >
+          const className = cx(
+            "pc-focus-ring pc-motion-safe relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[var(--pc-radius-card)] px-1 py-1 text-center transition-[color,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] active:translate-y-px",
+            selected
+              ? "text-[var(--pc-color-primary)]"
+              : "text-[var(--pc-color-text-muted)] hover:text-[var(--pc-color-text)]",
+          );
+          const content = (
+            <>
               <span
                 className={cx(
                   "flex h-7 min-w-11 items-center justify-center rounded-full px-3 transition-colors duration-[var(--pc-motion-fast)]",
@@ -63,6 +58,34 @@ export function BottomNav<T extends string>({
               <span className="max-w-full whitespace-nowrap text-[11px] leading-4 font-semibold">
                 {item.label}
               </span>
+            </>
+          );
+
+          if (item.href) {
+            return (
+              <Link
+                aria-label={item.accessibleLabel ?? item.label}
+                aria-current={selected ? "page" : undefined}
+                className={className}
+                href={item.href}
+                key={item.id}
+                onClick={() => onChange?.(item.id)}
+              >
+                {content}
+              </Link>
+            );
+          }
+
+          return (
+            <button
+              aria-label={item.accessibleLabel ?? item.label}
+              aria-current={selected ? "page" : undefined}
+              className={className}
+              key={item.id}
+              type="button"
+              onClick={() => onChange?.(item.id)}
+            >
+              {content}
             </button>
           );
         })}

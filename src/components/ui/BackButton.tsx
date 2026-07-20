@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { IconButton } from "@/components/ui/IconButton";
+import { iconButtonClassName } from "@/components/ui/IconButton";
 
 export type BackButtonProps = {
   className?: string;
@@ -35,10 +36,14 @@ export function BackButton({
   label = "Retour",
 }: BackButtonProps) {
   return (
-    <IconButton
-      className={`rounded-full ${className ?? ""}`}
-      label={label}
-      onClick={() => {
+    <Link
+      aria-label={label}
+      className={iconButtonClassName({
+        className: `rounded-full ${className ?? ""}`,
+      })}
+      href={fallbackHref}
+      title={label}
+      onClick={(event) => {
         if (
           canUseInAppHistory({
             currentOrigin: window.location.origin,
@@ -46,14 +51,12 @@ export function BackButton({
             referrer: document.referrer,
           })
         ) {
+          event.preventDefault();
           window.history.back();
-          return;
         }
-
-        window.location.assign(fallbackHref);
       }}
     >
       <ChevronLeft aria-hidden="true" size={24} />
-    </IconButton>
+    </Link>
   );
 }

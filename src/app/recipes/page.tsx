@@ -1,5 +1,5 @@
-import { RecipesDevelopmentScreen } from "@/features/recipes/RecipesDevelopmentScreen";
+import { RecipesApp } from "@/features/recipes/RecipesApp";
 
 export default function RecipesPage() {
-  return <RecipesDevelopmentScreen />;
+  return <RecipesApp />;
 }

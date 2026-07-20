@@ -173,9 +173,26 @@ body {
   padding-bottom: calc(5.5rem + max(0.75rem, env(safe-area-inset-bottom)));
 }
 
+.pc-module-route-shell {
+  min-height: 100svh;
+  min-height: 100dvh;
+  background: var(--pc-color-background);
+  color: var(--pc-color-text);
+  padding-bottom: calc(5.5rem + max(0.75rem, env(safe-area-inset-bottom)));
+}
+
+.pc-module-route-shell > .pc-screen {
+  min-height: calc(100svh - 5.5rem);
+  padding-bottom: var(--pc-space-6);
+}
+
 @supports (min-height: 100dvh) {
   .pc-screen-inner {
     min-height: calc(100dvh - var(--pc-safe-top) - var(--pc-safe-bottom) - 1.5rem);
+  }
+
+  .pc-module-route-shell > .pc-screen {
+    min-height: calc(100dvh - 5.5rem);
   }
 }
 

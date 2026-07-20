@@ -18,7 +18,10 @@ export {
   HoldChoiceCard,
 } from "@/components/ui/HoldChoiceCard";
 export type { HoldChoiceCardProps } from "@/components/ui/HoldChoiceCard";
-export { IconButton } from "@/components/ui/IconButton";
+export {
+  IconButton,
+  iconButtonClassName,
+} from "@/components/ui/IconButton";
 export type { IconButtonProps } from "@/components/ui/IconButton";
 export { LoadingState } from "@/components/ui/LoadingState";
 export type { LoadingStateProps } from "@/components/ui/LoadingState";
