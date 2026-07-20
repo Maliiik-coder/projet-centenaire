@@ -6,6 +6,7 @@ import {
   deletePersonalRecipe,
   filterRecipes,
   findRecipe,
+  gramsFromIngredientQuantity,
   isFavorite,
   recipeDraftFromRecipe,
   recipeFromDraft,
@@ -18,7 +19,28 @@ const validDraft: RecipeDraft = {
   category: "dinner",
   cookMinutes: "20",
   description: "Une soupe simple pour un soir tranquille.",
-  ingredientsText: "Carottes\nPoireaux\nEau",
+  ingredients: [
+    {
+      ciqualCode: "20009",
+      ciqualName: "Carotte, crue",
+      foodState: "raw",
+      id: "ingredient-draft-1",
+      label: "Carottes",
+      quantity: "200",
+      reliability: "incomplete",
+      unit: "g",
+    },
+    {
+      ciqualCode: "",
+      ciqualName: "",
+      foodState: "unknown",
+      id: "ingredient-draft-2",
+      label: "Eau",
+      quantity: "500",
+      reliability: "incomplete",
+      unit: "ml",
+    },
+  ],
   prepMinutes: "10",
   servings: "2",
   stepsText: "Couper les legumes\nCuire doucement",
@@ -48,11 +70,11 @@ describe("recipeModel", () => {
 
     expect(result.recipe).toBeNull();
     expect(result.errors?.title).toBe("Donne un nom à la recette.");
-    expect(result.errors?.ingredientsText).toBe("Ajoute au moins un ingrédient.");
+    expect(result.errors?.ingredients).toBe("Ajoute au moins un ingrédient.");
     expect(result.errors?.stepsText).toBe("Ajoute au moins une étape.");
   });
 
-  it("cree une recette personnelle sans donnees nutritionnelles arbitraires", () => {
+  it("cree une recette personnelle structuree sans donnees nutritionnelles arbitraires", () => {
     const recipe = createRecipeFromDraft();
 
     expect(recipe).toMatchObject({
@@ -63,12 +85,59 @@ describe("recipeModel", () => {
       servings: 2,
       title: "Soupe maison",
     });
-    expect(recipe.ingredients).toHaveLength(3);
+    expect(recipe.ingredients).toHaveLength(2);
+    expect(recipe.ingredients[0]).toMatchObject({
+      ciqualCode: "20009",
+      foodState: "raw",
+      grams: 200,
+      label: "Carottes",
+      quantity: 200,
+      reliability: "ciqual_linked",
+      unit: "g",
+    });
+    expect(recipe.ingredients[1]).toMatchObject({
+      grams: null,
+      label: "Eau",
+      reliability: "user_declared",
+      unit: "ml",
+    });
     expect(recipe.steps).toHaveLength(2);
     expect(recipe.tags).toEqual(["chaud", "simple"]);
     expect("calories" in recipe).toBe(false);
     expect("macros" in recipe).toBe(false);
     expect("nutrition" in recipe).toBe(false);
+  });
+
+  it("valide les quantites, les unites et les codes CIQUAL", () => {
+    const invalidQuantity = recipeFromDraft({
+      draft: {
+        ...validDraft,
+        ingredients: [
+          { ...validDraft.ingredients[0], quantity: "-20" },
+        ],
+      },
+      nowIso: "2026-07-20T10:00:00.000Z",
+      recipeId: "recipe-invalid",
+    });
+    const invalidCode = recipeFromDraft({
+      draft: {
+        ...validDraft,
+        ingredients: [
+          { ...validDraft.ingredients[0], ciqualCode: "abc" },
+        ],
+      },
+      nowIso: "2026-07-20T10:00:00.000Z",
+      recipeId: "recipe-invalid-code",
+    });
+
+    expect(invalidQuantity.errors?.ingredients).toBe(
+      "Les quantités doivent être des nombres positifs.",
+    );
+    expect(invalidCode.errors?.ingredients).toBe(
+      "Un code CIQUAL doit contenir uniquement des chiffres.",
+    );
+    expect(gramsFromIngredientQuantity(0.25, "kg")).toBe(250);
+    expect(gramsFromIngredientQuantity(120, "ml")).toBeNull();
   });
 
   it("modifie et supprime uniquement les recettes personnelles", () => {

@@ -3,19 +3,25 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
+  Cigarette,
   Cloud,
+  Dumbbell,
   LogOut,
   PencilLine,
-  ShieldCheck,
+  Settings2,
   Smartphone,
+  Target,
   UserRound,
+  Utensils,
 } from "lucide-react";
+import { getLatestWeight } from "@/lib/analytics";
 import { behaviorHypothesisText } from "@/lib/onboarding";
 import type { AppData, Profile } from "@/lib/types";
 import { Button, Switch, buttonClassName } from "@/components/ui";
 import { ProfileAdvancedOptions } from "@/features/profile/ProfileAdvancedOptions";
 import { ProfileEditor } from "@/features/profile/ProfileEditor";
 import {
+  profileNeedsSmokingGoal,
   profileSmokingGoalLabels,
   profileSmokingStatusLabels,
 } from "@/features/profile/profileModel";
@@ -33,6 +39,7 @@ export type ProfileScreenProps = {
   onChangeEditorOpen: (open: boolean) => void;
   onImportFile: (file: File) => Promise<void>;
   onOpenBehaviorEditor: () => void;
+  onOpenSportProfile?: () => void;
   onPreferencesChange: (
     preferences: Partial<Pick<Profile, "darkMode" | "showActiveMission">>,
   ) => void;
@@ -55,6 +62,7 @@ export function ProfileScreen({
   onChangeEditorOpen,
   onImportFile,
   onOpenBehaviorEditor,
+  onOpenSportProfile,
   onPreferencesChange,
   onResetData,
   onSaveProfile,
@@ -62,20 +70,32 @@ export function ProfileScreen({
   onValidationError,
 }: ProfileScreenProps) {
   const behaviorAssessment = profile.initialBehaviorAssessment;
+  const latestWeight = getLatestWeight(data.weights);
+  const currentWeightText = latestWeight
+    ? formatKg(latestWeight.weightKg)
+    : "À compléter";
   const smokingSummaryText = profile.smokingGoal
     ? `${profileSmokingStatusLabels[profile.smokingStatus]} · ${profileSmokingGoalLabels[profile.smokingGoal]}`
     : profileSmokingStatusLabels[profile.smokingStatus];
+  const showSmokingSummary = isSmokingRelevant(profile);
 
   return (
-    <div className="space-y-8">
-      <header className="space-y-2 pb-1">
+    <div className="space-y-7">
+      <header className="space-y-5 pb-1">
         <p className={eyebrowClass}>Profil</p>
-        <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
-          Ton espace
-        </h1>
-        <p className="text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text-muted)]">
-          Tes informations, tes repères et ton compte.
-        </p>
+        <div className="space-y-2">
+          <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
+            {profile.firstName || "Ton espace"}
+          </h1>
+          <p className="max-w-[30rem] text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text-muted)]">
+            Tes repères personnels, tes préférences et les accès utiles.
+          </p>
+        </div>
+        <dl className="grid grid-cols-3 gap-2 border-y border-[var(--pc-color-border)] py-3">
+          <ProfileStat label="Actuel" value={currentWeightText} />
+          <ProfileStat label="Départ" value={formatKg(profile.startWeightKg)} />
+          <ProfileStat label="Objectif" value={formatKg(profile.goalWeightKg)} />
+        </dl>
       </header>
 
       <ProfileSection
@@ -90,9 +110,9 @@ export function ProfileScreen({
             {editorOpen ? "Fermer" : "Modifier"}
           </Button>
         }
-        eyebrow="Résumé personnel"
+        eyebrow="Profil général"
         icon={<UserRound aria-hidden="true" size={21} />}
-        title={profile.firstName || "Mon profil"}
+        title="Tes informations"
       >
         {editorOpen && profileDraft ? (
           <ProfileEditor
@@ -104,28 +124,20 @@ export function ProfileScreen({
             onValidationError={onValidationError}
           />
         ) : (
-          <div className="mt-4">
-            <p className="text-[length:var(--pc-font-size-secondary)] text-[var(--pc-color-text-muted)]">
-              {profile.age} ans · {profile.heightCm} cm
-            </p>
-            <dl className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 space-y-4">
+            <dl className="grid grid-cols-2 gap-3">
               <ProfileMetric
-                label="Poids de départ"
-                value={formatKg(profile.startWeightKg)}
+                label="Prénom"
+                value={profile.firstName || "Non renseigné"}
               />
-              <ProfileMetric
-                label="Objectif"
-                value={formatKg(profile.goalWeightKg)}
-              />
+              <ProfileMetric label="Âge" value={`${profile.age} ans`} />
+              <ProfileMetric label="Taille" value={`${profile.heightCm} cm`} />
+              <ProfileMetric label="Poids actuel" value={currentWeightText} />
             </dl>
-            <div className="mt-4 flex items-start justify-between gap-4 border-t border-[var(--pc-color-border)] pt-4">
-              <span className="text-[length:var(--pc-font-size-secondary)] font-medium text-[var(--pc-color-text)]">
-                Tabac
-              </span>
-              <span className="max-w-[62%] text-right text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
-                {smokingSummaryText}
-              </span>
-            </div>
+            <p className="text-[length:var(--pc-font-size-meta)] leading-5 text-[var(--pc-color-text-muted)]">
+              Le poids actuel vient de la dernière mesure du Carnet. S’il manque,
+              Haru l’indique sans extrapoler.
+            </p>
           </div>
         )}
       </ProfileSection>
@@ -136,9 +148,15 @@ export function ProfileScreen({
             {behaviorAssessment ? "Revoir" : "Compléter"}
           </Button>
         }
-        eyebrow="Portrait initial"
-        icon={<ShieldCheck aria-hidden="true" size={21} />}
-        title="Tes pistes à observer"
+        eyebrow="Profil alimentaire"
+        icon={<Utensils aria-hidden="true" size={21} />}
+        title={
+          behaviorAssessment?.hypotheses.length
+            ? `${behaviorAssessment.hypotheses.length} piste${
+                behaviorAssessment.hypotheses.length > 1 ? "s" : ""
+              } à observer`
+            : "Portrait à compléter"
+        }
       >
         {behaviorAssessment?.hypotheses.length ? (
           <ul className="mt-4 space-y-3">
@@ -167,14 +185,33 @@ export function ProfileScreen({
         </p>
       </ProfileSection>
 
-      <section aria-labelledby="profile-preferences-title">
-        <p className={eyebrowClass}>Préférences</p>
-        <h2
-          className="mt-1 text-[length:var(--pc-font-size-section-title)] font-bold text-[var(--pc-color-text)]"
-          id="profile-preferences-title"
+      <ProfileSportSection onOpenSportProfile={onOpenSportProfile} />
+
+      {showSmokingSummary ? (
+        <ProfileSection
+          eyebrow="Tabac"
+          icon={<Cigarette aria-hidden="true" size={21} />}
+          title="Situation déclarée"
         >
-          Affichage
-        </h2>
+          <div className="mt-4 rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface-subtle)] px-4 py-3">
+            <p className="text-[length:var(--pc-font-size-body)] font-semibold text-[var(--pc-color-text)]">
+              {smokingSummaryText}
+            </p>
+            <p className="mt-1 text-[length:var(--pc-font-size-meta)] leading-5 text-[var(--pc-color-text-muted)]">
+              Haru garde ce repère pour le suivi quotidien, sans conseil médical
+              ni module dédié pour le moment.
+            </p>
+          </div>
+        </ProfileSection>
+      ) : null}
+
+      <section aria-labelledby="profile-preferences-title">
+        <SectionHeading
+          eyebrow="Préférences"
+          icon={<Settings2 aria-hidden="true" size={21} />}
+          title="Affichage"
+          titleId="profile-preferences-title"
+        />
         <div className="mt-3 divide-y divide-[var(--pc-color-border)]">
           <Switch
             checked={profile.darkMode}
@@ -197,29 +234,23 @@ export function ProfileScreen({
       </section>
 
       <section aria-labelledby="profile-account-title">
-        <p className={eyebrowClass}>Compte</p>
-        <div className="mt-2 flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
-            {cloudUserId ? (
-              <Cloud aria-hidden="true" size={20} />
+        <SectionHeading
+          eyebrow="Compte"
+          icon={
+            cloudUserId ? (
+              <Cloud aria-hidden="true" size={21} />
             ) : (
-              <Smartphone aria-hidden="true" size={20} />
-            )}
-          </span>
-          <div className="min-w-0">
-            <h2
-              className="text-[length:var(--pc-font-size-card-title)] font-bold text-[var(--pc-color-text)]"
-              id="profile-account-title"
-            >
-              {cloudUserId ? "Compte connecté" : "Carnet local"}
-            </h2>
-            <p className="mt-1 break-words text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
-              {cloudUserId
-                ? cloudEmail ?? "Compte cloud actif"
-                : "Les données restent sur cet appareil."}
-            </p>
-          </div>
-        </div>
+              <Smartphone aria-hidden="true" size={21} />
+            )
+          }
+          title={cloudUserId ? "Compte connecté" : "Carnet local"}
+          titleId="profile-account-title"
+        />
+        <p className="mt-3 break-words text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
+          {cloudUserId
+            ? cloudEmail ?? "Compte cloud actif"
+            : "Les données restent sur cet appareil."}
+        </p>
 
         <div className="mt-4 grid gap-2">
           {cloudUserId ? (
@@ -266,6 +297,36 @@ export function ProfileScreen({
   );
 }
 
+export function ProfileSportSection({
+  onOpenSportProfile,
+}: {
+  onOpenSportProfile?: () => void;
+}) {
+  return (
+    <ProfileSection
+      action={
+        <Button
+          className="shrink-0"
+          disabled={!onOpenSportProfile}
+          variant="secondary"
+          onClick={onOpenSportProfile}
+        >
+          <Target aria-hidden="true" size={17} />
+          Compléter
+        </Button>
+      }
+      eyebrow="Profil sportif"
+      icon={<Dumbbell aria-hidden="true" size={21} />}
+      title="À compléter"
+    >
+      <p className="mt-4 text-[length:var(--pc-font-size-secondary)] leading-6 text-[var(--pc-color-text-muted)]">
+        Le module Sport pourra renseigner ton niveau, tes limites et tes objectifs
+        de mouvement. Cette page ne lit pas ses données directement.
+      </p>
+    </ProfileSection>
+  );
+}
+
 function ProfileSection({
   action,
   children,
@@ -282,21 +343,53 @@ function ProfileSection({
   return (
     <section className="border-t border-[var(--pc-color-border)] pt-6">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <p className={eyebrowClass}>{eyebrow}</p>
-            <h2 className="mt-1 text-[length:var(--pc-font-size-card-title)] font-bold text-[var(--pc-color-text)]">
-              {title}
-            </h2>
-          </div>
-        </div>
+        <SectionHeading eyebrow={eyebrow} icon={icon} title={title} />
         {action}
       </div>
       {children}
     </section>
+  );
+}
+
+function SectionHeading({
+  eyebrow,
+  icon,
+  title,
+  titleId,
+}: {
+  eyebrow: string;
+  icon: ReactNode;
+  title: string;
+  titleId?: string;
+}) {
+  return (
+    <div className="flex min-w-0 gap-3">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className={eyebrowClass}>{eyebrow}</p>
+        <h2
+          className="mt-1 text-[length:var(--pc-font-size-card-title)] leading-6 font-bold text-[var(--pc-color-text)]"
+          id={titleId}
+        >
+          {title}
+        </h2>
+      </div>
+    </div>
+  );
+}
+
+function ProfileStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[length:var(--pc-font-size-meta)] leading-5 text-[var(--pc-color-text-muted)]">
+        {label}
+      </dt>
+      <dd className="mt-0.5 break-words text-[length:var(--pc-font-size-secondary)] leading-5 font-bold text-[var(--pc-color-text)]">
+        {value}
+      </dd>
+    </div>
   );
 }
 
@@ -310,6 +403,13 @@ function ProfileMetric({ label, value }: { label: string; value: string }) {
         {value}
       </dd>
     </div>
+  );
+}
+
+function isSmokingRelevant(profile: Profile): boolean {
+  return (
+    profileNeedsSmokingGoal(profile.smokingStatus) ||
+    profile.smokingStatus === "arrete"
   );
 }
 

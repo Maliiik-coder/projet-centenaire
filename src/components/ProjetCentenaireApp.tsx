@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { calculateWeeklyAnalysis } from "@/lib/analytics";
 import { todayISO } from "@/lib/dates";
 import { isInitialObservationDay } from "@/lib/observationPhase";
@@ -44,6 +45,7 @@ import type { ISODate } from "@/lib/types";
 const today = todayISO();
 
 export function ProjetCentenaireApp() {
+  const router = useRouter();
   const currentDate = useCurrentDate();
   const {
     attachLocalDataToAccount,
@@ -303,6 +305,7 @@ export function ProjetCentenaireApp() {
       onChangeEditorOpen={changeProfileEditorOpen}
       onImportFile={importProfileData}
       onOpenBehaviorEditor={openBehaviorEditor}
+      onOpenSportProfile={() => router.push("/sport?view=settings")}
       onPreferencesChange={updateProfilePreferences}
       onResetData={resetProfileData}
       onSaveProfile={saveProfileChanges}

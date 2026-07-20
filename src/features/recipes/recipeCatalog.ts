@@ -1,4 +1,10 @@
-import type { Recipe, RecipeCategory } from "@/features/recipes/recipeTypes";
+import type {
+  Recipe,
+  RecipeCategory,
+  RecipeFoodState,
+  RecipeIngredient,
+  RecipeIngredientUnit,
+} from "@/features/recipes/recipeTypes";
 
 export const recipeCategoryLabels: Record<RecipeCategory, string> = {
   breakfast: "Petit déjeuner",
@@ -15,18 +21,58 @@ export const recipeCatalog: Recipe[] = [
     createdAt: "2026-07-20T08:00:00.000Z",
     description: "Une base froide facile à préparer, pensée pour un repas simple à relire dans le carnet.",
     ingredients: [
-      { id: "ingredient-1", text: "Pâtes cuites" },
-      { id: "ingredient-2", text: "Tomates" },
-      { id: "ingredient-3", text: "Concombre" },
-      { id: "ingredient-4", text: "Thon ou oeufs" },
-      { id: "ingredient-5", text: "Huile d’olive et herbes" },
+      ingredient({
+        ciqualCode: "9811",
+        ciqualName: "Pâtes sèches, standard, cuites, sans sel ajouté",
+        foodState: "cooked",
+        id: "ingredient-1",
+        label: "Pâtes cuites",
+        quantity: 220,
+      }),
+      ingredient({
+        ciqualCode: "20192",
+        ciqualName: "Tomate côtelée ou coeur de boeuf, crue",
+        foodState: "raw",
+        id: "ingredient-2",
+        label: "Tomates",
+        quantity: 180,
+      }),
+      ingredient({
+        ciqualCode: "20019",
+        ciqualName: "Concombre, chair et peau, cru",
+        foodState: "raw",
+        id: "ingredient-3",
+        label: "Concombre",
+        quantity: 120,
+      }),
+      ingredient({
+        ciqualCode: "26039",
+        ciqualName: "Thon, au naturel, appertisé, égoutté",
+        foodState: "cooked",
+        id: "ingredient-4",
+        label: "Thon au naturel égoutté",
+        quantity: 90,
+      }),
+      ingredient({
+        ciqualCode: "17270",
+        ciqualName: "Huile d'olive vierge extra",
+        foodState: "not_applicable",
+        id: "ingredient-5",
+        label: "Huile d’olive",
+        quantity: 12,
+      }),
+      ingredient({
+        id: "ingredient-6",
+        label: "Herbes",
+        unit: "free",
+      }),
     ],
     origin: "catalog",
     prepMinutes: 15,
     servings: 2,
     steps: [
       { id: "step-1", text: "Couper les légumes et les mélanger aux pâtes froides." },
-      { id: "step-2", text: "Ajouter le thon ou les oeufs." },
+      { id: "step-2", text: "Ajouter le thon." },
       { id: "step-3", text: "Assaisonner simplement, puis garder au frais si besoin." },
     ],
     tags: ["Repas froid", "Préparable"],
@@ -40,11 +86,41 @@ export const recipeCatalog: Recipe[] = [
     createdAt: "2026-07-20T08:00:00.000Z",
     description: "Un wrap court, pratique, avec un contenu explicite pour éviter les repas trop flous.",
     ingredients: [
-      { id: "ingredient-1", text: "Galette de blé" },
-      { id: "ingredient-2", text: "Oeufs" },
-      { id: "ingredient-3", text: "Salade" },
-      { id: "ingredient-4", text: "Carotte râpée" },
-      { id: "ingredient-5", text: "Sauce yaourt ou moutarde douce" },
+      ingredient({
+        id: "ingredient-1",
+        label: "Galette de blé",
+        quantity: 1,
+        unit: "piece",
+      }),
+      ingredient({
+        ciqualCode: "22010",
+        ciqualName: "Oeuf dur",
+        foodState: "cooked",
+        id: "ingredient-2",
+        label: "Oeuf dur",
+        quantity: 60,
+      }),
+      ingredient({
+        ciqualCode: "20031",
+        ciqualName: "Laitue, crue",
+        foodState: "raw",
+        id: "ingredient-3",
+        label: "Salade",
+        quantity: 30,
+      }),
+      ingredient({
+        ciqualCode: "20009",
+        ciqualName: "Carotte, crue",
+        foodState: "raw",
+        id: "ingredient-4",
+        label: "Carotte râpée",
+        quantity: 50,
+      }),
+      ingredient({
+        id: "ingredient-5",
+        label: "Sauce yaourt ou moutarde douce",
+        unit: "free",
+      }),
     ],
     origin: "catalog",
     prepMinutes: 10,
@@ -65,10 +141,33 @@ export const recipeCatalog: Recipe[] = [
     createdAt: "2026-07-20T08:00:00.000Z",
     description: "Un bol de petit déjeuner très lisible, sans préparation compliquée.",
     ingredients: [
-      { id: "ingredient-1", text: "Yaourt nature" },
-      { id: "ingredient-2", text: "Fruit de saison" },
-      { id: "ingredient-3", text: "Flocons d’avoine" },
-      { id: "ingredient-4", text: "Quelques noix ou graines" },
+      ingredient({
+        ciqualCode: "19546",
+        ciqualName: "Lait fermenté type yaourt au bifidus, nature",
+        foodState: "not_applicable",
+        id: "ingredient-1",
+        label: "Yaourt nature",
+        quantity: 125,
+      }),
+      ingredient({
+        id: "ingredient-2",
+        label: "Fruit de saison",
+        quantity: 1,
+        unit: "piece",
+      }),
+      ingredient({
+        ciqualCode: "32140",
+        ciqualName: "Flocons d'avoine",
+        foodState: "raw",
+        id: "ingredient-3",
+        label: "Flocons d’avoine",
+        quantity: 35,
+      }),
+      ingredient({
+        id: "ingredient-4",
+        label: "Quelques noix ou graines",
+        unit: "free",
+      }),
     ],
     origin: "catalog",
     prepMinutes: 5,
@@ -88,11 +187,43 @@ export const recipeCatalog: Recipe[] = [
     createdAt: "2026-07-20T08:00:00.000Z",
     description: "Une assiette chaude facile à adapter avec les légumes disponibles.",
     ingredients: [
-      { id: "ingredient-1", text: "Riz cuit" },
-      { id: "ingredient-2", text: "Courgette" },
-      { id: "ingredient-3", text: "Champignons" },
-      { id: "ingredient-4", text: "Pois chiches" },
-      { id: "ingredient-5", text: "Épices douces" },
+      ingredient({
+        ciqualCode: "9104",
+        ciqualName: "Riz blanc, cuit, sans sel ajouté",
+        foodState: "cooked",
+        id: "ingredient-1",
+        label: "Riz cuit",
+        quantity: 280,
+      }),
+      ingredient({
+        ciqualCode: "20021",
+        ciqualName: "Courgette, chair et peau, cuite",
+        foodState: "cooked",
+        id: "ingredient-2",
+        label: "Courgette",
+        quantity: 180,
+      }),
+      ingredient({
+        ciqualCode: "20056",
+        ciqualName: "Champignon de Paris ou champignon de couche, cru",
+        foodState: "raw",
+        id: "ingredient-3",
+        label: "Champignons",
+        quantity: 120,
+      }),
+      ingredient({
+        ciqualCode: "20507",
+        ciqualName: "Pois chiche, bouilli/cuit à l'eau",
+        foodState: "cooked",
+        id: "ingredient-4",
+        label: "Pois chiches cuits",
+        quantity: 120,
+      }),
+      ingredient({
+        id: "ingredient-5",
+        label: "Épices douces",
+        unit: "free",
+      }),
     ],
     origin: "catalog",
     prepMinutes: 10,
@@ -113,9 +244,28 @@ export const recipeCatalog: Recipe[] = [
     createdAt: "2026-07-20T08:00:00.000Z",
     description: "Une option de grignotage posée, avec peu d’éléments à noter.",
     ingredients: [
-      { id: "ingredient-1", text: "Pain complet ou aux céréales" },
-      { id: "ingredient-2", text: "Fromage frais" },
-      { id: "ingredient-3", text: "Fruit" },
+      ingredient({
+        ciqualCode: "7110",
+        ciqualName: "Pain complet ou intégral (à la farine T150)",
+        foodState: "not_applicable",
+        id: "ingredient-1",
+        label: "Pain complet",
+        quantity: 60,
+      }),
+      ingredient({
+        ciqualCode: "12068",
+        ciqualName: "Fromage frais ou spécialité fromagère non affinée, nature, à tartiner, en barquette, non allégée en matière grasse",
+        foodState: "not_applicable",
+        id: "ingredient-2",
+        label: "Fromage frais",
+        quantity: 35,
+      }),
+      ingredient({
+        id: "ingredient-3",
+        label: "Fruit",
+        quantity: 1,
+        unit: "piece",
+      }),
     ],
     origin: "catalog",
     prepMinutes: 5,
@@ -129,3 +279,87 @@ export const recipeCatalog: Recipe[] = [
     updatedAt: "2026-07-20T08:00:00.000Z",
   },
 ];
+
+function ingredient({
+  ciqualCode = null,
+  ciqualName = null,
+  foodState = "unknown",
+  id,
+  label,
+  quantity = null,
+  unit = "g",
+}: {
+  ciqualCode?: string | null;
+  ciqualName?: string | null;
+  foodState?: RecipeFoodState;
+  id: string;
+  label: string;
+  quantity?: number | null;
+  unit?: RecipeIngredientUnit;
+}): RecipeIngredient {
+  const grams = gramsFromIngredientQuantity(quantity, unit);
+
+  return {
+    ciqualCode,
+    ciqualName,
+    foodState,
+    grams,
+    id,
+    label,
+    quantity,
+    reliability: ciqualCode && grams !== null
+      ? "ciqual_linked"
+      : quantity !== null
+        ? "user_declared"
+        : "incomplete",
+    text: formatIngredientText({ label, quantity, unit }),
+    unit,
+  };
+}
+
+function gramsFromIngredientQuantity(
+  quantity: number | null,
+  unit: RecipeIngredientUnit,
+): number | null {
+  if (quantity === null || quantity <= 0) {
+    return null;
+  }
+
+  if (unit === "g") {
+    return Math.round(quantity * 10) / 10;
+  }
+  if (unit === "kg") {
+    return Math.round(quantity * 1000 * 10) / 10;
+  }
+
+  return null;
+}
+
+function formatIngredientText({
+  label,
+  quantity,
+  unit,
+}: {
+  label: string;
+  quantity: number | null;
+  unit: RecipeIngredientUnit;
+}): string {
+  if (!quantity || unit === "free") {
+    return label;
+  }
+
+  if (unit === "piece") {
+    return `${quantity} ${quantity > 1 ? "pièces" : "pièce"} ${label}`;
+  }
+  if (unit === "tablespoon") {
+    return `${quantity} c. à soupe ${label}`;
+  }
+  if (unit === "teaspoon") {
+    return `${quantity} c. à café ${label}`;
+  }
+  if (unit === "pinch") {
+    return `${quantity} ${quantity > 1 ? "pincées" : "pincée"} ${label}`;
+  }
+
+  return `${quantity} ${unit} ${label}`;
+}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image, { type StaticImageData } from "next/image";
 import {
+  BookOpen,
   CheckCircle2,
   ChevronDown,
   Dumbbell,
@@ -16,19 +16,11 @@ import {
   Timer,
 } from "lucide-react";
 import { getExerciseById, getVariantById } from "@/lib/sport/exerciseLibrary";
-import { ExerciseIllustration } from "@/features/sport/ExerciseIllustration";
-import bodyweightSquatControlledGuide from "@/features/sport/assets/bodyweight-squat-controlled-guide.png";
-import bodyweightSquatDeeperGuide from "@/features/sport/assets/bodyweight-squat-deeper-guide.png";
-import bodyweightSquatPartialGuide from "@/features/sport/assets/bodyweight-squat-partial-guide.png";
-import plankFullGuide from "@/features/sport/assets/plank-full-guide.png";
-import plankKneesGuide from "@/features/sport/assets/plank-knees-guide.png";
-import plankWallGuide from "@/features/sport/assets/plank-wall-guide.png";
-import pushFeetElevatedGuide from "@/features/sport/assets/push-feet-elevated-guide.png";
-import pushKneesGuide from "@/features/sport/assets/push-knees-guide.png";
-import pushStandardGuide from "@/features/sport/assets/push-standard-guide.png";
-import pushWallGuide from "@/features/sport/assets/push-wall-guide.png";
-import warmupMarchActiveGuide from "@/features/sport/assets/warmup-march-active-guide.png";
-import warmupMarchEasyGuide from "@/features/sport/assets/warmup-march-easy-guide.png";
+import {
+  AssessmentPoseStrip,
+  ExerciseGuideThumbnail,
+} from "@/features/sport/ExerciseGuideMedia";
+import { ExerciseLibraryView } from "@/features/sport/ExerciseLibraryView";
 import { generateWorkout } from "@/lib/sport/workoutGenerator";
 import {
   cancelTimer,
@@ -103,6 +95,7 @@ type SportView =
   | "preview"
   | "active"
   | "feedback"
+  | "exercises"
   | "history"
   | "settings";
 
@@ -253,10 +246,19 @@ export function SportApp() {
       }
 
       const stored = loadSportLocalData(scope);
+      const requestedView = new URLSearchParams(window.location.search).get(
+        "view",
+      );
       setData(stored);
       setStorageScope(scope);
       setSelectedDuration(stored.profile?.usualDurationMinutes ?? 15);
-      setView(stored.profile?.questionnaireCompleted ? "home" : "access");
+      setView(
+        stored.profile?.questionnaireCompleted
+          ? requestedView === "settings"
+            ? "settings"
+            : "home"
+          : "access",
+      );
       setLoaded(true);
     };
 
@@ -491,7 +493,11 @@ export function SportApp() {
   }
 
   const shouldReturnToDashboard =
-    view === "history" || view === "settings" || view === "preview";
+    view === "exercises" ||
+    view === "history" ||
+    view === "settings" ||
+    view === "preview";
+  const isRootView = view === "access" || view === "home";
 
   return (
     <main className="pc-screen">
@@ -503,6 +509,7 @@ export function SportApp() {
               : "Retour à l'accueil"
           }
           onBack={shouldReturnToDashboard ? () => setView("home") : undefined}
+          showBack={!isRootView}
         />
         <SportHeader view={view} onNavigate={setView} />
         {view === "access" ? (
@@ -533,9 +540,13 @@ export function SportApp() {
             hasAssessment={hasCompletedSportAssessment(data.capabilities)}
             onDurationChange={selectDashboardDuration}
             onAssessment={() => setView("assessment")}
+            onExercises={() => setView("exercises")}
             onGenerate={generateSession}
             onHistory={() => setView("history")}
           />
+        ) : null}
+        {view === "exercises" && data.profile ? (
+          <ExerciseLibraryView data={data} />
         ) : null}
         {view === "preview" && activeSession ? (
           <PreviewView
@@ -892,59 +903,6 @@ type AssessmentPhase = "intro" | "countdown" | "effort" | "question";
 const assessmentCountdownSeconds = 3;
 const assessmentEffortSeconds = 20;
 
-const assessmentGuideImages: Partial<
-  Record<string, { alt: string; src: StaticImageData }>
-> = {
-  push_wall: {
-    alt: "Guide illustre des pompes au mur, avec position de depart, fin du mouvement et consignes.",
-    src: pushWallGuide,
-  },
-  push_knees: {
-    alt: "Guide illustre des pompes sur les genoux, avec position de depart, fin du mouvement et consignes.",
-    src: pushKneesGuide,
-  },
-  push_standard: {
-    alt: "Guide illustre des pompes classiques, avec position de depart, fin du mouvement et consignes.",
-    src: pushStandardGuide,
-  },
-  push_feet_elevated: {
-    alt: "Guide illustre des pompes pieds sureleves, avec position de depart, fin du mouvement et consignes.",
-    src: pushFeetElevatedGuide,
-  },
-  bodyweight_squat_partial: {
-    alt: "Guide illustre du demi-squat tres court, avec position de depart, fin du mouvement et consignes.",
-    src: bodyweightSquatPartialGuide,
-  },
-  bodyweight_squat_controlled: {
-    alt: "Guide illustre du demi-squat controle, avec position de depart, fin du mouvement et consignes.",
-    src: bodyweightSquatControlledGuide,
-  },
-  bodyweight_squat_deeper: {
-    alt: "Guide illustre du squat poids du corps adapte, avec position de depart, fin du mouvement et consignes.",
-    src: bodyweightSquatDeeperGuide,
-  },
-  plank_wall: {
-    alt: "Guide illustre du gainage face au mur, avec position et consignes.",
-    src: plankWallGuide,
-  },
-  plank_knees: {
-    alt: "Guide illustre du gainage sur les genoux, avec position et consignes.",
-    src: plankKneesGuide,
-  },
-  plank_full: {
-    alt: "Guide illustre du gainage classique, avec position et consignes.",
-    src: plankFullGuide,
-  },
-  warmup_march_easy: {
-    alt: "Guide illustre de la marche lente sur place, avec position de depart, mouvement et consignes.",
-    src: warmupMarchEasyGuide,
-  },
-  warmup_march_active: {
-    alt: "Guide illustre de la marche active sur place, avec position de depart, mouvement et consignes.",
-    src: warmupMarchActiveGuide,
-  },
-};
-
 function normalizeAssessmentLevels(
   results: Partial<Record<keyof SportAssessmentResults, CapabilityLevel>>,
 ): SportAssessmentLevelResults | null {
@@ -1105,11 +1063,7 @@ function AssessmentView({
               {variant?.name ?? test.title}
             </h3>
           </div>
-          <AssessmentPoseStrip
-            exerciseId={test.exerciseId}
-            title={variant?.name ?? test.title}
-            variantId={variantId}
-          />
+          <AssessmentPoseStrip variantId={variantId} />
           {phase === "intro" ? (
             <div className="grid gap-3">
               <Button fullWidth onClick={() => resetTimer("countdown")}>
@@ -1178,60 +1132,6 @@ function AssessmentStepper({ currentIndex }: { currentIndex: number }) {
   );
 }
 
-function AssessmentPoseStrip({
-  exerciseId,
-  title,
-  variantId,
-}: {
-  exerciseId: string;
-  title: string;
-  variantId: string;
-}) {
-  const guide = assessmentGuideImages[variantId];
-
-  if (guide) {
-    return (
-      <figure className="grid gap-2">
-        <div className="overflow-hidden rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)]">
-          <Image
-            alt={guide.alt}
-            className="h-auto w-full"
-            placeholder="blur"
-            priority={variantId === "push_wall"}
-            sizes="(min-width: 640px) 46rem, calc(100vw - 2rem)"
-            src={guide.src}
-          />
-        </div>
-      </figure>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      <div className="grid gap-2">
-        <ExerciseIllustration
-          exerciseId={exerciseId}
-          label={`${title} depart`}
-          variantId={variantId}
-        />
-        <p className="text-center text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
-          Depart
-        </p>
-      </div>
-      <div className="grid gap-2">
-        <ExerciseIllustration
-          exerciseId={exerciseId}
-          label={`${title} fin`}
-          variantId={variantId}
-        />
-        <p className="text-center text-xs font-semibold uppercase text-[var(--pc-color-text-muted)]">
-          Fin
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function TimerPanel({ label, value }: { label: string; value: number }) {
   return (
     <Surface className="grid min-h-48 place-items-center p-5 text-center" variant="selected">
@@ -1255,6 +1155,7 @@ function HomeView({
   hasAssessment,
   onAssessment,
   onDurationChange,
+  onExercises,
   onGenerate,
   onHistory,
 }: {
@@ -1265,6 +1166,7 @@ function HomeView({
   hasAssessment: boolean;
   onAssessment: () => void;
   onDurationChange: (duration: number) => void;
+  onExercises: () => void;
   onGenerate: () => void;
   onHistory: () => void;
 }) {
@@ -1293,6 +1195,24 @@ function HomeView({
           </div>
         </div>
         <SportActivityChooser />
+      </Surface>
+      <Surface className="grid gap-3 p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--pc-radius-card)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
+            <BookOpen aria-hidden="true" size={21} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-[length:var(--pc-font-size-card-title)] font-semibold">
+              Exercices
+            </h3>
+            <p className="mt-1 text-sm leading-5 text-[var(--pc-color-text-muted)]">
+              Consulte les mouvements disponibles et leurs variantes.
+            </p>
+          </div>
+        </div>
+        <Button fullWidth variant="secondary" onClick={onExercises}>
+          Ouvrir la bibliothèque
+        </Button>
       </Surface>
       {!hasAssessment ? (
         <Surface className="grid gap-3 p-4">
@@ -1587,12 +1507,7 @@ function PreviewView({
               key={step.id}
             >
               <div className="flex gap-3">
-                <ExerciseIllustration
-                  className="w-16 shrink-0"
-                  exerciseId={step.exerciseId}
-                  label={variant?.name ?? step.title}
-                  variantId={step.variantId}
-                />
+                <ExerciseGuideThumbnail variantId={step.variantId} />
                 <div className="min-w-0">
                   <p className="font-semibold">{variant?.name ?? step.title}</p>
                   <p className="text-sm leading-5 text-[var(--pc-color-text-muted)]">

@@ -10,6 +10,7 @@ type HaruModuleHeaderProps = {
   fallbackHref?: string;
   onBack?: () => void;
   rightAction?: ReactNode;
+  showBack?: boolean;
 };
 
 export function HaruModuleHeader({
@@ -18,6 +19,7 @@ export function HaruModuleHeader({
   fallbackHref = "/?app-resume=1&tab=today",
   onBack,
   rightAction,
+  showBack = true,
 }: HaruModuleHeaderProps) {
   return (
     <header
@@ -27,7 +29,7 @@ export function HaruModuleHeader({
       )}
     >
       <div className="flex items-center justify-start">
-        {onBack ? (
+        {!showBack ? null : onBack ? (
           <IconButton
             className="rounded-full"
             label={backLabel}

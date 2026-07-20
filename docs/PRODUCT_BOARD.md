@@ -52,20 +52,29 @@ fonctionnels sont désormais en refonte progressive, écran par écran.
 - Carnet réorganisé en lectures Jours et Semaines ; l'onglet Constats autonome
   est retiré de la navigation et remplacé par Recettes ;
 - route `/recipes` et frontière `src/features/recipes/` actives avec un premier
-  MVP local : catalogue, recherche, fiches, recettes personnelles et favoris ;
+  MVP local : catalogue, recherche, fiches, recettes personnelles, favoris,
+  parts dynamiques et nutrition par part alimentée par Ciqual lorsque les
+  quantités sont réellement exploitables ;
 - module Sport accessible par une cinquième entrée de navigation ;
 - navigation basse, thème et retours sont désormais partagés entre le cœur de
   l'application, Recettes et Sport, sans rechargement complet volontaire ;
+- l'onglet actif de la navigation basse est mis en relief par un mouvement
+  tactile léger ; les racines Recettes et Sport n'affichent plus de retour
+  redondant, contrairement à leurs vues internes ;
 - catalogue Sport enrichi à 36 familles et 101 variantes, avec sélection
-  déterministe adaptée aux capacités ; le contenu reste à valider et peaufiner ;
-- Profil identifié comme prochaine refonte fonctionnelle et visuelle complète.
+  déterministe adaptée aux capacités et bibliothèque consultable avec filtres ;
+  le contenu reste à valider et peaufiner ;
+- première refonte fonctionnelle et visuelle de Profil intégrée localement :
+  repères personnels, comportement alimentaire, tabac, préférences, compte,
+  options avancées et accès au profil sportif sont désormais hiérarchisés.
 
-État Git de référence au 20 juillet 2026 :
+État Git de référence au 21 juillet 2026 :
 
 - production avant la présente intégration : `14e8173` — `Trigger Vercel
   deployment for Haru branding` ;
-- checkout local : navigation et thème partagés, branding agrandi, MVP Recettes
-  et catalogue Sport enrichi validés avant commit ;
+- checkout local : navigation et thème partagés, refonte Profil, nutrition et
+  parts Recettes, association Ciqual guidée et bibliothèque Sport intégrés avant
+  validation finale et commit ;
 - Sport, Recettes et abonnements restent sous pilotage produit direct et ne
   doivent pas être modifiés par un chantier transversal sans demande explicite.
 
@@ -94,10 +103,11 @@ Commit de référence :
   ronde à gauche et mot-symbole Haru centré.
 - Typographie d'interface : Nunito Sans variable, choisie pour une présence plus ronde, mobile et chaleureuse ; le futur mot-symbole reste indépendant.
 - Un module Sport est désormais approuvé. Il reste privé, progressif, sans calories brûlées, sans compétition et sans logique de compensation alimentaire.
-- Un module Recettes est désormais approuvé. Sa dimension communautaire est
-  limitée au partage contrôlé de recettes publiques, aux favoris, à la
-  duplication et au signalement ; aucun fil social, commentaire ou messagerie
-  n’est prévu dans le MVP.
+- Un module Recettes est désormais approuvé. Ce n'est pas un module
+  communautaire : le MVP se limite à un catalogue éditorial, aux recettes
+  personnelles privées et aux favoris. Aucun chat, fil social, commentaire ou
+  messagerie n'est prévu ; un éventuel partage public reste hors périmètre tant
+  qu'un nouveau cadrage produit n'a pas été validé.
 - Ciqual doit servir de base alimentaire officielle pour structurer les ingrédients, estimer les recettes et préparer une analyse qualitative plus fiable des repas.
 - Les données nutritionnelles ne doivent jamais être inventées lorsqu’un aliment ou une conversion n’est pas fiable.
 - Les portions usuelles constituent une couche séparée de Ciqual, versionnée,
@@ -113,9 +123,9 @@ Commit de référence :
 - Google OAuth doit toujours proposer le choix du compte avec
   `prompt=select_account`.
 - Une déconnexion réussie ramène explicitement à l'écran de connexion.
-- Les pages autonomes utilisent une flèche de retour ronde et reviennent à la
-  page précédente du même domaine. Un accès direct retombe sur une reprise du
-  carnet sans rejouer l'écran de garde complet.
+- Les pages autonomes n'affichent pas de flèche de retour sur leur racine,
+  puisque la navigation basse suffit. Le retour rond reste présent dans les
+  vues internes et revient à la page précédente du même domaine.
 - Les types de repas doivent être : Petit déjeuner, Déjeuner, Dîner, Grignotage.
 - “Collation” et “Autre” ne doivent plus être proposés comme choix actifs.
 - Les anciennes données “Collation” restent lisibles et sont traitées comme “Grignotage”.
@@ -184,7 +194,7 @@ Commit de référence :
 
 Lecture réaliste de l'avancement vers la vision produit complète :
 
-- produit global : environ 43 % ;
+- produit global : environ 47 % ;
 - socle technique, stockage, synchronisation et PWA : environ 82 % ;
 - coeur gratuit des sept premiers jours : environ 70 % ;
 - fonctions payantes et exploitation : environ 10 %.
@@ -199,11 +209,14 @@ Lecture réaliste de l'avancement vers la vision produit complète :
   reste à brancher ;
 - Carnet : vues Jours/Semaines abouties dans leur structure ; l'analyse repose
   encore sur l'ancien moteur ;
-- Profil : fonctionnel mais à reprendre visuellement et dans ses validations ;
+- Profil : première refonte intégrée localement ; validation terrain et futur
+  raccordement des données Sport encore nécessaires ;
 - Sport : verticale Renforcement testable et catalogue fortement enrichi, mais
-  paiement, cloud réel et validation éditoriale des exercices absents ;
+  paiement, cloud réel et validation éditoriale des exercices absents ; une
+  bibliothèque filtrable rend maintenant les mouvements et variantes visibles ;
 - Recettes : premier MVP local utilisable avec catalogue, fiche, création,
-  modification, suppression et favoris ; cloud, Ciqual et droits payants absents ;
+  modification, suppression, favoris, parts dynamiques, ingrédients reconnus via
+  Ciqual et nutrition par part ; cloud et droits payants absents ;
 - Tabac : saisie quotidienne stabilisée, pas encore de module d'accompagnement ;
 - Admin : maquette locale sous `/admin`, fermée en production par défaut,
   alimentée uniquement par des fixtures et sans branchement métier réel ;
@@ -231,7 +244,7 @@ Ordre de travail validé après audit :
 2. brancher le contrat d'analyse sur Repas, puis Aujourd'hui et Carnet ;
 3. élargir prudemment la couche de portions usuelles, avec sources, fourchettes
    et niveaux de confiance explicites ;
-4. reprendre Profil ;
+4. valider sur téléphone la refonte Profil et son accès au profil Sport ;
 5. cadrer puis développer le module Tabac ;
 6. laisser Sport, Recettes et abonnements sous pilotage produit direct.
 
@@ -252,10 +265,10 @@ concurrentes du tunnel Repas et de ses contrats :
 3. **Portions usuelles — première sécurisation intégrée** : les références
    éditoriales ne produisent plus d'estimation active, les volumes restent
    distincts des grammes et une conversion incertaine reste inconnue.
-4. **Profil — stabilisation validée et intégrée localement** : un brouillon
-   ancien ne peut plus écraser les préférences ou le portrait courant ; les
-   sauvegardes sans modification sont ignorées et les tests ciblés couvrent ces
-   garanties.
+4. **Profil — stabilisation et première refonte intégrées localement** : un
+   brouillon ancien ne peut plus écraser les préférences ou le portrait courant ;
+   les sections sont hiérarchisées pour le mobile et un accès conduit au profil
+   Sport sans coupler directement les deux stockages.
 5. **Tabac — contrat V0.3 validé et intégré** : modèle, compatibilité,
    confidentialité, phase descriptive et scénarios d'acceptation sont cadrés.
    Aucun écran, schéma ou branchement V2 n'est encore développé.
@@ -592,6 +605,10 @@ Première tranche validée :
 - cinquième entrée `Sport` dans la barre de navigation basse ;
 - stockage Sport encore local, mais cache cloisonné entre invité et comptes
   Supabase avant le futur raccordement cloud ;
+- bibliothèque d'exercices visible depuis le tableau de bord, filtrable par
+  zone, intention, niveau et besoin de matériel, avec fiches, consignes,
+  variantes plus faciles ou difficiles et états neutres lorsque le visuel manque ;
+- accès au profil sportif depuis l'onglet Profil ;
 - aucune calorie brûlée, IA décisionnelle, compétition ou diagnostic médical.
 
 Itérations suivantes :
@@ -604,18 +621,21 @@ Itérations suivantes :
 Statut : premier MVP local livré dans une frontière de module dédiée. Il permet
 de consulter le catalogue initial, ouvrir une fiche, créer, modifier et supprimer
 une recette personnelle privée, et gérer les favoris. La persistance reste
-isolée par invité/utilisateur sur l'appareil ; aucun cloud, paiement, partage
-public ou calcul nutritionnel n'est encore branché.
+isolée par invité/utilisateur sur l'appareil. Les parts affichées adaptent les
+quantités sans modifier la recette source ; les ingrédients peuvent être associés
+à Ciqual par suggestions tactiles et la fiche calcule une nutrition par part
+uniquement pour les masses fiables. Aucun cloud, paiement ou partage public
+n'est encore branché.
 
 Objectifs :
 - [x] catalogue initial, recherche et fiches recettes ;
 - [x] recettes personnelles privées locales ;
 - [x] favoris locaux ;
-- recettes privées et publiques avec propriété et RLS ;
-- ingrédients structurés et import Ciqual reproductible ;
-- adaptation des quantités au nombre de portions ;
-- calcul nutritionnel explicite sur la fiche recette ;
-- favoris, duplication et signalement ;
+- [x] ingrédients structurés et association Ciqual guidée ;
+- [x] adaptation des quantités au nombre de portions ;
+- [x] calcul nutritionnel explicite et prudent sur la fiche recette ;
+- recettes personnelles synchronisées avec propriété et RLS ;
+- duplication éventuelle après cadrage ;
 - ajout d’une portion au journal avec instantané immuable ;
 - réutilisation future de Ciqual pour fiabiliser l’analyse qualitative du tunnel repas.
 

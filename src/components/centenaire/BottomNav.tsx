@@ -36,26 +36,35 @@ export function BottomNav<T extends string>({
           const Icon = item.icon;
           const selected = item.id === activeId;
           const className = cx(
-            "pc-focus-ring pc-motion-safe relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[var(--pc-radius-card)] px-1 py-1 text-center transition-[color,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] active:translate-y-px",
+            "pc-bottom-nav-item pc-focus-ring pc-motion-safe relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[var(--pc-radius-card)] px-1 py-1 text-center transition-colors duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)]",
             selected
-              ? "text-[var(--pc-color-primary)]"
+              ? "pc-bottom-nav-item-active text-[var(--pc-color-primary)]"
               : "text-[var(--pc-color-text-muted)] hover:text-[var(--pc-color-text)]",
           );
           const content = (
             <>
+              <span className="relative flex h-7 w-full items-center justify-center">
+                <span
+                  className={cx(
+                    "pc-bottom-nav-icon-frame relative z-10 flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.9,0.25,1.35)]",
+                    selected
+                      ? "-translate-y-3 scale-[1.06] bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)] shadow-[0_9px_22px_color-mix(in_srgb,var(--pc-color-primary)_28%,transparent)]"
+                      : "scale-[0.86] bg-transparent",
+                  )}
+                >
+                  <Icon
+                    aria-hidden="true"
+                    size={21}
+                    strokeWidth={selected ? 2.35 : 1.9}
+                  />
+                </span>
+              </span>
               <span
                 className={cx(
-                  "flex h-7 min-w-11 items-center justify-center rounded-full px-3 transition-colors duration-[var(--pc-motion-fast)]",
-                  selected && "bg-[var(--pc-color-primary-soft)]",
+                  "relative z-10 max-w-full whitespace-nowrap text-[11px] leading-4 font-semibold transition-colors duration-200",
+                  selected && "font-bold",
                 )}
               >
-                <Icon
-                  aria-hidden="true"
-                  size={21}
-                  strokeWidth={selected ? 2.25 : 1.9}
-                />
-              </span>
-              <span className="max-w-full whitespace-nowrap text-[11px] leading-4 font-semibold">
                 {item.label}
               </span>
             </>

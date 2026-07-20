@@ -47,5 +47,8 @@ describe("BottomNav", () => {
     expect(html).toContain('href="/recipes"');
     expect(html).toContain('href="/sport"');
     expect(html).toContain('aria-current="page"');
+    expect(html).toContain("pc-bottom-nav-item-active");
+    expect(html).toContain("pc-bottom-nav-icon-frame");
+    expect(html).toContain("-translate-y-3");
   });
 });

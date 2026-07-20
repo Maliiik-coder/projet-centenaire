@@ -6,9 +6,52 @@ export type RecipeCategory =
 
 export type RecipeOrigin = "catalog" | "personal";
 
+export type RecipeIngredientUnit =
+  | "g"
+  | "kg"
+  | "ml"
+  | "cl"
+  | "l"
+  | "piece"
+  | "tablespoon"
+  | "teaspoon"
+  | "pinch"
+  | "free";
+
+export type RecipeFoodState =
+  | "raw"
+  | "cooked"
+  | "not_applicable"
+  | "unknown";
+
+export type RecipeIngredientReliability =
+  | "ciqual_linked"
+  | "user_declared"
+  | "legacy_text"
+  | "incomplete";
+
 export type RecipeIngredient = {
   id: string;
+  label: string;
   text: string;
+  quantity: number | null;
+  unit: RecipeIngredientUnit;
+  grams: number | null;
+  ciqualCode: string | null;
+  ciqualName: string | null;
+  foodState: RecipeFoodState;
+  reliability: RecipeIngredientReliability;
+};
+
+export type RecipeIngredientDraft = {
+  id: string;
+  label: string;
+  quantity: string;
+  unit: RecipeIngredientUnit;
+  ciqualCode: string;
+  ciqualName: string;
+  foodState: RecipeFoodState;
+  reliability: RecipeIngredientReliability;
 };
 
 export type RecipeStep = {
@@ -36,7 +79,7 @@ export type RecipeDraft = {
   category: RecipeCategory;
   cookMinutes: string;
   description: string;
-  ingredientsText: string;
+  ingredients: RecipeIngredientDraft[];
   prepMinutes: string;
   servings: string;
   stepsText: string;

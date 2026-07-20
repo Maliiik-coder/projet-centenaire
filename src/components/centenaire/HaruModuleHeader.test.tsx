@@ -15,4 +15,13 @@ describe("HaruModuleHeader", () => {
     expect(html).toContain('alt="Haru"');
     expect(html).not.toContain("border-b");
   });
+
+  it("peut masquer le retour sur la racine d'un module", () => {
+    const html = renderToStaticMarkup(
+      <HaruModuleHeader backLabel="Retour" showBack={false} />,
+    );
+
+    expect(html).not.toContain('aria-label="Retour"');
+    expect(html).toContain('alt="Haru"');
+  });
 });

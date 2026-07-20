@@ -221,6 +221,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .pc-motion-safe,
+  .pc-motion-safe::after,
+  .pc-motion-safe::before,
   .pc-motion-safe * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -426,7 +428,30 @@ textarea {
 }
 
 .pc-bottom-nav {
+  overflow: visible;
   box-shadow: 0 -8px 24px rgba(17, 24, 32, 0.06);
+}
+
+.pc-bottom-nav-item::before {
+  position: absolute;
+  top: -0.65rem;
+  left: 50%;
+  width: 3.8rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  background: var(--pc-color-surface);
+  box-shadow: 0 -5px 16px rgba(17, 24, 32, 0.04);
+  content: "";
+  opacity: 0;
+  transform: translateX(-50%) scale(0.78);
+  transition:
+    opacity 160ms ease,
+    transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.25);
+}
+
+.pc-bottom-nav-item-active::before {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
 }
 
 @media (min-width: 40rem) {

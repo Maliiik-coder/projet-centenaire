@@ -1,49 +1,28 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-  type MouseEvent,
-  type ReactNode,
-} from "react";
-import {
-  BookOpen,
-  ChefHat,
-  Clock3,
-  Heart,
-  PencilLine,
-  Plus,
-  Search,
-  Trash2,
-  UsersRound,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { ChefHat, Plus, Search } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   Button,
   EmptyState,
-  FormField,
   IconButton,
-  Select,
   Surface,
   TextInput,
 } from "@/components/ui";
 import { HaruModuleHeader } from "@/components/centenaire/HaruModuleHeader";
 import { cx } from "@/components/ui/styles";
-import { recipeCategoryLabels } from "@/features/recipes/recipeCatalog";
+import { RecipeCard } from "@/features/recipes/RecipeCard";
+import { RecipeFormView } from "@/features/recipes/RecipeFormView";
+import { FavoriteButton, RecipeStat } from "@/features/recipes/RecipeDisplay";
 import {
   allRecipes,
-  categoryIsRecipeCategory,
   createEmptyRecipeData,
-  createEmptyRecipeDraft,
   deletePersonalRecipe,
   filterRecipes,
   findRecipe,
   isFavorite,
-  recipeDraftFromRecipe,
-  recipeFromDraft,
   savePersonalRecipe,
   toggleFavorite,
   type RecipeFilter,
@@ -56,11 +35,10 @@ import {
 } from "@/features/recipes/recipeLocalStore";
 import type {
   Recipe,
-  RecipeDraft,
-  RecipeDraftErrors,
   RecipeLocalData,
   RecipeStorageScope,
 } from "@/features/recipes/recipeTypes";
+import type { RecipeDetailViewProps } from "@/features/recipes/RecipeDetailView";
 
 type RecipesView =
   | { kind: "catalog" }
@@ -75,6 +53,22 @@ const filterLabels: Record<RecipeFilter, string> = {
 };
 
 const filters: RecipeFilter[] = ["all", "favorites", "personal"];
+const RecipeDetailView = dynamic<RecipeDetailViewProps>(
+  () =>
+    import("@/features/recipes/RecipeDetailView").then(
+      (module) => module.RecipeDetailView,
+    ),
+  {
+    loading: () => (
+      <Surface className="p-4" variant="subtle">
+        <p className="text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
+          Ouverture de la recette.
+        </p>
+      </Surface>
+    ),
+    ssr: false,
+  },
+);
 
 export function RecipesApp() {
   const [data, setData] = useState<RecipeLocalData>(() => createEmptyRecipeData());
@@ -96,17 +90,13 @@ export function RecipesApp() {
         try {
           const { data: sessionData } = await supabase.auth.getSession();
           const userId = sessionData.session?.user.id;
-          if (userId) {
-            scope = userRecipeStorageScope(userId);
-          }
+          if (userId) scope = userRecipeStorageScope(userId);
         } catch {
           scope = guestRecipeStorageScope;
         }
       }
 
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
 
       setData(loadRecipeLocalData(scope));
       setStorageScope(scope);
@@ -126,6 +116,10 @@ export function RecipesApp() {
     }
   }, [data, loaded, storageScope]);
 
+  useEffect(() => {
+    window.scrollTo({ left: 0, top: 0 });
+  }, [view]);
+
   const visibleRecipes = useMemo(
     () => filterRecipes({ data, filter, query }),
     [data, filter, query],
@@ -134,37 +128,32 @@ export function RecipesApp() {
     view.kind === "detail" || view.kind === "edit"
       ? findRecipe(data, view.recipeId)
       : null;
-  const favoriteCount = data.favoriteRecipeIds.length;
-  const personalCount = data.personalRecipes.length;
 
   const showCatalog = () => {
     setView({ kind: "catalog" });
     setNotice(null);
   };
-
+  const openRecipe = (recipeId: string) => {
+    setNotice(null);
+    setView({ kind: "detail", recipeId });
+  };
   const saveRecipe = (recipe: Recipe) => {
     setData((current) => savePersonalRecipe(current, recipe));
     setView({ kind: "detail", recipeId: recipe.id });
     setNotice("Recette enregistrée.");
   };
-
   const removeRecipe = (recipe: Recipe) => {
-    if (recipe.origin !== "personal") {
-      return;
-    }
-
-    if (!window.confirm("Supprimer cette recette ?")) {
-      return;
-    }
+    if (recipe.origin !== "personal") return;
+    if (!window.confirm("Supprimer cette recette ?")) return;
 
     setData((current) => deletePersonalRecipe(current, recipe.id));
     setView({ kind: "catalog" });
     setNotice("Recette supprimée.");
   };
-
   const changeFavorite = (recipeId: string) => {
     setData((current) => toggleFavorite(current, recipeId));
   };
+
   const headerBackAction =
     view.kind === "catalog"
       ? undefined
@@ -175,10 +164,7 @@ export function RecipesApp() {
     view.kind === "detail" && selectedRecipe ? (
       <FavoriteButton
         favorite={isFavorite(data, selectedRecipe.id)}
-        onClick={(event) => {
-          event.stopPropagation();
-          changeFavorite(selectedRecipe.id);
-        }}
+        onClick={() => changeFavorite(selectedRecipe.id)}
       />
     ) : null;
 
@@ -191,15 +177,16 @@ export function RecipesApp() {
           }
           onBack={headerBackAction}
           rightAction={headerRightAction}
+          showBack={view.kind !== "catalog"}
         />
 
         <div className="flex-1 space-y-6 pb-5 pt-3">
           {view.kind === "catalog" ? (
             <RecipesCatalogView
-              favoriteCount={favoriteCount}
+              favoriteCount={data.favoriteRecipeIds.length}
               filter={filter}
               loaded={loaded}
-              personalCount={personalCount}
+              personalCount={data.personalRecipes.length}
               query={query}
               recipes={visibleRecipes}
               totalCount={allRecipes(data).length}
@@ -209,10 +196,7 @@ export function RecipesApp() {
               }}
               onFavoriteToggle={changeFavorite}
               onFilterChange={setFilter}
-              onOpen={(recipeId) => {
-                setNotice(null);
-                setView({ kind: "detail", recipeId });
-              }}
+              onOpen={openRecipe}
               onQueryChange={setQuery}
               isFavorite={(recipeId) => isFavorite(data, recipeId)}
             />
@@ -220,6 +204,7 @@ export function RecipesApp() {
 
           {view.kind === "detail" && selectedRecipe ? (
             <RecipeDetailView
+              key={selectedRecipe.id}
               notice={notice}
               recipe={selectedRecipe}
               onDelete={() => removeRecipe(selectedRecipe)}
@@ -230,9 +215,7 @@ export function RecipesApp() {
             />
           ) : null}
 
-          {view.kind === "detail" && !selectedRecipe ? (
-            <MissingRecipeView />
-          ) : null}
+          {view.kind === "detail" && !selectedRecipe ? <MissingRecipeView /> : null}
 
           {view.kind === "create" ? (
             <RecipeFormView onBack={showCatalog} onSave={saveRecipe} />
@@ -400,473 +383,6 @@ function RecipesCatalogView({
   );
 }
 
-function RecipeCard({
-  favorite,
-  recipe,
-  onFavoriteToggle,
-  onOpen,
-}: {
-  favorite: boolean;
-  recipe: Recipe;
-  onFavoriteToggle: () => void;
-  onOpen: () => void;
-}) {
-  return (
-    <Surface
-      as="article"
-      className="pc-focus-ring pc-motion-safe cursor-pointer p-4 transition active:translate-y-px"
-      role="button"
-      tabIndex={0}
-      variant="interactive"
-      onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpen();
-        }
-      }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-            {recipeCategoryLabels[recipe.category]}
-          </p>
-          <h3 className="mt-1 text-[length:var(--pc-font-size-card-title)] leading-6 font-bold text-[var(--pc-color-text)]">
-            {recipe.title}
-          </h3>
-          <p className="mt-1 line-clamp-2 text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text-muted)]">
-            {recipe.description}
-          </p>
-        </div>
-        <FavoriteButton
-          favorite={favorite}
-          onClick={(event) => {
-            event.stopPropagation();
-            onFavoriteToggle();
-          }}
-        />
-      </div>
-      <RecipeMeta recipe={recipe} />
-      <RecipeTags recipe={recipe} />
-    </Surface>
-  );
-}
-
-function RecipeDetailView({
-  notice,
-  recipe,
-  onDelete,
-  onEdit,
-}: {
-  notice: string | null;
-  recipe: Recipe;
-  onDelete: () => void;
-  onEdit: () => void;
-}) {
-  return (
-    <>
-      {notice ? (
-        <Surface className="px-4 py-3" variant="selected">
-          <p className="text-[length:var(--pc-font-size-secondary)] leading-5 font-semibold text-[var(--pc-color-primary)]">
-            {notice}
-          </p>
-        </Surface>
-      ) : null}
-
-      <article className="space-y-5">
-        <header className="space-y-3">
-          <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-            {recipe.origin === "personal" ? "Recette personnelle" : recipeCategoryLabels[recipe.category]}
-          </p>
-          <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
-            {recipe.title}
-          </h1>
-          <p className="text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text-muted)]">
-            {recipe.description}
-          </p>
-          <RecipeMeta recipe={recipe} />
-          <RecipeTags recipe={recipe} />
-        </header>
-
-        {recipe.origin === "personal" ? (
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={onEdit}>
-              <PencilLine aria-hidden="true" size={18} />
-              Modifier
-            </Button>
-            <Button variant="danger" onClick={onDelete}>
-              <Trash2 aria-hidden="true" size={18} />
-              Supprimer
-            </Button>
-          </div>
-        ) : null}
-
-        <RecipeSection icon={<BookOpen size={19} />} title="Ingrédients">
-          <ul className="space-y-2">
-            {recipe.ingredients.map((ingredient) => (
-              <li
-                className="rounded-[var(--pc-radius-control)] bg-[var(--pc-color-surface-subtle)] px-3 py-2 text-[length:var(--pc-font-size-secondary)] leading-5 text-[var(--pc-color-text)]"
-                key={ingredient.id}
-              >
-                {ingredient.text}
-              </li>
-            ))}
-          </ul>
-        </RecipeSection>
-
-        <RecipeSection icon={<ChefHat size={19} />} title="Étapes">
-          <ol className="space-y-3">
-            {recipe.steps.map((step, index) => (
-              <li className="flex gap-3" key={step.id}>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-[length:var(--pc-font-size-secondary)] font-bold text-[var(--pc-color-primary)]">
-                  {index + 1}
-                </span>
-                <p className="pt-1 text-[length:var(--pc-font-size-secondary)] leading-6 text-[var(--pc-color-text)]">
-                  {step.text}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </RecipeSection>
-      </article>
-    </>
-  );
-}
-
-function RecipeFormView({
-  existingRecipe,
-  onBack,
-  onSave,
-}: {
-  existingRecipe?: Recipe;
-  onBack: () => void;
-  onSave: (recipe: Recipe) => void;
-}) {
-  const [draft, setDraft] = useState<RecipeDraft>(() =>
-    existingRecipe ? recipeDraftFromRecipe(existingRecipe) : createEmptyRecipeDraft(),
-  );
-  const [errors, setErrors] = useState<RecipeDraftErrors>({});
-
-  const updateDraft =
-    (field: keyof RecipeDraft) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setDraft((current) => ({ ...current, [field]: event.target.value }));
-      setErrors((current) => ({ ...current, [field]: undefined }));
-    };
-  const updateCategory = (event: ChangeEvent<HTMLSelectElement>) => {
-    const value = event.target.value;
-    if (!categoryIsRecipeCategory(value)) {
-      return;
-    }
-
-    setDraft((current) => ({ ...current, category: value }));
-    setErrors((current) => ({ ...current, category: undefined }));
-  };
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nowIso = new Date().toISOString();
-    const result = recipeFromDraft({
-      draft,
-      existing: existingRecipe,
-      nowIso,
-      recipeId: existingRecipe?.id ?? createRecipeId(),
-    });
-
-    if (!result.recipe) {
-      setErrors(result.errors);
-      return;
-    }
-
-    onSave(result.recipe);
-  };
-
-  return (
-    <form className="space-y-5" onSubmit={submit}>
-      <div className="flex items-center justify-end">
-        <Button type="submit">
-          {existingRecipe ? "Enregistrer" : "Créer"}
-        </Button>
-      </div>
-
-      <header className="space-y-2">
-        <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-          {existingRecipe ? "Recette personnelle" : "Nouvelle recette"}
-        </p>
-        <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
-          {existingRecipe ? "Modifier" : "Créer une recette"}
-        </h1>
-      </header>
-
-      <Surface className="space-y-4 p-4" variant="default">
-        <FormField error={errors.title} id="recipe-title" label="Nom" required>
-          <TextInput
-            placeholder="Ex. soupe de légumes"
-            value={draft.title}
-            onChange={updateDraft("title")}
-          />
-        </FormField>
-
-        <FormField
-          error={errors.description}
-          help="Une phrase suffit."
-          id="recipe-description"
-          label="Description"
-          required
-        >
-          <TextInput
-            placeholder="Ce que tu veux retrouver plus tard"
-            value={draft.description}
-            onChange={updateDraft("description")}
-          />
-        </FormField>
-
-        <FormField id="recipe-category" label="Moment">
-          <Select value={draft.category} onChange={updateCategory}>
-            {Object.entries(recipeCategoryLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-
-        <div className="grid grid-cols-3 gap-2">
-          <FormField error={errors.servings} id="recipe-servings" label="Parts" required>
-            <TextInput
-              inputMode="numeric"
-              min={1}
-              max={12}
-              type="number"
-              value={draft.servings}
-              onChange={updateDraft("servings")}
-            />
-          </FormField>
-          <FormField error={errors.prepMinutes} id="recipe-prep" label="Prépa" required>
-            <TextInput
-              inputMode="numeric"
-              min={0}
-              max={240}
-              type="number"
-              value={draft.prepMinutes}
-              onChange={updateDraft("prepMinutes")}
-            />
-          </FormField>
-          <FormField error={errors.cookMinutes} id="recipe-cook" label="Cuisson" required>
-            <TextInput
-              inputMode="numeric"
-              min={0}
-              max={240}
-              type="number"
-              value={draft.cookMinutes}
-              onChange={updateDraft("cookMinutes")}
-            />
-          </FormField>
-        </div>
-      </Surface>
-
-      <RecipeTextArea
-        error={errors.ingredientsText}
-        help="Un ingrédient par ligne."
-        id="recipe-ingredients"
-        label="Ingrédients"
-        required
-        rows={6}
-        value={draft.ingredientsText}
-        onChange={updateDraft("ingredientsText")}
-      />
-
-      <RecipeTextArea
-        error={errors.stepsText}
-        help="Une étape par ligne."
-        id="recipe-steps"
-        label="Étapes"
-        required
-        rows={5}
-        value={draft.stepsText}
-        onChange={updateDraft("stepsText")}
-      />
-
-      <FormField help="Optionnel, séparé par des virgules." id="recipe-tags" label="Repères">
-        <TextInput
-          placeholder="rapide, froid, à emporter"
-          value={draft.tagsText}
-          onChange={updateDraft("tagsText")}
-        />
-      </FormField>
-
-      <div className="grid grid-cols-2 gap-2 pb-2">
-        <Button variant="secondary" onClick={onBack}>
-          Annuler
-        </Button>
-        <Button type="submit">
-          {existingRecipe ? "Enregistrer" : "Créer"}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function RecipeTextArea({
-  error,
-  help,
-  id,
-  label,
-  required,
-  rows,
-  value,
-  onChange,
-}: {
-  error?: string;
-  help?: string;
-  id: string;
-  label: string;
-  required?: boolean;
-  rows: number;
-  value: string;
-  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
-}) {
-  return (
-    <div className="grid gap-2">
-      <label
-        className="text-[length:var(--pc-font-size-secondary)] leading-5 font-medium text-[var(--pc-color-text)]"
-        htmlFor={id}
-      >
-        {label}
-        {required ? <span aria-hidden="true"> *</span> : null}
-      </label>
-      <textarea
-        aria-describedby={error ? `${id}-error` : help ? `${id}-help` : undefined}
-        aria-invalid={error ? true : undefined}
-        className={cx(
-          "pc-focus-ring w-full rounded-[var(--pc-radius-control)] border bg-[var(--pc-color-surface)] px-4 py-3 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none transition-[border-color,box-shadow,background-color] placeholder:text-[var(--pc-color-text-subtle)]",
-          error
-            ? "border-[var(--pc-color-danger)]"
-            : "border-[var(--pc-color-border)] hover:border-[var(--pc-color-text-subtle)]",
-        )}
-        id={id}
-        required={required}
-        rows={rows}
-        value={value}
-        onChange={onChange}
-      />
-      {help && !error ? (
-        <p
-          className="text-[length:var(--pc-font-size-meta)] leading-5 text-[var(--pc-color-text-muted)]"
-          id={`${id}-help`}
-        >
-          {help}
-        </p>
-      ) : null}
-      {error ? (
-        <p
-          className="text-[length:var(--pc-font-size-meta)] leading-5 font-medium text-[var(--pc-color-danger)]"
-          id={`${id}-error`}
-        >
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function RecipeSection({
-  children,
-  icon,
-  title,
-}: {
-  children: ReactNode;
-  icon: ReactNode;
-  title: string;
-}) {
-  return (
-    <section>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
-          {icon}
-        </span>
-        <h2 className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold text-[var(--pc-color-text)]">
-          {title}
-        </h2>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function RecipeMeta({ recipe }: { recipe: Recipe }) {
-  const totalMinutes = recipe.prepMinutes + recipe.cookMinutes;
-  return (
-    <div className="mt-3 flex flex-wrap gap-2 text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-text-muted)]">
-      <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-[var(--pc-color-surface-subtle)] px-3">
-        <Clock3 aria-hidden="true" size={15} />
-        {totalMinutes} min
-      </span>
-      <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-[var(--pc-color-surface-subtle)] px-3">
-        <UsersRound aria-hidden="true" size={15} />
-        {recipe.servings} {recipe.servings > 1 ? "parts" : "part"}
-      </span>
-      <span className="inline-flex min-h-8 items-center rounded-full bg-[var(--pc-color-surface-subtle)] px-3">
-        {recipe.origin === "personal" ? "Privée" : "Catalogue Haru"}
-      </span>
-    </div>
-  );
-}
-
-function RecipeTags({ recipe }: { recipe: Recipe }) {
-  if (recipe.tags.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {recipe.tags.map((tag) => (
-        <span
-          className="rounded-full bg-[var(--pc-color-primary-soft)] px-3 py-1 text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]"
-          key={tag}
-        >
-          {tag}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function FavoriteButton({
-  favorite,
-  onClick,
-}: {
-  favorite: boolean;
-  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
-}) {
-  return (
-    <IconButton
-      className={cx(
-        "rounded-full",
-        favorite &&
-          "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]",
-      )}
-      label={favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-      onClick={onClick}
-    >
-      <Heart aria-hidden="true" fill={favorite ? "currentColor" : "none"} size={22} />
-    </IconButton>
-  );
-}
-
-function RecipeStat({ label, value }: { label: string; value: number }) {
-  return (
-    <Surface className="px-3 py-2" variant="subtle">
-      <p className="text-[length:var(--pc-font-size-meta)] leading-4 text-[var(--pc-color-text-muted)]">
-        {label}
-      </p>
-      <p className="mt-0.5 text-xl leading-7 font-bold tabular-nums text-[var(--pc-color-text)]">
-        {value}
-      </p>
-    </Surface>
-  );
-}
-
 function MissingRecipeView() {
   return (
     <div>
@@ -877,12 +393,4 @@ function MissingRecipeView() {
       />
     </div>
   );
-}
-
-function createRecipeId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `recipe-${crypto.randomUUID()}`;
-  }
-
-  return `recipe-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

@@ -1,10 +1,18 @@
 import {
-  createEmptyRecipeData,
   categoryIsRecipeCategory,
+  foodStateIsRecipeFoodState,
+  formatIngredientText,
+  gramsFromIngredientQuantity,
+  ingredientFromText,
+  reliabilityIsRecipeIngredientReliability,
+  unitIsRecipeIngredientUnit,
 } from "@/features/recipes/recipeModel";
 import type {
   Recipe,
+  RecipeFoodState,
   RecipeIngredient,
+  RecipeIngredientReliability,
+  RecipeIngredientUnit,
   RecipeLocalData,
   RecipeStep,
   RecipeStorageScope,
@@ -69,6 +77,13 @@ export function saveRecipeLocalData(
   } catch {
     // Recettes remains usable for the current session when storage is blocked.
   }
+}
+
+function createEmptyRecipeData(): RecipeLocalData {
+  return {
+    favoriteRecipeIds: [],
+    personalRecipes: [],
+  };
 }
 
 function getLocalStorage(): Storage | null {
@@ -136,11 +151,11 @@ function normalizeRecipe(value: unknown): Recipe | null {
     createdAt: asString(value.createdAt, new Date().toISOString()),
     description,
     id,
-    ingredients: normalizeTextItems(value.ingredients, "ingredient"),
+    ingredients: normalizeIngredients(value.ingredients),
     origin: "personal",
     prepMinutes: boundedInteger(value.prepMinutes, 0, 240, 0),
     servings: boundedInteger(value.servings, 1, 12, 1),
-    steps: normalizeTextItems(value.steps, "step"),
+    steps: normalizeSteps(value.steps),
     tags: Array.isArray(value.tags)
       ? value.tags.filter((tag): tag is string => typeof tag === "string").slice(0, 5)
       : [],
@@ -149,10 +164,59 @@ function normalizeRecipe(value: unknown): Recipe | null {
   };
 }
 
-function normalizeTextItems(
-  value: unknown,
-  prefix: "ingredient" | "step",
-): RecipeIngredient[] | RecipeStep[] {
+function normalizeIngredients(value: unknown): RecipeIngredient[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map(normalizeIngredient)
+    .filter((ingredient): ingredient is RecipeIngredient => ingredient !== null);
+}
+
+function normalizeIngredient(value: unknown, index: number): RecipeIngredient | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const legacyText = asString(value.text).trim();
+  const label = asString(value.label, legacyText).trim();
+  if (!label) {
+    return null;
+  }
+
+  if (!("label" in value) && legacyText) {
+    return ingredientFromText(legacyText, index);
+  }
+
+  const unit = normalizeUnit(value.unit);
+  const quantity = normalizeQuantity(value.quantity);
+  const grams = gramsFromIngredientQuantity(quantity, unit);
+  const ciqualCode = asString(value.ciqualCode).trim() || null;
+  const ciqualName = asString(value.ciqualName).trim() || null;
+  const foodState = normalizeFoodState(value.foodState);
+  const reliability = normalizeReliability({
+    ciqualCode,
+    grams,
+    quantity,
+    value: value.reliability,
+  });
+
+  return {
+    ciqualCode,
+    ciqualName,
+    foodState,
+    grams,
+    id: asString(value.id, `ingredient-${index + 1}`),
+    label,
+    quantity,
+    reliability,
+    text: formatIngredientText({ label, quantity, unit }),
+    unit,
+  };
+}
+
+function normalizeSteps(value: unknown): RecipeStep[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -167,11 +231,58 @@ function normalizeTextItems(
         return null;
       }
       return {
-        id: asString(item.id, `${prefix}-${index + 1}`),
+        id: asString(item.id, `step-${index + 1}`),
         text,
       };
     })
-    .filter((item): item is RecipeIngredient | RecipeStep => item !== null);
+    .filter((item): item is RecipeStep => item !== null);
+}
+
+function normalizeQuantity(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return Math.round(value * 100) / 100;
+}
+
+function normalizeUnit(value: unknown): RecipeIngredientUnit {
+  const unit = asString(value);
+  return unitIsRecipeIngredientUnit(unit) ? unit : "free";
+}
+
+function normalizeFoodState(value: unknown): RecipeFoodState {
+  const foodState = asString(value);
+  return foodStateIsRecipeFoodState(foodState) ? foodState : "unknown";
+}
+
+function normalizeReliability({
+  ciqualCode,
+  grams,
+  quantity,
+  value,
+}: {
+  ciqualCode: string | null;
+  grams: number | null;
+  quantity: number | null;
+  value: unknown;
+}): RecipeIngredientReliability {
+  const reliability = asString(value);
+  if (reliabilityIsRecipeIngredientReliability(reliability)) {
+    if (reliability === "ciqual_linked" && (!ciqualCode || grams === null)) {
+      return quantity ? "user_declared" : "incomplete";
+    }
+    return reliability;
+  }
+
+  if (ciqualCode && grams !== null) {
+    return "ciqual_linked";
+  }
+  if (quantity !== null) {
+    return "user_declared";
+  }
+
+  return "incomplete";
 }
 
 function boundedInteger(

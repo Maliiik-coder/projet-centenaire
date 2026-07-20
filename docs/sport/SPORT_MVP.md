@@ -13,6 +13,11 @@ Cette tranche expose une route isolee `/sport`, sans integration dans le shell p
 - bibliotheque enrichie de renforcement dans `src/lib/sport/exerciseLibrary.ts` :
   environ 25 familles de mouvements et plus de 60 variantes utiles, avec une
   priorite aux options sans materiel ;
+- vue `Exercices` consultable depuis le tableau de bord, avec filtres sobres
+  par zone, intention, niveau et sans materiel ;
+- fiche exercice affichant intention, zones, materiel, consignes, respiration,
+  erreurs courantes, precautions et navigation vers variante plus facile ou plus
+  difficile ;
 - tableau de bord `/sport` avec choix d'activite, seances faites et jauges de progression ;
 - illustrations fournies pour toutes les variantes de l'evaluation guidee actuelle ;
 - moteur deterministe et versionne dans `src/lib/sport/workoutGenerator.ts` ;
@@ -31,11 +36,14 @@ Le dashboard ne liste pas toutes les variantes ; il affiche une visualisation gl
 - `src/lib/sport/types.ts` : modeles domaine Sport.
 - `src/lib/sport/config.ts` : version moteur et parametres configurables.
 - `src/lib/sport/exerciseLibrary.ts` : catalogue renforcement, medias en emplacements reserves.
+- `src/lib/sport/exerciseCatalog.ts` : filtres et lecture du catalogue pour l'interface consultable.
 - `src/lib/sport/progression.ts` : adaptation a partir des retours.
 - `src/lib/sport/workoutGenerator.ts` : generation pure et reproductible.
 - `src/lib/sport/workoutTimer.ts` : chronometre pur fonde sur des horodatages.
 - `src/services/sport/*` : profil, stockage local isole, historique et permissions.
 - `src/features/sport/ExerciseIllustration.tsx` : illustrations schematiques locales, sans media externe.
+- `src/features/sport/ExerciseGuideMedia.tsx` : guides illustres existants et etat neutre quand aucun visuel valide n'est disponible.
+- `src/features/sport/ExerciseLibraryView.tsx` : liste mobile, filtres et fiche detaillee des exercices.
 - `src/features/sport/assets/*` : guides de mouvement fournis par l'utilisateur pour les variantes de pompes.
 - `src/features/sport/SportApp.tsx` : experience client isolee.
 - `src/app/sport/page.tsx` : route App Router.

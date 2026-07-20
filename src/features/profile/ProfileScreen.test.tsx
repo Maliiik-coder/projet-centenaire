@@ -1,7 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import type { ReactElement } from "react";
+import { describe, expect, it, vi } from "vitest";
 import type { AppData, Profile } from "@/lib/types";
-import { ProfileScreen } from "@/features/profile/ProfileScreen";
+import {
+  ProfileScreen,
+  ProfileSportSection,
+} from "@/features/profile/ProfileScreen";
 
 const profile: Profile = {
   firstName: "Camille",
@@ -21,50 +25,86 @@ const profile: Profile = {
 const data: AppData = {
   profile,
   meals: [],
-  weights: [],
+  weights: [
+    {
+      id: "weight-1",
+      date: "2026-07-19",
+      time: "08:00",
+      weightKg: 108.2,
+      createdAt: "2026-07-19T08:00:00.000Z",
+    },
+    {
+      id: "weight-2",
+      date: "2026-07-20",
+      time: "08:00",
+      weightKg: 107.6,
+      createdAt: "2026-07-20T08:00:00.000Z",
+    },
+  ],
   smokingEntries: [],
   activities: [],
 };
 
-function renderProfile(
+function profileScreenProps(
   overrides: Partial<{
     cloudUserId: string | null;
+    data: AppData;
     editorOpen: boolean;
+    onOpenSportProfile: () => void;
+    profile: Profile;
     profileDraft: Profile;
   }> = {},
 ) {
-  return renderToStaticMarkup(
-    <ProfileScreen
-      cloudEmail={overrides.cloudUserId ? "camille@example.com" : null}
-      cloudUserId={overrides.cloudUserId ?? null}
-      currentDate="2026-07-20"
-      data={data}
-      editorOpen={overrides.editorOpen ?? false}
-      formatKg={(value) => `${value ?? 0} kg`}
-      profile={profile}
-      profileDraft={overrides.profileDraft ?? profile}
-      onChangeDraft={() => {}}
-      onChangeEditorOpen={() => {}}
-      onImportFile={async () => {}}
-      onOpenBehaviorEditor={() => {}}
-      onPreferencesChange={() => {}}
-      onResetData={async () => {}}
-      onSaveProfile={() => {}}
-      onSignOut={async () => {}}
-      onValidationError={() => {}}
-    />,
-  );
+  const nextProfile = overrides.profile ?? profile;
+  const nextData = overrides.data ?? { ...data, profile: nextProfile };
+
+  return {
+    cloudEmail: overrides.cloudUserId ? "camille@example.com" : null,
+    cloudUserId: overrides.cloudUserId ?? null,
+    currentDate: "2026-07-20",
+    data: nextData,
+    editorOpen: overrides.editorOpen ?? false,
+    formatKg: (value: number | null | undefined) => `${value ?? 0} kg`,
+    profile: nextProfile,
+    profileDraft: overrides.profileDraft ?? nextProfile,
+    onChangeDraft: () => {},
+    onChangeEditorOpen: () => {},
+    onImportFile: async () => {},
+    onOpenBehaviorEditor: () => {},
+    onOpenSportProfile: overrides.onOpenSportProfile,
+    onPreferencesChange: () => {},
+    onResetData: async () => {},
+    onSaveProfile: () => {},
+    onSignOut: async () => {},
+    onValidationError: () => {},
+  };
+}
+
+function renderProfile(
+  overrides: Partial<{
+    cloudUserId: string | null;
+    data: AppData;
+    editorOpen: boolean;
+    onOpenSportProfile: () => void;
+    profile: Profile;
+    profileDraft: Profile;
+  }> = {},
+) {
+  return renderToStaticMarkup(<ProfileScreen {...profileScreenProps(overrides)} />);
 }
 
 describe("ProfileScreen", () => {
-  it("sépare les cinq zones attendues du profil", () => {
-    const html = renderProfile();
+  it("organise le profil en sections produit lisibles", () => {
+    const html = renderProfile({ onOpenSportProfile: () => {} });
 
-    expect(html).toContain("Résumé personnel");
-    expect(html).toContain("Portrait initial");
+    expect(html).toContain("Profil général");
+    expect(html).toContain("Profil alimentaire");
+    expect(html).toContain("Profil sportif");
     expect(html).toContain("Préférences");
     expect(html).toContain("Compte");
     expect(html).toContain("Options avancées");
+    expect(html).toContain("107.6 kg");
+    expect(html).toContain("Poids actuel");
     expect(html).toContain("Afficher le repère du jour");
   });
 
@@ -74,6 +114,25 @@ describe("ProfileScreen", () => {
     expect(html).toContain("Données de l’application");
     expect(html).not.toContain("Exporter mes données");
     expect(html).not.toContain("Réinitialiser les données locales");
+  });
+
+  it("affiche un état poids actuel à compléter sans mesure enregistrée", () => {
+    const html = renderProfile({
+      data: { ...data, weights: [] },
+    });
+
+    expect(html).toContain("À compléter");
+    expect(html).toContain("sans extrapoler");
+  });
+
+  it("ouvre un éditeur explicite avec sauvegarde et annulation", () => {
+    const html = renderProfile({
+      editorOpen: true,
+    });
+
+    expect(html).toContain("Informations personnelles");
+    expect(html).toContain("Enregistrer");
+    expect(html).toContain("Annuler");
   });
 
   it("signale l'impact d'un nouveau poids de départ dans l'éditeur", () => {
@@ -122,6 +181,39 @@ describe("ProfileScreen", () => {
     expect(html).toContain(
       "Choisis ce que tu souhaites faire concernant le tabac.",
     );
+  });
+
+  it("résume le tabac uniquement lorsqu'il concerne le suivi", () => {
+    expect(renderProfile()).not.toContain("Situation déclarée");
+
+    const html = renderProfile({
+      profile: {
+        ...profile,
+        smokingStatus: "tous-les-jours",
+        smokingGoal: "reduire",
+      },
+    });
+
+    expect(html).toContain("Situation déclarée");
+    expect(html).toContain("Tous les jours · Réduire");
+    expect(html).toContain("sans conseil médical");
+  });
+
+  it("expose et déclenche le callback du profil sportif", () => {
+    const onOpenSportProfile = vi.fn();
+    const html = renderProfile({ onOpenSportProfile });
+    const section = ProfileSportSection({
+      onOpenSportProfile,
+    }) as ReactElement<{
+      action: ReactElement<{ disabled?: boolean; onClick?: () => void }>;
+    }>;
+
+    expect(html).toContain("Profil sportif");
+    expect(html).toContain("Cette page ne lit pas ses données directement");
+    expect(section.props.action.props.disabled).toBe(false);
+
+    section.props.action.props.onClick?.();
+    expect(onOpenSportProfile).toHaveBeenCalledTimes(1);
   });
 
   it("distingue clairement un compte cloud du carnet local", () => {
