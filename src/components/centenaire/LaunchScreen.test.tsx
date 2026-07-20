@@ -14,6 +14,7 @@ describe("LaunchScreen", () => {
     );
 
     expect(html).toContain("launch-progress");
+    expect(html).toContain("pc-launch-screen");
     expect(html).toContain("animation-duration:3000ms");
     expect(html).toContain("transition-duration:2000ms");
     expect(html).toContain('aria-hidden="true"');

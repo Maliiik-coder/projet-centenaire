@@ -88,6 +88,10 @@ Commit de référence :
 - Direction artistique : interface mobile claire, calme et humaine, pensée comme un compagnon du quotidien.
 - Structure visuelle : succession de fenêtres mobiles plein format, avec grands espaces, surfaces blanches, progression courte et action principale basse.
 - Palette active : fond blanc ou bleu brume très clair, texte noir et actions allant du bleu pastel au bleu profond.
+- L'écran de lancement Haru reste toujours blanc, même lorsque le thème sombre
+  est mémorisé ; le thème utilisateur reprend après la fin du démarrage.
+- Les modules autonomes utilisent un en-tête commun sans séparateur : flèche
+  ronde à gauche et mot-symbole Haru centré.
 - Typographie d'interface : Nunito Sans variable, choisie pour une présence plus ronde, mobile et chaleureuse ; le futur mot-symbole reste indépendant.
 - Un module Sport est désormais approuvé. Il reste privé, progressif, sans calories brûlées, sans compétition et sans logique de compensation alimentaire.
 - Un module Recettes est désormais approuvé. Sa dimension communautaire est

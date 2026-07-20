@@ -20,7 +20,7 @@ export function LaunchScreen({
   const sloganVisible = stage !== "loading";
 
   return (
-    <main className="pc-screen pc-motion-safe">
+    <main className="pc-launch-screen pc-screen pc-motion-safe">
       <div className="pc-screen-inner mx-auto flex flex-col">
         <section className="flex flex-1 flex-col items-center justify-center text-center">
           <h1 className="sr-only">Haru</h1>

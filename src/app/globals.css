@@ -162,6 +162,24 @@ body {
   padding-bottom: calc(var(--pc-safe-bottom) + var(--pc-space-4));
 }
 
+.pc-launch-screen {
+  --pc-color-background: #ffffff;
+  --pc-color-surface: #ffffff;
+  --pc-color-surface-subtle: #f5f9fc;
+  --pc-color-text: #111820;
+  --pc-color-text-muted: #5e6873;
+  --pc-color-text-subtle: #82909c;
+  --pc-color-border: #dce6ee;
+  --pc-color-primary: #416a8e;
+  --pc-color-primary-hover: #315574;
+  --pc-color-primary-soft: #eaf3fa;
+  --pc-color-on-primary: #ffffff;
+
+  background: #ffffff;
+  color: #111820;
+  color-scheme: light;
+}
+
 .pc-screen-inner {
   width: 100%;
   max-width: var(--pc-content-max-width);

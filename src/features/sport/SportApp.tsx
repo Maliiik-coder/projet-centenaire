@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Image, { type StaticImageData } from "next/image";
 import {
-  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   Dumbbell,
@@ -65,14 +64,13 @@ import type {
 import { SPORT_LOCAL_USER_ID } from "@/lib/sport/config";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
-  BackButton,
   Button,
   ChoiceCard,
-  IconButton,
   LoadingState,
   Surface,
   TextInput,
 } from "@/components/ui";
+import { HaruModuleHeader } from "@/components/centenaire/HaruModuleHeader";
 import { cx } from "@/components/ui/styles";
 import {
   guestSportStorageScope,
@@ -482,16 +480,30 @@ export function SportApp() {
   if (!loaded) {
     return (
       <main className="pc-screen">
-        <div className="pc-screen-inner flex items-center justify-center">
-          <LoadingState label="Ouverture de Sport" />
+        <div className="pc-screen-inner flex flex-col">
+          <HaruModuleHeader backLabel="Retour à l'accueil" />
+          <div className="flex flex-1 items-center justify-center">
+            <LoadingState label="Ouverture de Sport" />
+          </div>
         </div>
       </main>
     );
   }
 
+  const shouldReturnToDashboard =
+    view === "history" || view === "settings" || view === "preview";
+
   return (
     <main className="pc-screen">
       <div className="pc-screen-inner mx-auto flex w-full max-w-[var(--pc-content-max-width)] flex-col gap-5">
+        <HaruModuleHeader
+          backLabel={
+            shouldReturnToDashboard
+              ? "Retour au tableau de bord Sport"
+              : "Retour à l'accueil"
+          }
+          onBack={shouldReturnToDashboard ? () => setView("home") : undefined}
+        />
         <SportHeader view={view} onNavigate={setView} />
         {view === "access" ? (
           <SportAccessView onOpen={openSportProgram} />
@@ -607,27 +619,11 @@ function SportHeader({
   view: SportView;
   onNavigate: (view: SportView) => void;
 }) {
-  const shouldReturnToDashboard =
-    view === "history" || view === "settings" || view === "preview";
-
   return (
     <header className="flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        {shouldReturnToDashboard ? (
-          <IconButton
-            className="mb-4 rounded-full"
-            label="Retour au tableau de bord Sport"
-            onClick={() => onNavigate("home")}
-          >
-            <ArrowLeft aria-hidden="true" size={18} />
-          </IconButton>
-        ) : (
-          <BackButton className="mb-4" label="Retour à l'accueil" />
-        )}
-        <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
-          Sport
-        </h1>
-      </div>
+      <h1 className="min-w-0 text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
+        Sport
+      </h1>
       {view !== "access" && view !== "onboarding" ? (
         <div className="flex shrink-0 gap-2">
           <Button

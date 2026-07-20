@@ -12,7 +12,6 @@ import {
 import {
   BookOpen,
   ChefHat,
-  ChevronLeft,
   Clock3,
   Heart,
   PencilLine,
@@ -23,7 +22,6 @@ import {
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
-  BackButton,
   Button,
   EmptyState,
   FormField,
@@ -31,8 +29,8 @@ import {
   Select,
   Surface,
   TextInput,
-  TopBar,
 } from "@/components/ui";
+import { HaruModuleHeader } from "@/components/centenaire/HaruModuleHeader";
 import { cx } from "@/components/ui/styles";
 import { recipeCategoryLabels } from "@/features/recipes/recipeCatalog";
 import {
@@ -167,13 +165,35 @@ export function RecipesApp() {
   const changeFavorite = (recipeId: string) => {
     setData((current) => toggleFavorite(current, recipeId));
   };
+  const headerBackAction =
+    view.kind === "catalog"
+      ? undefined
+      : view.kind === "edit" && selectedRecipe
+        ? () => setView({ kind: "detail", recipeId: selectedRecipe.id })
+        : showCatalog;
+  const headerRightAction =
+    view.kind === "detail" && selectedRecipe ? (
+      <FavoriteButton
+        favorite={isFavorite(data, selectedRecipe.id)}
+        onClick={(event) => {
+          event.stopPropagation();
+          changeFavorite(selectedRecipe.id);
+        }}
+      />
+    ) : null;
 
   return (
     <main className="pc-screen">
       <div className="pc-screen-inner flex min-h-dvh flex-col">
-        <TopBar label="Recettes" />
+        <HaruModuleHeader
+          backLabel={
+            view.kind === "catalog" ? "Retour à Haru" : "Retour aux recettes"
+          }
+          onBack={headerBackAction}
+          rightAction={headerRightAction}
+        />
 
-        <div className="flex-1 space-y-6 py-5">
+        <div className="flex-1 space-y-6 pb-5 pt-3">
           {view.kind === "catalog" ? (
             <RecipesCatalogView
               favoriteCount={favoriteCount}
@@ -200,21 +220,18 @@ export function RecipesApp() {
 
           {view.kind === "detail" && selectedRecipe ? (
             <RecipeDetailView
-              favorite={isFavorite(data, selectedRecipe.id)}
               notice={notice}
               recipe={selectedRecipe}
-              onBack={showCatalog}
               onDelete={() => removeRecipe(selectedRecipe)}
               onEdit={() => {
                 setNotice(null);
                 setView({ kind: "edit", recipeId: selectedRecipe.id });
               }}
-              onFavoriteToggle={() => changeFavorite(selectedRecipe.id)}
             />
           ) : null}
 
           {view.kind === "detail" && !selectedRecipe ? (
-            <MissingRecipeView onBack={showCatalog} />
+            <MissingRecipeView />
           ) : null}
 
           {view.kind === "create" ? (
@@ -230,7 +247,7 @@ export function RecipesApp() {
           ) : null}
 
           {view.kind === "edit" && selectedRecipe?.origin !== "personal" ? (
-            <MissingRecipeView onBack={showCatalog} />
+            <MissingRecipeView />
           ) : null}
         </div>
       </div>
@@ -269,33 +286,26 @@ function RecipesCatalogView({
 }) {
   return (
     <>
-      <header className="space-y-4">
-        <BackButton
-          className="self-start"
-          fallbackHref="/?app-resume=1&tab=today"
-          label="Retour à Haru"
-        />
-        <div className="space-y-2">
-          <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
-            Catalogue
-          </p>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
-                Recettes
-              </h1>
-              <p className="mt-2 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text-muted)]">
-                Des idées simples à garder sous la main.
-              </p>
-            </div>
-            <IconButton
-              className="rounded-full"
-              label="Créer une recette"
-              onClick={onCreate}
-            >
-              <Plus aria-hidden="true" size={24} />
-            </IconButton>
+      <header className="space-y-2">
+        <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
+          Catalogue
+        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]">
+              Recettes
+            </h1>
+            <p className="mt-2 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text-muted)]">
+              Des idées simples à garder sous la main.
+            </p>
           </div>
+          <IconButton
+            className="rounded-full"
+            label="Créer une recette"
+            onClick={onCreate}
+          >
+            <Plus aria-hidden="true" size={24} />
+          </IconButton>
         </div>
       </header>
 
@@ -443,37 +453,18 @@ function RecipeCard({
 }
 
 function RecipeDetailView({
-  favorite,
   notice,
   recipe,
-  onBack,
   onDelete,
   onEdit,
-  onFavoriteToggle,
 }: {
-  favorite: boolean;
   notice: string | null;
   recipe: Recipe;
-  onBack: () => void;
   onDelete: () => void;
   onEdit: () => void;
-  onFavoriteToggle: () => void;
 }) {
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <IconButton className="rounded-full" label="Retour au catalogue" onClick={onBack}>
-          <ChevronLeft aria-hidden="true" size={24} />
-        </IconButton>
-        <FavoriteButton
-          favorite={favorite}
-          onClick={(event) => {
-            event.stopPropagation();
-            onFavoriteToggle();
-          }}
-        />
-      </div>
-
       {notice ? (
         <Surface className="px-4 py-3" variant="selected">
           <p className="text-[length:var(--pc-font-size-secondary)] leading-5 font-semibold text-[var(--pc-color-primary)]">
@@ -592,10 +583,7 @@ function RecipeFormView({
 
   return (
     <form className="space-y-5" onSubmit={submit}>
-      <div className="flex items-center justify-between gap-3">
-        <IconButton className="rounded-full" label="Retour" onClick={onBack}>
-          <ChevronLeft aria-hidden="true" size={24} />
-        </IconButton>
+      <div className="flex items-center justify-end">
         <Button type="submit">
           {existingRecipe ? "Enregistrer" : "Créer"}
         </Button>
@@ -879,12 +867,9 @@ function RecipeStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function MissingRecipeView({ onBack }: { onBack: () => void }) {
+function MissingRecipeView() {
   return (
-    <div className="space-y-4">
-      <IconButton className="rounded-full" label="Retour au catalogue" onClick={onBack}>
-        <ChevronLeft aria-hidden="true" size={24} />
-      </IconButton>
+    <div>
       <EmptyState
         description="Elle a peut-être été supprimée de cet appareil."
         icon={<ChefHat size={20} />}
