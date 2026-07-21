@@ -35,7 +35,9 @@ export function useMealJournalController({
     createEmptyMealDraft(currentDate),
   );
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
+  const [mealSessionKey, setMealSessionKey] = useState(0);
   const [mealActionMenuId, setMealActionMenuId] = useState<string | null>(null);
+  const editingMealIdRef = useRef<string | null>(null);
   const mealLongPressTimeoutRef = useRef<number | null>(null);
 
   const clearMealLongPress = () => {
@@ -80,22 +82,27 @@ export function useMealJournalController({
   };
 
   const openMealPanel = () => {
+    editingMealIdRef.current = null;
     setEditingMealId(null);
     setMealActionMenuId(null);
     setMealDraft(createEmptyMealDraft(currentDate));
+    setMealSessionKey((current) => current + 1);
     setMealOpen(true);
   };
 
   const closeMealPanel = () => {
+    editingMealIdRef.current = null;
     setMealOpen(false);
     setEditingMealId(null);
     setMealDraft(createEmptyMealDraft(currentDate));
   };
 
   const openMealEditor = (meal: MealEntry) => {
+    editingMealIdRef.current = meal.id;
     setMealActionMenuId(null);
     setEditingMealId(meal.id);
     setMealDraft(mealDraftFromEntry(meal));
+    setMealSessionKey((current) => current + 1);
     setMealOpen(true);
   };
 
@@ -128,8 +135,9 @@ export function useMealJournalController({
       return;
     }
 
-    const editedMeal = editingMealId
-      ? data.meals.find((meal) => meal.id === editingMealId)
+    const activeEditingMealId = editingMealIdRef.current;
+    const editedMeal = activeEditingMealId
+      ? data.meals.find((meal) => meal.id === activeEditingMealId)
       : null;
     const entry = mealEntryFromDraft(mealDraft, editedMeal ?? null);
 
@@ -157,6 +165,7 @@ export function useMealJournalController({
     mealActionMenuId,
     mealDraft,
     mealOpen,
+    mealSessionKey,
     openMealActionMenu: setMealActionMenuId,
     openMealEditor,
     openMealPanel,

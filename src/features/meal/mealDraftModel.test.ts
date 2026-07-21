@@ -79,6 +79,32 @@ describe("mealDraftModel", () => {
     expect(edited.mealStructure?.sections[0]?.passages).toHaveLength(2);
   });
 
+  it("crée deux repas distincts à la même date", () => {
+    const lunch = mealEntryFromDraft(
+      {
+        ...createEmptyMealDraft("2026-07-21", "12:30"),
+        kind: "dejeuner",
+        freeText: "steak et pâtes",
+      },
+      null,
+    );
+    const dinner = mealEntryFromDraft(
+      {
+        ...createEmptyMealDraft("2026-07-21", "20:15"),
+        kind: "diner",
+        freeText: "soupe et pain",
+      },
+      null,
+    );
+
+    expect(lunch.date).toBe(dinner.date);
+    expect(lunch.id).not.toBe(dinner.id);
+    expect([lunch, dinner]).toMatchObject([
+      { kind: "dejeuner", time: "12:30" },
+      { kind: "diner", time: "20:15" },
+    ]);
+  });
+
   it("ne recopie pas la quantité du plat complet sur une reprise partielle", () => {
     const meal = mealEntryFromDraft(
       {

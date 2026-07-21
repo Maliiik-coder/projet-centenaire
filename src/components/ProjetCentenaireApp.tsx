@@ -77,6 +77,7 @@ export function ProjetCentenaireApp() {
     mealActionMenuId,
     mealDraft,
     mealOpen,
+    mealSessionKey,
     openMealActionMenu,
     openMealEditor,
     openMealPanel,
@@ -339,6 +340,7 @@ export function ProjetCentenaireApp() {
             <MealTunnelScreen
               draft={mealDraft}
               initialObservationActive={isInitialObservationDay(dayNumber)}
+              key={mealSessionKey}
               submitLabel={editingMealId ? "Mettre à jour" : "Ajouter au carnet"}
               onAdd={addMealToJournal}
               onChange={setMealDraft}
