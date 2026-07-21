@@ -270,7 +270,7 @@ describe("mealDraftModel", () => {
       .find((section) => section.kind === "main")
       ?.passages[0]?.items[0];
 
-    expect(meal.freeText).toBe("");
+    expect(meal.freeText).toBe("steak, steak");
     expect(firstItem).toMatchObject({
       id: draft.selectedFoods[0]?.ciqualCode,
       rawText: "steak, steak",
@@ -297,6 +297,33 @@ describe("mealDraftModel", () => {
       source: "ciqual-2025",
       sourceVersion: "2025",
     });
+  });
+
+  it("conserve ensemble les aliments confirmés et le texte libre restant", () => {
+    const draft = addMealFoodSelection(
+      {
+        ...createEmptyMealDraft("2026-07-16", "12:30"),
+        freeText: "sauce maison, steak",
+      },
+      searchFoodAutocomplete("steak")[0]!,
+    );
+
+    const meal = mealEntryFromDraft(draft, null);
+    const items = meal.mealStructure?.sections
+      .find((section) => section.kind === "main")
+      ?.passages[0]?.items;
+
+    expect(meal.freeText).toBe("sauce maison, steak");
+    expect(items).toHaveLength(2);
+    expect(items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ recognitionStatus: "confirmed" }),
+        expect.objectContaining({
+          rawText: "sauce maison",
+          recognitionStatus: "unprocessed",
+        }),
+      ]),
+    );
   });
 
   it("conserve un texte libre non reconnu sans inventer de code", () => {

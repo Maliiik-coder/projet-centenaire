@@ -192,6 +192,62 @@ describe("storage normalization", () => {
     });
   });
 
+  it("restaure le libellé d'un repas Ciqual dont le texte historique est vide", () => {
+    const data = normalizeData({
+      ...createEmptyData(),
+      meals: [
+        {
+          id: "meal-ciqual-empty-text",
+          date: "2026-07-21",
+          time: "20:15",
+          kind: "diner",
+          freeText: "",
+          mealStructure: {
+            version: 2,
+            source: "meal_tunnel_v2",
+            sections: [
+              {
+                id: "main",
+                kind: "main",
+                rawText: "",
+                quantity: null,
+                passages: [
+                  {
+                    id: "passage-1",
+                    index: 1,
+                    relationToPrevious: null,
+                    relationText: null,
+                    items: [
+                      {
+                        id: "ciqual-steak",
+                        rawText: "steak",
+                        recognitionStatus: "confirmed",
+                        canonicalName: "Steak haché",
+                        ciqualCode: "6255",
+                        confidence: 1,
+                        quantity: null,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+            behavior: {
+              hungerBefore: "unsure",
+              fullnessAfter: "fine",
+              hungerAtReservice: null,
+              reserviceReasons: [],
+            },
+          },
+          createdAt: "2026-07-21T18:15:00.000Z",
+        },
+      ],
+    });
+
+    expect(data.meals).toHaveLength(1);
+    expect(data.meals[0]?.freeText).toBe("steak");
+  });
+
   it("déplie le format versionné réellement importable", () => {
     const imported = normalizeImportedData({
       version: 1,

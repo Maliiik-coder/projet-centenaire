@@ -263,7 +263,7 @@ describe("politique de cache du service worker", () => {
 
   it("n’emploie plus l’ancien cache dangereux", () => {
     const { source } = createHarness();
-    expect(source).toContain('const CACHE_NAME = `${CACHE_PREFIX}v10`;');
+    expect(source).toContain('const CACHE_NAME = `${CACHE_PREFIX}v11`;');
     expect(source).not.toContain('"projet-centenaire-fieldbook-v2"');
     expect(source).not.toContain('cachePut("/", response)');
   });

@@ -654,6 +654,7 @@ export function mealEntryFromDraft(
   existingMeal: MealEntry | null,
 ): MealEntry {
   const draft = prepareDetectedMealDraft(sanitizeMealDraftForKind(sourceDraft));
+  const mealText = persistedMealText(draft);
   const quantity = quantityFromServingPattern(draft.servingPattern);
   const finding = buildImmediateFinding({
     kind: draft.kind,
@@ -674,7 +675,7 @@ export function mealEntryFromDraft(
     date: draft.date,
     time: draft.time,
     kind: draft.kind,
-    freeText: draft.freeText.trim(),
+    freeText: mealText,
     quantity,
     servingPattern: draft.servingPattern,
     hungerBefore: draft.hungerBefore,
@@ -724,6 +725,7 @@ function parseQuantityAmount(value: string): number | null {
 function buildMealStructure(draft: MealDraft): MealStructureV2 {
   const sections: MealStructureV2["sections"] = [];
   const mainQuantity = quantityEstimateFromDraft(draft.mainQuantity);
+  const mealText = persistedMealText(draft);
 
   if (draft.starterTaken && draft.starterText.trim()) {
     sections.push(
@@ -736,27 +738,28 @@ function buildMealStructure(draft: MealDraft): MealStructureV2 {
   }
 
   if (draft.kind === "grignotage") {
+    const snackQuantity = quantityEstimateFromDraft(draft.snackQuantity);
     sections.push(
       createSinglePassageSection({
         kind: "snack",
-        rawText: draft.freeText.trim(),
-        quantity: quantityEstimateFromDraft(draft.snackQuantity),
-        items: selectedMealItems(draft.selectedFoods),
+        rawText: mealText,
+        quantity: snackQuantity,
+        items: mealItemsFromDraft(draft, snackQuantity),
       }),
     );
   } else {
     const mainSection = createSinglePassageSection({
       kind: "main",
-      rawText: draft.freeText.trim(),
+      rawText: mealText,
       quantity: mainQuantity,
-      items: selectedMealItems(draft.selectedFoods),
+      items: mealItemsFromDraft(draft, mainQuantity),
     });
 
     if (hasReservice(draft.servingPattern)) {
       const reserviceText =
         draft.reserviceText.trim() ||
         (draft.reserviceRelation === "same"
-          ? draft.freeText.trim()
+          ? mealText
           : reserviceRelationLabels[draft.reserviceRelation ?? "other"]);
 
       mainSection.passages.push({
@@ -844,6 +847,20 @@ function selectedMealItems(
     : null;
 }
 
+function mealItemsFromDraft(
+  draft: MealDraft,
+  quantity: MealQuantityEstimate | null,
+): MealItemV2[] | null {
+  const items = selectedMealItems(draft.selectedFoods) ?? [];
+  const remainingText = cleanFoodInputText(draft.freeText);
+
+  if (remainingText) {
+    items.push(createMealItem(remainingText, items.length === 0 ? quantity : null));
+  }
+
+  return items.length > 0 ? items : null;
+}
+
 function createSinglePassageSection({
   kind,
   rawText,
@@ -906,6 +923,16 @@ function hasMealContent(draft: MealDraft): boolean {
 
 function joinedSelectionRawText(rawTexts: string[]): string {
   return rawTexts.map(cleanFoodInputText).filter(Boolean).join(", ");
+}
+
+function persistedMealText(draft: MealDraft): string {
+  const remainingText = cleanFoodInputText(draft.freeText);
+  const selectedTexts = draft.selectedFoods
+    .flatMap((selection) => selection.rawTexts)
+    .map(cleanFoodInputText)
+    .filter(Boolean);
+
+  return [remainingText, ...selectedTexts].filter(Boolean).join(", ");
 }
 
 function mealItemCount(item: MealItemV2): number {

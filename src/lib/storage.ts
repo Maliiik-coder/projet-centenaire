@@ -561,6 +561,30 @@ function normalizeMealStructure(value: unknown): MealStructureV2 | null {
   };
 }
 
+function mealTextFromStructure(structure: MealStructureV2 | null): string {
+  if (!structure) {
+    return "";
+  }
+
+  const primarySections = structure.sections.filter(
+    (section) => section.kind === "main" || section.kind === "snack",
+  );
+  const sections = primarySections.length > 0 ? primarySections : structure.sections;
+
+  return sections
+    .flatMap((section) => {
+      const itemTexts = section.passages.flatMap((passage) =>
+        passage.items
+          .map((item) => item.rawText.trim() || item.canonicalName?.trim() || "")
+          .filter(Boolean),
+      );
+
+      return itemTexts.length > 0 ? itemTexts : [section.rawText.trim()];
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
 function normalizeComponents(value: unknown): MealComponents {
   const record = isRecord(value) ? value : {};
 
@@ -598,7 +622,9 @@ function normalizeMeal(value: unknown): MealEntry | null {
   }
 
   const date = asString(value.date, "");
-  const freeText = asString(value.freeText, "");
+  const mealStructure = normalizeMealStructure(value.mealStructure);
+  const freeText =
+    asString(value.freeText, "").trim() || mealTextFromStructure(mealStructure);
   const createdAt = tryCanonicalizeTimestamp(asString(value.createdAt, ""));
 
   if (!date || !freeText || !createdAt) {
@@ -614,7 +640,6 @@ function normalizeMeal(value: unknown): MealEntry | null {
   const components = isRecord(value.components)
     ? normalizeComponents(value.components)
     : { ...EMPTY_COMPONENTS };
-  const mealStructure = normalizeMealStructure(value.mealStructure);
   const finding =
     normalizeFinding(value.finding) ??
     buildImmediateFinding({
