@@ -22,35 +22,34 @@ export function HaruModuleHeader({
   showBack = true,
 }: HaruModuleHeaderProps) {
   return (
-    <header
-      className={cx(
-        "grid min-h-24 grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-center gap-3 py-1",
-        className,
+    <header className={cx("flex min-h-24 items-center gap-3 py-1", className)}>
+      {!showBack ? null : (
+        <div className="flex shrink-0 items-center justify-start">
+          {onBack ? (
+            <IconButton
+              className="rounded-full"
+              label={backLabel}
+              onClick={onBack}
+            >
+              <ChevronLeft aria-hidden="true" size={24} />
+            </IconButton>
+          ) : (
+            <BackButton fallbackHref={fallbackHref} label={backLabel} />
+          )}
+        </div>
       )}
-    >
-      <div className="flex items-center justify-start">
-        {!showBack ? null : onBack ? (
-          <IconButton
-            className="rounded-full"
-            label={backLabel}
-            onClick={onBack}
-          >
-            <ChevronLeft aria-hidden="true" size={24} />
-          </IconButton>
-        ) : (
-          <BackButton
-            fallbackHref={fallbackHref}
-            label={backLabel}
-          />
-        )}
-      </div>
 
       <LogoHorizontal
-        className="h-20 w-auto max-w-full justify-self-center"
+        className={cx(
+          "h-20 w-auto shrink-0",
+          showBack ? "max-w-[58vw]" : "max-w-[78vw]",
+        )}
         priority
       />
 
-      <div className="flex items-center justify-end">{rightAction}</div>
+      <div className="ml-auto flex shrink-0 items-center justify-end">
+        {rightAction}
+      </div>
     </header>
   );
 }
