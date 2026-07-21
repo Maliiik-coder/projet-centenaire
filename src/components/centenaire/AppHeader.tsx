@@ -15,7 +15,7 @@ export function AppHeader({
       className={cx(
         variant === "signature"
           ? "flex min-h-40 items-center justify-center py-2"
-          : "flex min-h-24 items-center justify-center py-1",
+          : "flex min-h-24 items-center justify-start py-1",
         className,
       )}
     >

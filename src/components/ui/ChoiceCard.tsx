@@ -26,10 +26,10 @@ export function ChoiceCard({
   return (
     <label
       className={cx(
-        "pc-motion-safe relative flex min-h-[4.5rem] cursor-pointer items-center gap-3 rounded-[var(--pc-radius-card)] border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] active:translate-y-px",
+        "pc-halo-surface pc-motion-safe relative flex min-h-[4.5rem] cursor-pointer items-center gap-3 rounded-[var(--pc-radius-card)] border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] active:translate-y-px",
         checked
-          ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] shadow-[var(--pc-shadow-level-1)]"
-          : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] hover:border-[var(--pc-color-primary)]",
+          ? "pc-halo-selected border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] shadow-[var(--pc-shadow-level-1)]"
+          : "pc-halo-surface-interactive border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] hover:border-[var(--pc-color-primary)]",
         disabled && "cursor-not-allowed opacity-50",
       )}
     >

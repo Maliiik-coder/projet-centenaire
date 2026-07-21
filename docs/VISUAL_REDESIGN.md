@@ -267,18 +267,19 @@ Les couleurs ci-dessous sont les tokens retenus après la calibration Phase 2.5.
 
 | Rôle | Token proposé | Valeur |
 | --- | --- | --- |
+| Fond extérieur | `--pc-color-canvas` | `#EEF3FA` |
 | Fond application | `--pc-color-background` | `#FFFFFF` |
 | Surface principale | `--pc-color-surface` | `#FFFFFF` |
-| Surface secondaire | `--pc-color-surface-subtle` | `#F5F9FC` |
-| Texte principal | `--pc-color-text` | `#111820` |
-| Texte secondaire | `--pc-color-text-muted` | `#5E6873` |
-| Texte atténué | `--pc-color-text-subtle` | `#82909C` |
-| Bordure | `--pc-color-border` | `#DCE6EE` |
-| Action principale | `--pc-color-primary` | `#416A8E` |
-| Action survolée | `--pc-color-primary-hover` | `#315574` |
-| Bleu intermédiaire | `--pc-color-primary-muted` | `#C9DEEE` |
-| Accent discret | `--pc-color-primary-soft` | `#EAF3FA` |
-| Focus | `--pc-color-focus` | `#416A8E` |
+| Surface secondaire | `--pc-color-surface-subtle` | `#F3F6FB` |
+| Texte principal | `--pc-color-text` | `#111827` |
+| Texte secondaire | `--pc-color-text-muted` | `#687386` |
+| Texte atténué | `--pc-color-text-subtle` | `#8A95A6` |
+| Bordure discrète | `--pc-color-border` | `#DCE2EC` |
+| Action et accent | `--pc-color-primary` | `#3B70C0` |
+| Action survolée | `--pc-color-primary-hover` | `#315FA6` |
+| Bleu intermédiaire | `--pc-color-primary-muted` | `#BFD6FA` |
+| Accent discret | `--pc-color-primary-soft` | `#DCEAFF` |
+| Focus | `--pc-color-focus` | `#3B70C0` |
 | Succès texte / fond | `--pc-color-success` / `--pc-color-success-soft` | `#2F6B45` / `#EAF6EE` |
 | Avertissement texte / fond | `--pc-color-warning` / `--pc-color-warning-soft` | `#8A5A00` / `#FFF4D6` |
 | Danger texte / fond | `--pc-color-danger` / `--pc-color-danger-soft` | `#A33D37` / `#FCECEA` |
@@ -289,15 +290,16 @@ Les couleurs ci-dessous sont les tokens retenus après la calibration Phase 2.5.
 
 | Rôle | Token proposé | Valeur |
 | --- | --- | --- |
-| Fond application | `--pc-color-background` | `#101820` |
-| Surface principale | `--pc-color-surface` | `#18232D` |
-| Surface élevée | `--pc-color-surface-elevated` | `#263542` |
-| Texte principal | `--pc-color-text` | `#F7FAFC` |
-| Texte secondaire | `--pc-color-text-muted` | `#BBC7D1` |
-| Bordure | `--pc-color-border` | `#334655` |
-| Action principale | `--pc-color-primary` | `#8DB5D5` |
-| Accent discret | `--pc-color-primary-soft` | `#21384C` |
-| Focus | `--pc-color-focus` | `#A9CCE5` |
+| Fond application | `--pc-color-background` | `#151C28` |
+| Surface principale | `--pc-color-surface` | `#202A39` |
+| Surface élevée | `--pc-color-surface-elevated` | `#2B3748` |
+| Texte principal | `--pc-color-text` | `#F8FBFF` |
+| Texte secondaire | `--pc-color-text-muted` | `#A9B4C6` |
+| Bordure | `--pc-color-border` | `#364457` |
+| Accent clair | `--pc-color-primary` | `#8BB5F4` |
+| Action principale | `--pc-color-action` | `#3B70C0` |
+| Accent discret | `--pc-color-primary-soft` | `#263D62` |
+| Focus | `--pc-color-focus` | `#8BB5F4` |
 | Succès texte / fond | `--pc-color-success` / `--pc-color-success-soft` | `#79C38E` / `#183525` |
 | Avertissement texte / fond | `--pc-color-warning` / `--pc-color-warning-soft` | `#E7B95D` / `#3A2E16` |
 | Danger texte / fond | `--pc-color-danger` / `--pc-color-danger-soft` | `#E08A83` / `#422523` |
@@ -320,9 +322,27 @@ Les variables historiques `--background`, `--foreground`, `--app-*` et les séle
 
 La variante C terracotta, d'abord retenue pendant la Phase 2.5, a été rejetée lors de la revue humaine suivante. Les captures A, B et C restent conservées comme historique de décision, mais ne décrivent plus la direction active.
 
-La direction active repose sur un fond blanc, un texte presque noir et une gamme de bleus pastel : bleu brume `#EAF3FA`, bleu intermédiaire `#C9DEEE`, bleu ardoise `#416A8E` et bleu profond `#315574`. Le texte est noir sur le blanc et les bleus clairs, puis blanc sur les bleus moyen et profond. Le contraste du CTA principal avec le blanc atteint `5,71:1` et celui du survol atteint `7,83:1`.
+La direction active repose sur un fond blanc, un texte presque noir et une gamme
+de bleus pastel : bleu brume `#DCEAFF`, bleu intermédiaire `#BFD6FA`, bleu
+d'action `#3B70C0` et bleu profond `#315FA6`. Le texte est noir sur le blanc et
+les bleus clairs, puis blanc sur les bleus d'action. Le contraste du texte blanc
+sur le CTA principal atteint `4,92:1` et respecte WCAG AA pour le texte courant.
 
 Le bleu sert aux CTA, au focus, à l'onglet actif, aux sélections et aux accents ponctuels. Les couleurs de succès, d'avertissement et de danger restent sémantiques et indépendantes.
+
+### Signature « Halo encré »
+
+La revue humaine du 21 juillet 2026 retient la première proposition « Halo
+encré », sans glitch décoratif. Une surface principale combine un fond blanc,
+un contour encre de 2 à 3 px, des angles souples légèrement asymétriques et une
+ombre bleu pastel franche, décalée plutôt que floutée. Les champs reprennent ce
+langage à une échelle plus compacte et les CTA principaux restent des capsules
+bleues à texte blanc.
+
+Le contour n'est pas appliqué aux sous-informations purement typographiques afin
+d'éviter les cartes imbriquées. Le mot-symbole reste intact et se place à gauche
+des en-têtes principaux. La navigation basse existante est hors périmètre : sa
+forme, ses icônes, son mouvement actif et son comportement ne changent pas.
 
 ## 10. Typographie
 

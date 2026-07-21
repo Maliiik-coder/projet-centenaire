@@ -14,7 +14,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       {...props}
       aria-invalid={invalid || undefined}
       className={cx(
-        "pc-focus-ring min-h-[var(--pc-control-height)] w-full cursor-pointer rounded-[var(--pc-radius-control)] border bg-[var(--pc-color-surface)] px-3 py-2 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none transition-[border-color,box-shadow,background-color] duration-[var(--pc-motion-fast)] disabled:cursor-not-allowed disabled:bg-[var(--pc-color-surface-subtle)] disabled:opacity-70",
+        "pc-halo-control pc-focus-ring min-h-[var(--pc-control-height)] w-full cursor-pointer rounded-[var(--pc-radius-control)] border bg-[var(--pc-color-surface)] px-3 py-2 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none transition-[border-color,box-shadow,background-color] duration-[var(--pc-motion-fast)] disabled:cursor-not-allowed disabled:bg-[var(--pc-color-surface-subtle)] disabled:opacity-70",
         invalid
           ? "border-[var(--pc-color-danger)]"
           : "border-[var(--pc-color-border)] hover:border-[var(--pc-color-text-subtle)]",

@@ -109,7 +109,7 @@ export function MealTunnelScreen({
   return (
     <div className="app-fixed-panel z-30">
       <div className="app-inner-screen mx-auto flex max-w-md flex-col">
-        <div className="mb-8 flex items-center justify-between rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 shadow-[var(--pc-shadow-level-1)]">
+        <div className="pc-halo-surface mb-8 flex items-center justify-between rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 shadow-[var(--pc-shadow-level-1)]">
           <p className={annotationClass}>
             Observation {step + 1}/{stepIds.length}
           </p>
@@ -139,7 +139,7 @@ export function MealTunnelScreen({
             <TunnelQuestion title="À quelle heure as-tu mangé ?">
               <div className="grid gap-4">
                 <input
-                  className="min-h-16 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-3xl font-semibold tabular-nums text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
+                  className="pc-halo-control min-h-16 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-4 py-3 text-3xl font-semibold tabular-nums text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
                   type="time"
                   value={draft.time}
                   onChange={(event) =>
@@ -193,7 +193,7 @@ export function MealTunnelScreen({
                 }
               />
               <textarea
-                className="min-h-40 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-lg leading-8 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
+                className="pc-halo-control min-h-40 rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-lg leading-8 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none placeholder:text-[var(--pc-color-text-muted)] focus:border-[var(--pc-color-focus)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pc-color-focus)_20%,transparent)]"
                 value={draft.freeText}
                 onChange={(event) =>
                   onChange({ ...draft, freeText: event.target.value })
@@ -372,9 +372,9 @@ export function MealTunnelScreen({
 
                   return (
                     <button
-                      className={`min-h-12 rounded-[18px] border px-4 text-left text-base transition active:scale-[0.99] ${
+                      className={`pc-halo-surface pc-halo-surface-interactive min-h-12 rounded-[18px] border px-4 text-left text-base transition active:scale-[0.99] ${
                         selected
-                          ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
+                          ? "pc-halo-selected border-[var(--pc-color-primary)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
                           : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)]"
                       }`}
                       key={key}
@@ -484,10 +484,10 @@ export function MealTunnelScreen({
               <FindingPart title="Ce que je vois" text={finding.fact} emphasized />
               {initialObservationActive ? (
                 <>
-                  <div className="rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
+                  <div className="pc-halo-surface pc-halo-surface-subtle rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
                     <FindingPart title="Lecture rapide" text={finding.reading} />
                   </div>
-                  <div className="rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
+                  <div className="pc-halo-surface pc-halo-surface-subtle rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
                     <FindingPart
                       title="Pour l’instant"
                       text={INITIAL_OBSERVATION_MEAL_MESSAGE}
@@ -496,7 +496,7 @@ export function MealTunnelScreen({
                 </>
               ) : (
                 <>
-                  <div className="space-y-5 rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
+                  <div className="pc-halo-surface pc-halo-surface-subtle space-y-5 rounded-[22px] bg-[var(--pc-color-surface-subtle)] p-4 shadow-[var(--pc-shadow-level-1)]">
                     <FindingPart title="Point à surveiller" text={finding.reading} />
                     <FindingPart title="Prochaine fois" text={finding.nextAction} />
                   </div>

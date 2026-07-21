@@ -34,7 +34,7 @@ export function ProfileAdvancedOptions({
       <button
         aria-expanded={open}
         aria-controls="profile-advanced-content"
-        className="pc-focus-ring mt-3 flex min-h-14 w-full items-center gap-3 rounded-[var(--pc-radius-card)] bg-[var(--pc-color-surface-subtle)] px-4 py-3 text-left"
+        className="pc-halo-surface pc-halo-surface-subtle pc-halo-surface-interactive pc-focus-ring mt-3 flex min-h-14 w-full items-center gap-3 rounded-[var(--pc-radius-card)] bg-[var(--pc-color-surface-subtle)] px-4 py-3 text-left"
         type="button"
         onClick={() => {
           setOpen((current) => !current);

@@ -6,13 +6,13 @@ export type ButtonVariant = "primary" | "secondary" | "tertiary" | "danger";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "border-transparent bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)] shadow-[var(--pc-shadow-level-1)] hover:bg-[var(--pc-color-primary-hover)]",
+    "pc-halo-action border-transparent bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)] shadow-[var(--pc-shadow-level-1)] hover:bg-[var(--pc-color-primary-hover)]",
   secondary:
-    "border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] hover:bg-[var(--pc-color-primary-muted)]",
+    "pc-halo-action pc-halo-action-secondary border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] hover:bg-[var(--pc-color-primary-muted)]",
   tertiary:
     "border-transparent bg-transparent text-[var(--pc-color-primary)] hover:bg-[var(--pc-color-primary-soft)]",
   danger:
-    "border-[var(--pc-color-danger)] bg-[var(--pc-color-danger-soft)] text-[var(--pc-color-danger)] hover:shadow-[var(--pc-shadow-level-1)]",
+    "pc-halo-control pc-halo-danger border-[var(--pc-color-danger)] bg-[var(--pc-color-danger-soft)] text-[var(--pc-color-danger)] hover:shadow-[var(--pc-shadow-level-1)]",
 };
 
 export function buttonClassName({

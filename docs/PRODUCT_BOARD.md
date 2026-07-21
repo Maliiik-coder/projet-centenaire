@@ -95,8 +95,17 @@ Commit de référence :
   - les deux masters sont transparents et recadrés à 18 px du contenu utile ;
   - les icônes installables V4 utilisent le nouveau monogramme et une zone de sécurité dédiée à la variante maskable.
 - Direction artistique : interface mobile claire, calme et humaine, pensée comme un compagnon du quotidien.
-- Structure visuelle : succession de fenêtres mobiles plein format, avec grands espaces, surfaces blanches, progression courte et action principale basse.
+- Structure visuelle : succession de fenêtres mobiles plein format, avec une
+  densité maîtrisée, une progression courte et une action principale évidente.
 - Palette active : fond blanc ou bleu brume très clair, texte noir et actions allant du bleu pastel au bleu profond.
+- Signature d'interface validée : « Halo encré ». Les surfaces principales
+  restent blanches, prennent un contour encre franc, des angles souples
+  légèrement irréguliers et une ombre bleue décalée. Les contrôles reprennent
+  cette construction de manière plus compacte ; les actions principales restent
+  des capsules bleues. La navigation basse validée est explicitement exclue de
+  cette évolution et conserve sa structure et ses animations actuelles.
+- Le mot-symbole Haru est ancré à gauche dans les en-têtes principaux ; sa
+  composition officielle n'est pas modifiée.
 - L'écran de lancement Haru reste toujours blanc, même lorsque le thème sombre
   est mémorisé ; le thème utilisateur reprend après la fin du démarrage.
 - Les modules autonomes utilisent un en-tête commun sans séparateur : flèche

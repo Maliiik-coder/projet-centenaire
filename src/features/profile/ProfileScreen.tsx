@@ -205,7 +205,10 @@ export function ProfileScreen({
         </ProfileSection>
       ) : null}
 
-      <section aria-labelledby="profile-preferences-title">
+      <section
+        aria-labelledby="profile-preferences-title"
+        className="pc-halo-surface px-4 py-4"
+      >
         <SectionHeading
           eyebrow="Préférences"
           icon={<Settings2 aria-hidden="true" size={21} />}
@@ -233,7 +236,10 @@ export function ProfileScreen({
         </div>
       </section>
 
-      <section aria-labelledby="profile-account-title">
+      <section
+        aria-labelledby="profile-account-title"
+        className="pc-halo-surface px-4 py-4"
+      >
         <SectionHeading
           eyebrow="Compte"
           icon={
@@ -341,7 +347,7 @@ function ProfileSection({
   title: string;
 }) {
   return (
-    <section className="border-t border-[var(--pc-color-border)] pt-6">
+    <section className="pc-halo-surface px-4 py-4">
       <div className="flex items-start justify-between gap-3">
         <SectionHeading eyebrow={eyebrow} icon={icon} title={title} />
         {action}

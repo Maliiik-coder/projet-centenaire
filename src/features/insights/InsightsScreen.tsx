@@ -5,7 +5,7 @@ import type { AppData } from "@/lib/types";
 import { WeightTrendChart } from "@/components/WeightTrendChart";
 
 const sectionClass =
-  "rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]";
+  "pc-halo-surface rounded-[22px] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 shadow-[var(--pc-shadow-level-1)]";
 const annotationClass =
   "text-xs font-semibold uppercase tracking-[0.16em] text-[var(--pc-color-text-muted)]";
 

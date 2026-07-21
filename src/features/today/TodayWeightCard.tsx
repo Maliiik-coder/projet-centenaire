@@ -133,7 +133,7 @@ export function TodayWeightCard({
               }`
             : "Ajouter le poids"
         }
-        className="pc-focus-ring pc-motion-safe flex min-h-24 w-full items-center justify-between gap-4 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-left text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] transition-[background-color,border-color,box-shadow,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] hover:border-[var(--pc-color-primary)] hover:shadow-[var(--pc-shadow-level-2)] active:translate-y-px"
+        className="pc-halo-surface pc-halo-surface-interactive pc-focus-ring pc-motion-safe flex min-h-24 w-full items-center justify-between gap-4 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-left text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] transition-[background-color,border-color,box-shadow,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] hover:border-[var(--pc-color-primary)] hover:shadow-[var(--pc-shadow-level-2)] active:translate-y-px"
         type="button"
         onClick={openInteraction}
       >

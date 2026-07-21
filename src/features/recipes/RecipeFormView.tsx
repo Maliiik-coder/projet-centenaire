@@ -515,7 +515,7 @@ function IngredientRecognitionControl({
 
   if (ingredient.ciqualName) {
     return (
-      <div className="flex items-start justify-between gap-3 rounded-[var(--pc-radius-control)] border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 py-2">
+      <div className="pc-halo-control pc-halo-selected flex items-start justify-between gap-3 rounded-[var(--pc-radius-control)] border border-[var(--pc-color-primary-muted)] bg-[var(--pc-color-primary-soft)] px-3 py-2">
         <div className="min-w-0">
           <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
             Aliment reconnu
@@ -555,7 +555,7 @@ function IngredientRecognitionControl({
         <div className="space-y-2" aria-label="Aliments reconnus proposés">
           {suggestions.map((suggestion) => (
             <button
-              className="pc-focus-ring flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-[var(--pc-radius-control)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 py-2 text-left shadow-[var(--pc-shadow-level-1)] transition hover:border-[var(--pc-color-primary-muted)] hover:bg-[var(--pc-color-surface-subtle)]"
+              className="pc-halo-control pc-focus-ring flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-[var(--pc-radius-control)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] px-3 py-2 text-left shadow-[var(--pc-shadow-level-1)] transition hover:border-[var(--pc-color-primary-muted)] hover:bg-[var(--pc-color-surface-subtle)]"
               key={`${suggestion.ciqualCode}-${suggestion.ciqualName}`}
               type="button"
               onClick={() => onSelect(suggestion)}
@@ -618,7 +618,7 @@ function RecipeTextArea({
         aria-describedby={error ? `${id}-error` : help ? `${id}-help` : undefined}
         aria-invalid={error ? true : undefined}
         className={cx(
-          "pc-focus-ring w-full rounded-[var(--pc-radius-control)] border bg-[var(--pc-color-surface)] px-4 py-3 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none transition-[border-color,box-shadow,background-color] placeholder:text-[var(--pc-color-text-subtle)]",
+          "pc-halo-control pc-focus-ring w-full rounded-[var(--pc-radius-control)] border bg-[var(--pc-color-surface)] px-4 py-3 text-[length:var(--pc-font-size-body)] leading-6 text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] outline-none transition-[border-color,box-shadow,background-color] placeholder:text-[var(--pc-color-text-subtle)]",
           error
             ? "border-[var(--pc-color-danger)]"
             : "border-[var(--pc-color-border)] hover:border-[var(--pc-color-text-subtle)]",

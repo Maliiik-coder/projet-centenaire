@@ -32,7 +32,10 @@ export function Surface({
     {
       ...props,
       className: cx(
-        "rounded-[var(--pc-radius-card)] border",
+        "pc-halo-surface rounded-[var(--pc-radius-card)] border",
+        variant === "subtle" && "pc-halo-surface-subtle",
+        variant === "interactive" && "pc-halo-surface-interactive",
+        variant === "selected" && "pc-halo-selected",
         surfaceClasses[variant],
         className,
       ),

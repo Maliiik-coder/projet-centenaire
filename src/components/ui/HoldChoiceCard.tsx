@@ -127,7 +127,7 @@ export function HoldChoiceCard({
       aria-checked={checked}
       aria-describedby={instructionId}
       className={cx(
-        "pc-focus-ring pc-motion-safe relative w-full touch-manipulation select-none overflow-hidden rounded-[var(--pc-radius-card)] border bg-[var(--pc-color-surface)] text-left shadow-[var(--pc-shadow-level-1)] transition-[border-color,box-shadow,transform] active:translate-y-px [-webkit-touch-callout:none]",
+        "pc-halo-surface pc-halo-surface-interactive pc-focus-ring pc-motion-safe relative w-full touch-manipulation select-none overflow-hidden rounded-[var(--pc-radius-card)] border bg-[var(--pc-color-surface)] text-left shadow-[var(--pc-shadow-level-1)] transition-[border-color,box-shadow,transform] active:translate-y-px [-webkit-touch-callout:none]",
         fillVisible
           ? "border-[var(--pc-color-primary)]"
           : "border-[var(--pc-color-border)] hover:border-[var(--pc-color-primary)]",
