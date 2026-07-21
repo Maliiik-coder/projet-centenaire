@@ -30,8 +30,7 @@ import {
   MigrationDecisionScreen,
 } from "@/features/startup/StartupScreens";
 import { useAppEntryFlow } from "@/features/startup/useAppEntryFlow";
-import { useCurrentDate } from "@/features/startup/useCurrentDate";
-import { useAppDataSession } from "@/features/session/useAppDataSession";
+import { useSharedAppDataSession } from "@/features/session/AppDataSessionProvider";
 import {
   buildTodayViewModel,
   formatKg,
@@ -46,7 +45,6 @@ const today = todayISO();
 
 export function ProjetCentenaireApp() {
   const router = useRouter();
-  const currentDate = useCurrentDate();
   const {
     attachLocalDataToAccount,
     cloudEmail,
@@ -67,7 +65,8 @@ export function ProjetCentenaireApp() {
     setError,
     signOut,
     startFromCloudData,
-  } = useAppDataSession(currentDate);
+    currentDate,
+  } = useSharedAppDataSession();
   const {
     addMealToJournal,
     clearMealLongPress,

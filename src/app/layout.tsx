@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Nunito_Sans } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { AppDataSessionProvider } from "@/features/session/AppDataSessionProvider";
 import { HARU_THEME_BOOTSTRAP_SCRIPT } from "@/lib/themePreference";
 import "./globals.css";
 
@@ -55,7 +56,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-background text-foreground">
         <ServiceWorkerRegistration />
-        {children}
+        <AppDataSessionProvider>{children}</AppDataSessionProvider>
       </body>
     </html>
   );
