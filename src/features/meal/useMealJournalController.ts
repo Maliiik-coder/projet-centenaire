@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { deleteMealEntry, updateMealEntry } from "@/lib/mealMutations";
+import { deleteMealEntry } from "@/lib/mealMutations";
 import type { AppData, ISODate, MealEntry } from "@/lib/types";
 import {
   createEmptyMealDraft,
   getMealSubmitError,
   mealDraftFromEntry,
-  mealEntryFromDraft,
 } from "@/features/meal/mealDraftModel";
+import { commitMealDraft } from "@/features/meal/mealJournalModel";
 import type { SaveAppData } from "@/features/session/useAppDataSession";
 import {
   createMealDeleteMutation,
@@ -23,6 +23,10 @@ type MealJournalControllerOptions = {
   setError: (error: string | null) => void;
 };
 
+type MealPanelSession =
+  | { key: number; mode: "create" }
+  | { key: number; mode: "edit"; mealId: string };
+
 export function useMealJournalController({
   cloudUserId,
   currentDate,
@@ -30,15 +34,21 @@ export function useMealJournalController({
   saveData,
   setError,
 }: MealJournalControllerOptions) {
-  const [mealOpen, setMealOpen] = useState(false);
   const [mealDraft, setMealDraft] = useState(() =>
     createEmptyMealDraft(currentDate),
   );
-  const [editingMealId, setEditingMealId] = useState<string | null>(null);
-  const [mealSessionKey, setMealSessionKey] = useState(0);
+  const [mealSession, setMealSession] = useState<MealPanelSession | null>(null);
   const [mealActionMenuId, setMealActionMenuId] = useState<string | null>(null);
-  const editingMealIdRef = useRef<string | null>(null);
+  const dataRef = useRef(data);
+  const mealSessionKeyRef = useRef(0);
   const mealLongPressTimeoutRef = useRef<number | null>(null);
+
+  const editingMealId =
+    mealSession?.mode === "edit" ? mealSession.mealId : null;
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const clearMealLongPress = () => {
     if (mealLongPressTimeoutRef.current === null) {
@@ -82,28 +92,26 @@ export function useMealJournalController({
   };
 
   const openMealPanel = () => {
-    editingMealIdRef.current = null;
-    setEditingMealId(null);
+    mealSessionKeyRef.current += 1;
     setMealActionMenuId(null);
     setMealDraft(createEmptyMealDraft(currentDate));
-    setMealSessionKey((current) => current + 1);
-    setMealOpen(true);
+    setMealSession({ key: mealSessionKeyRef.current, mode: "create" });
   };
 
   const closeMealPanel = () => {
-    editingMealIdRef.current = null;
-    setMealOpen(false);
-    setEditingMealId(null);
+    setMealSession(null);
     setMealDraft(createEmptyMealDraft(currentDate));
   };
 
   const openMealEditor = (meal: MealEntry) => {
-    editingMealIdRef.current = meal.id;
+    mealSessionKeyRef.current += 1;
     setMealActionMenuId(null);
-    setEditingMealId(meal.id);
     setMealDraft(mealDraftFromEntry(meal));
-    setMealSessionKey((current) => current + 1);
-    setMealOpen(true);
+    setMealSession({
+      key: mealSessionKeyRef.current,
+      mealId: meal.id,
+      mode: "edit",
+    });
   };
 
   const deleteMealFromJournal = (meal: MealEntry) => {
@@ -125,7 +133,8 @@ export function useMealJournalController({
   };
 
   const addMealToJournal = () => {
-    if (!data) {
+    const currentData = dataRef.current;
+    if (!currentData || !mealSession) {
       return;
     }
 
@@ -135,22 +144,25 @@ export function useMealJournalController({
       return;
     }
 
-    const activeEditingMealId = editingMealIdRef.current;
-    const editedMeal = activeEditingMealId
-      ? data.meals.find((meal) => meal.id === activeEditingMealId)
-      : null;
-    const entry = mealEntryFromDraft(mealDraft, editedMeal ?? null);
+    const committed = commitMealDraft(
+      currentData.meals,
+      mealDraft,
+      mealSession.mode === "edit" ? mealSession.mealId : null,
+    );
+    const nextData = {
+      ...currentData,
+      meals: committed.meals,
+    };
+
+    dataRef.current = nextData;
 
     saveData(
-      {
-        ...data,
-        meals: editedMeal
-          ? updateMealEntry(data.meals, editedMeal.id, entry)
-          : [...data.meals, entry],
-      },
-      editedMeal ? "Repas mis à jour." : "Repas ajouté au carnet.",
+      nextData,
+      committed.wasUpdate ? "Repas mis à jour." : "Repas ajouté au carnet.",
       [],
-      cloudUserId ? [createMealUpsertMutation(cloudUserId, entry)] : [],
+      cloudUserId
+        ? [createMealUpsertMutation(cloudUserId, committed.entry)]
+        : [],
     );
     closeMealPanel();
   };
@@ -164,8 +176,8 @@ export function useMealJournalController({
     editingMealId,
     mealActionMenuId,
     mealDraft,
-    mealOpen,
-    mealSessionKey,
+    mealOpen: mealSession !== null,
+    mealSessionKey: mealSession?.key ?? 0,
     openMealActionMenu: setMealActionMenuId,
     openMealEditor,
     openMealPanel,

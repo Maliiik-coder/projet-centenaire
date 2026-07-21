@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "projet-centenaire-fieldbook-";
-const CACHE_NAME = `${CACHE_PREFIX}v9`;
+const CACHE_NAME = `${CACHE_PREFIX}v10`;
 const ADMIN_PATH_PREFIX = "/admin";
 const PUBLIC_NAVIGATION_PATHS = ["/", "/offline"];
 const PRECACHED_ASSET_PATHS = [
