@@ -230,12 +230,6 @@ export function RecipeFormView({
 
   return (
     <form className="space-y-5" onSubmit={submit}>
-      <div className="flex items-center justify-end">
-        <Button type="submit">
-          {existingRecipe ? "Enregistrer" : "Créer"}
-        </Button>
-      </div>
-
       <header className="space-y-2">
         <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
           {existingRecipe ? "Recette personnelle" : "Nouvelle recette"}
@@ -245,7 +239,7 @@ export function RecipeFormView({
         </h1>
       </header>
 
-      <Surface className="space-y-4 p-4" variant="default">
+      <Surface className="space-y-3 p-3.5" variant="default">
         <FormField error={errors.title} id="recipe-title" label="Nom" required>
           <TextInput
             placeholder="Ex. soupe de légumes"
@@ -396,7 +390,7 @@ function IngredientDraftSection({
 }) {
   return (
     <section className="space-y-3" aria-labelledby="recipe-ingredients-title">
-      <div className="flex items-start justify-between gap-3">
+      <div>
         <div>
           <h2
             className="text-[length:var(--pc-font-size-section-title)] leading-7 font-semibold text-[var(--pc-color-text)]"
@@ -408,13 +402,6 @@ function IngredientDraftSection({
             La nutrition utilise seulement les aliments reconnus avec une quantité en g ou kg.
           </p>
         </div>
-        <IconButton
-          className="rounded-full"
-          label="Ajouter un ingrédient"
-          onClick={onAdd}
-        >
-          <Plus aria-hidden="true" size={24} />
-        </IconButton>
       </div>
 
       {error ? (
@@ -425,7 +412,7 @@ function IngredientDraftSection({
 
       <div className="space-y-3">
         {ingredients.map((ingredient, index) => (
-          <Surface className="space-y-3 p-4" key={ingredient.id} variant="default">
+          <Surface className="space-y-2.5 p-3" key={ingredient.id} variant="default">
             <div className="flex items-start justify-between gap-3">
               <p className="text-[length:var(--pc-font-size-secondary)] leading-5 font-semibold text-[var(--pc-color-text)]">
                 Ingrédient {index + 1}
@@ -485,6 +472,10 @@ function IngredientDraftSection({
           </Surface>
         ))}
       </div>
+      <Button className="mt-1" fullWidth variant="secondary" onClick={onAdd}>
+        <Plus aria-hidden="true" size={18} />
+        Ajouter un ingrédient
+      </Button>
     </section>
   );
 }

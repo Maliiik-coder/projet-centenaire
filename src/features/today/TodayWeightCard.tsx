@@ -133,7 +133,7 @@ export function TodayWeightCard({
               }`
             : "Ajouter le poids"
         }
-        className="pc-halo-surface pc-halo-surface-interactive pc-focus-ring pc-motion-safe flex min-h-24 w-full items-center justify-between gap-4 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-left text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] transition-[background-color,border-color,box-shadow,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] hover:border-[var(--pc-color-primary)] hover:shadow-[var(--pc-shadow-level-2)] active:translate-y-px"
+        className="pc-weight-card pc-halo-surface pc-halo-surface-interactive pc-focus-ring pc-motion-safe flex min-h-24 w-full items-center justify-between gap-4 rounded-[var(--pc-radius-card)] border border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] p-4 text-left text-[var(--pc-color-text)] shadow-[var(--pc-shadow-level-1)] transition-[background-color,border-color,box-shadow,transform] duration-[var(--pc-motion-fast)] ease-[var(--pc-ease-standard)] hover:border-[var(--pc-color-primary)] hover:shadow-[var(--pc-shadow-level-2)] active:translate-y-px"
         type="button"
         onClick={openInteraction}
       >
@@ -148,7 +148,7 @@ export function TodayWeightCard({
             {weightDateLabel}
           </span>
         </span>
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
+        <span className="pc-weight-card-icon flex size-10 shrink-0 items-center justify-center rounded-[var(--pc-radius-control)] bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
           <Scale aria-hidden="true" size={20} strokeWidth={2.25} />
         </span>
       </button>

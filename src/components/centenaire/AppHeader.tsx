@@ -20,9 +20,9 @@ export function AppHeader({
       )}
     >
       {variant === "signature" ? (
-        <LogoFull className="h-auto w-96 max-w-[92vw] shrink-0" priority />
+        <LogoFull className="pc-brand-signature h-auto w-96 max-w-[92vw] shrink-0" priority />
       ) : (
-        <LogoHorizontal className="h-20 w-auto max-w-[78vw] shrink-0" priority />
+        <LogoHorizontal className="pc-brand-wordmark h-20 w-auto max-w-[78vw] shrink-0" priority />
       )}
     </header>
   );

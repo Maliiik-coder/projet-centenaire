@@ -39,7 +39,7 @@ export function LogoFull({ className, priority = false }: LogoProps) {
       }`}
     >
       <LogoHorizontal className="h-auto w-full" priority={priority} />
-      <span className="mt-1.5 text-center text-sm font-semibold text-[var(--pc-color-text-muted)]">
+      <span className="pc-brand-tagline mt-1.5 text-center text-sm font-semibold text-[var(--pc-color-text-muted)]">
         Un jour à la fois.
       </span>
     </span>

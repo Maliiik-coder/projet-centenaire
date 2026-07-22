@@ -269,7 +269,7 @@ function RecipesCatalogView({
 }) {
   return (
     <>
-      <header className="space-y-2">
+      <header className="pc-recipe-heading space-y-2">
         <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
           Catalogue
         </p>
@@ -313,7 +313,7 @@ function RecipesCatalogView({
             <button
               aria-pressed={filter === item}
               className={cx(
-                "pc-focus-ring min-h-11 shrink-0 cursor-pointer rounded-full border px-4 text-[length:var(--pc-font-size-secondary)] font-semibold transition",
+                "pc-recipe-filter pc-focus-ring min-h-11 shrink-0 cursor-pointer rounded-full border px-4 text-[length:var(--pc-font-size-secondary)] font-semibold transition",
                 filter === item
                   ? "border-[var(--pc-color-primary)] bg-[var(--pc-color-primary)] text-[var(--pc-color-on-primary)]"
                   : "border-[var(--pc-color-border)] bg-[var(--pc-color-surface)] text-[var(--pc-color-text)]",

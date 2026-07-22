@@ -1,12 +1,19 @@
 # Haru : contrat de refonte visuelle
 
-Statut : palette recentrée sur un fond blanc et une gamme de bleus pastel après revue humaine. La Phase 3 est implémentée et validée localement. Le kit de marque Haru remplace désormais l’identité visuelle historique de Projet Centenaire.
+Statut au 22 juillet 2026 : prototype local « Cobalt Pop » appliqué à l'ensemble
+de l'application, sans commit ni push. La version précédente reste restaurable
+depuis `codex/backup-before-cobalt-pop-20260722` ou l'archive
+`/Users/olaf/Documents/Haru-before-cobalt-pop-2026-07-22.zip`.
 
 ## 1. Décision de direction artistique
 
-**Un compagnon du quotidien clair, calme, humain et immédiatement compréhensible.**
+**Un compagnon du quotidien clair, humain, immédiatement compréhensible et visuellement identifiable.**
 
-Haru doit devenir une application mobile de suivi personnel sobre et rassurante. L'interface doit aider à noter une information en quelques secondes, relire une journée sans effort et comprendre un constat sans vocabulaire technique.
+Haru doit rester une application mobile de suivi personnel rassurante. Le
+prototype Cobalt Pop conserve les parcours rapides, mais assume une identité de
+bande dessinée éditoriale contemporaine : encre noire, aplats francs, ombres
+décalées, trames discrètes et titres expressifs. L'intention est singulière et
+adulte, jamais infantile ni décorative au détriment de l'usage.
 
 Décision de marque postérieure au contrat initial de Phase 3 : le dessin officiel n’est pas redessiné dans le code. Les PNG livrés ont uniquement été débarrassés de leur damier incrusté et recadrés, puis affectés à leurs contextes : mot-symbole dans les en-têtes, signature au démarrage et sur l’accueil de l’onboarding, monogramme pour l’icône installée.
 
@@ -19,8 +26,8 @@ Principes directeurs :
 - une donnée visible est actionnable lorsque le produit le permet ;
 - priorité au texte courant, aux états et aux contrôles familiers ;
 - contraste accessible, focus visible et zones tactiles généreuses ;
-- peu d'ornement, peu d'ombres, aucune décoration gratuite ;
-- sérénité sans mollesse : l'interface reste précise, rapide et opérationnelle.
+- les effets imprimés restent rares autour des données importantes ;
+- énergie visuelle sans agitation : l'interface reste précise, rapide et opérationnelle.
 
 ## 2. Ce que les références nous apprennent
 
@@ -330,23 +337,35 @@ sur le CTA principal atteint `4,92:1` et respecte WCAG AA pour le texte courant.
 
 Le bleu sert aux CTA, au focus, à l'onglet actif, aux sélections et aux accents ponctuels. Les couleurs de succès, d'avertissement et de danger restent sémantiques et indépendantes.
 
-### Signature « Halo encré »
+### Signature historique « Halo encré »
 
-La revue humaine du 21 juillet 2026 retient la première proposition « Halo
-encré », sans glitch décoratif. Une surface principale combine un fond blanc,
-un contour encre de 2 à 3 px, des angles souples légèrement asymétriques et une
-ombre bleu pastel franche, décalée plutôt que floutée. Les champs reprennent ce
-langage à une échelle plus compacte et les CTA principaux restent des capsules
-bleues à texte blanc.
+La revue humaine du 21 juillet 2026 avait retenu la première proposition « Halo
+encré », sans glitch décoratif. Cette signature constitue désormais le point de
+retour sauvegardé avant le prototype Cobalt Pop.
 
-Le contour n'est pas appliqué aux sous-informations purement typographiques afin
-d'éviter les cartes imbriquées. Le mot-symbole reste intact et se place à gauche
-des en-têtes principaux. La navigation basse existante est hors périmètre : sa
-forme, ses icônes, son mouvement actif et son comportement ne changent pas.
+### Prototype local « Cobalt Pop »
+
+Le 22 juillet 2026, l'application complète adopte localement une direction plus
+radicale issue de la palette Cobalt Pop. Les surfaces blanches ou ivoire portent
+un contour noir de 3 px et une ombre franche. Les silhouettes sont volontairement
+irrégulières, les boutons prennent la forme de tickets imprimés, et une trame
+fine structure le fond sans gêner la lecture. Les titres courts utilisent
+Bangers ; Nunito Sans reste la police de lecture.
+
+La palette claire est composée d'ivoire `#FFF8E9`, d'encre `#111111`, de cobalt
+`#1647B8`, de corail `#F25448`, de jaune `#F7C948` et de bleu ciel `#A9D8F5`.
+Le thème sombre utilise un fond bleu-noir chaud, des surfaces distinctes et des
+accents éclaircis. L'écran de lancement reste blanc dans tous les cas.
+
+Le comportement, les données et l'architecture des cinq destinations ne changent
+pas. Le prototype doit être testé sur téléphone avant toute validation, commit
+ou mise en production.
 
 ## 10. Typographie
 
-Police d'interface retenue pour essai : **Nunito Sans variable**, auto-hébergée par `next/font`. Elle apporte des courbes plus rondes sans utiliser de typographie manuscrite ni modifier le logo.
+Polices d'interface du prototype : **Nunito Sans variable** pour la lecture et
+**Bangers** pour les titres, repères et actions courtes. Elles sont chargées par
+`next/font`. Le logo officiel reste un asset indépendant.
 
 Pile de repli :
 

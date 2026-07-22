@@ -166,7 +166,7 @@ export function LoginForm() {
             ) : null}
           </div>
 
-          <Surface as="section" className="p-4 sm:p-5" variant="default">
+          <Surface as="section" className="pc-login-email p-4 sm:p-5" variant="default">
             <form className="space-y-3" onSubmit={sendMagicLink}>
               <div className="space-y-1">
                 <h2 className="font-semibold text-[var(--pc-color-text)]">

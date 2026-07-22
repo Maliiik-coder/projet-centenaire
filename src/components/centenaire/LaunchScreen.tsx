@@ -24,7 +24,7 @@ export function LaunchScreen({
       <div className="pc-screen-inner mx-auto flex flex-col">
         <section className="flex flex-1 flex-col items-center justify-center text-center">
           <h1 className="sr-only">Haru</h1>
-          <LogoHorizontal className="h-auto w-96 max-w-[92vw]" priority />
+          <LogoHorizontal className="pc-brand-wordmark h-auto w-96 max-w-[92vw]" priority />
           <div className="relative mt-6 flex h-8 w-full items-center justify-center">
             <div
               aria-label="Ouverture de Haru"

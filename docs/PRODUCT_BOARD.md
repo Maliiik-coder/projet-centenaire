@@ -94,23 +94,33 @@ Commit de référence :
   - la signature « Un jour à la fois. » est composée dans l’interface sous le mot-symbole ;
   - les deux masters sont transparents et recadrés à 18 px du contenu utile ;
   - les icônes installables V4 utilisent le nouveau monogramme et une zone de sécurité dédiée à la variante maskable.
-- Direction artistique : interface mobile claire, calme et humaine, pensée comme un compagnon du quotidien.
+- Direction artistique en essai local au 22 juillet 2026 : « Cobalt Pop », une
+  interprétation de bande dessinée éditoriale contemporaine. Elle conserve la
+  simplicité mobile du produit, mais remplace la neutralité générique par des
+  contours noirs francs, des ombres décalées, des silhouettes légèrement
+  irrégulières, une trame discrète et une typographie d'affichage expressive.
 - Structure visuelle : succession de fenêtres mobiles plein format, avec une
   densité maîtrisée, une progression courte et une action principale évidente.
-- Palette active : fond blanc ou bleu brume très clair, texte noir et actions allant du bleu pastel au bleu profond.
-- Signature d'interface validée : « Halo encré ». Les surfaces principales
-  restent blanches, prennent un contour encre franc, des angles souples
-  légèrement irréguliers et une ombre bleue décalée. Les contrôles reprennent
-  cette construction de manière plus compacte ; les actions principales restent
-  des capsules bleues. La navigation basse validée est explicitement exclue de
-  cette évolution et conserve sa structure et ses animations actuelles.
+- Palette Cobalt Pop en essai : ivoire chaud `#FFF8E9`, encre `#111111`, cobalt
+  `#1647B8`, corail `#F25448`, jaune `#F7C948` et bleu ciel `#A9D8F5`.
+- Les couleurs vives restent hiérarchisées : cobalt pour l'action et la marque,
+  corail et jaune pour les accents ponctuels, bleu ciel pour les ombres et les
+  repères. Les couleurs de succès, d'avertissement et de danger restent
+  sémantiques.
+- La navigation basse conserve ses cinq destinations et son comportement. Son
+  état actif adopte la grammaire Cobalt Pop sans changer l'architecture de
+  navigation.
+- Cette passe est volontairement locale, sans commit ni push. Retour garanti par
+  la branche `codex/backup-before-cobalt-pop-20260722` ou l'archive
+  `/Users/olaf/Documents/Haru-before-cobalt-pop-2026-07-22.zip`.
 - Le mot-symbole Haru est ancré à gauche dans les en-têtes principaux ; sa
   composition officielle n'est pas modifiée.
 - L'écran de lancement Haru reste toujours blanc, même lorsque le thème sombre
   est mémorisé ; le thème utilisateur reprend après la fin du démarrage.
 - Les modules autonomes utilisent un en-tête commun sans séparateur : flèche
   ronde à gauche et mot-symbole Haru centré.
-- Typographie d'interface : Nunito Sans variable, choisie pour une présence plus ronde, mobile et chaleureuse ; le futur mot-symbole reste indépendant.
+- Typographie d'interface : Nunito Sans pour la lecture, Bangers pour les titres
+  courts, actions et repères éditoriaux. Le mot-symbole reste indépendant.
 - Un module Sport est désormais approuvé. Il reste privé, progressif, sans calories brûlées, sans compétition et sans logique de compensation alimentaire.
 - Un module Recettes est désormais approuvé. Ce n'est pas un module
   communautaire : le MVP se limite à un catalogue éditorial, aux recettes

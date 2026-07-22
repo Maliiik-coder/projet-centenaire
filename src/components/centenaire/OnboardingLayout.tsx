@@ -23,12 +23,12 @@ export function OnboardingLayout({
   totalSteps = 1,
 }: OnboardingLayoutProps) {
   return (
-    <main className="pc-screen pc-motion-safe bg-[var(--pc-color-surface-subtle)]">
+    <main className="pc-onboarding-screen pc-screen pc-motion-safe bg-[var(--pc-color-surface-subtle)]">
       <div className="pc-screen-inner mx-auto flex flex-col">
         {backAction || showProgress ? (
           <header className="pt-1">
             <div className="flex min-h-10 items-center justify-center">
-              <LogoHorizontal className="h-18 w-auto max-w-[72vw] shrink-0" priority />
+              <LogoHorizontal className="pc-brand-wordmark h-18 w-auto max-w-[72vw] shrink-0" priority />
             </div>
             <div className="grid min-h-14 grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-center gap-4">
               <div>{backAction}</div>
@@ -54,7 +54,7 @@ export function OnboardingLayout({
           {error ? <div className="mt-5">{error}</div> : null}
         </div>
         {actions ? (
-          <footer className="sticky bottom-0 z-[var(--pc-z-sticky)] -mx-1 mt-auto rounded-t-[var(--pc-radius-panel)] bg-[var(--pc-color-surface)] px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(36,56,74,0.06)]">
+          <footer className="pc-onboarding-actions sticky bottom-0 z-[var(--pc-z-sticky)] -mx-1 mt-auto px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3">
             {actions}
           </footer>
         ) : null}
@@ -75,10 +75,13 @@ export function OnboardingQuestion({
   title,
 }: OnboardingQuestionProps) {
   return (
-    <section aria-labelledby="onboarding-question" className="space-y-7">
+    <section
+      aria-labelledby="onboarding-question"
+      className="pc-onboarding-question space-y-7"
+    >
       <div className="space-y-3">
         <h1
-          className="max-w-[20ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]"
+          className="pc-onboarding-title max-w-[20ch] text-[length:var(--pc-font-size-page-title)] leading-[var(--pc-line-height-tight)] font-bold text-[var(--pc-color-text)]"
           id="onboarding-question"
         >
           {title}
