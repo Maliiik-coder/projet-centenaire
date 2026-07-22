@@ -137,7 +137,7 @@ function JournalSegmentedControl({
   return (
     <div
       aria-label="Vue du carnet"
-      className="pc-journal-tabs grid grid-cols-2 gap-1 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-primary-soft)] p-1 shadow-[var(--pc-shadow-level-1)]"
+      className="grid grid-cols-2 gap-1 rounded-full border border-[var(--pc-color-border)] bg-[var(--pc-color-primary-soft)] p-1 shadow-[var(--pc-shadow-level-1)]"
       role="tablist"
     >
       {options.map((option) => (

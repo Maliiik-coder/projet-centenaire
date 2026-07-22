@@ -91,7 +91,7 @@ export function TodayScreen({
         </h1>
         <div className="flex flex-wrap items-center gap-2 text-[length:var(--pc-font-size-meta)] leading-4 text-[var(--pc-color-text-muted)]">
           {isInitialObservationWeek ? (
-            <span className="pc-comic-stamp px-2.5 py-1 font-semibold">
+            <span className="rounded-[var(--pc-radius-full)] bg-[var(--pc-color-primary-soft)] px-2.5 py-1 font-semibold text-[var(--pc-color-primary)]">
               Jour {dayNumber} sur {INITIAL_OBSERVATION_DAYS}
             </span>
           ) : null}
@@ -100,7 +100,7 @@ export function TodayScreen({
       </header>
 
       {showRepere || isInitialObservationWeek ? (
-        <Surface as="section" className="pc-comic-note px-4 py-3" variant="subtle">
+        <Surface as="section" className="px-4 py-3" variant="subtle">
           <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">
             {repereTitle}
           </p>

@@ -20,7 +20,7 @@ export function RecipeCard({
   onOpen: () => void;
 }) {
   return (
-    <Surface as="article" className="pc-recipe-card p-4" variant="default">
+    <Surface as="article" className="p-4" variant="default">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[length:var(--pc-font-size-meta)] leading-4 font-semibold text-[var(--pc-color-primary)]">

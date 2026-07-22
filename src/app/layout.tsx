@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bangers, Nunito_Sans } from "next/font/google";
+import { Nunito_Sans } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { AppDataSessionProvider } from "@/features/session/AppDataSessionProvider";
 import { HARU_THEME_BOOTSTRAP_SCRIPT } from "@/lib/themePreference";
@@ -10,13 +10,6 @@ const nunitoSans = Nunito_Sans({
   subsets: ["latin"],
   variable: "--font-nunito-sans",
   weight: "variable",
-});
-
-const bangers = Bangers({
-  display: "swap",
-  subsets: ["latin"],
-  variable: "--font-bangers",
-  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -38,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FFF8E9",
+  themeColor: "#FFFFFF",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -52,7 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${nunitoSans.variable} ${bangers.variable} h-full antialiased`}
+      className={`${nunitoSans.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

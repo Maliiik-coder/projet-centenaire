@@ -41,7 +41,7 @@ export function HaruModuleHeader({
 
       <LogoHorizontal
         className={cx(
-          "pc-brand-wordmark h-20 w-auto shrink-0",
+          "h-20 w-auto shrink-0",
           showBack ? "max-w-[58vw]" : "max-w-[78vw]",
         )}
         priority

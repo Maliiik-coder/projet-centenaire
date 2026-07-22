@@ -91,7 +91,7 @@ export function ProfileScreen({
             Tes repères personnels, tes préférences et les accès utiles.
           </p>
         </div>
-        <dl className="pc-profile-stats grid grid-cols-3 gap-2 border-y border-[var(--pc-color-border)] py-3">
+        <dl className="grid grid-cols-3 gap-2 border-y border-[var(--pc-color-border)] py-3">
           <ProfileStat label="Actuel" value={currentWeightText} />
           <ProfileStat label="Départ" value={formatKg(profile.startWeightKg)} />
           <ProfileStat label="Objectif" value={formatKg(profile.goalWeightKg)} />
@@ -207,7 +207,7 @@ export function ProfileScreen({
 
       <section
         aria-labelledby="profile-preferences-title"
-        className="pc-profile-section pc-halo-surface px-4 py-4"
+        className="pc-halo-surface px-4 py-4"
       >
         <SectionHeading
           eyebrow="Préférences"
@@ -238,7 +238,7 @@ export function ProfileScreen({
 
       <section
         aria-labelledby="profile-account-title"
-        className="pc-profile-section pc-halo-surface px-4 py-4"
+        className="pc-halo-surface px-4 py-4"
       >
         <SectionHeading
           eyebrow="Compte"
@@ -347,7 +347,7 @@ function ProfileSection({
   title: string;
 }) {
   return (
-    <section className="pc-profile-section pc-halo-surface px-4 py-4">
+    <section className="pc-halo-surface px-4 py-4">
       <div className="flex items-start justify-between gap-3">
         <SectionHeading eyebrow={eyebrow} icon={icon} title={title} />
         {action}
@@ -370,7 +370,7 @@ function SectionHeading({
 }) {
   return (
     <div className="flex min-w-0 gap-3">
-      <span className="pc-profile-icon flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--pc-color-primary-soft)] text-[var(--pc-color-primary)]">
         {icon}
       </span>
       <div className="min-w-0">
