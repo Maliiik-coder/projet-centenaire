@@ -729,8 +729,10 @@ input[type="number"]::-webkit-outer-spin-button {
   pointer-events: none;
 }
 
-.pc-screen:not(.pc-launch-screen) > *,
-.pc-module-route-shell > * {
+.pc-screen:not(.pc-launch-screen)
+  > :not(.pc-bottom-nav, .app-toast-stack, .app-fixed-panel),
+.pc-module-route-shell
+  > :not(.pc-bottom-nav, .app-toast-stack, .app-fixed-panel) {
   position: relative;
 }
 
@@ -1133,6 +1135,9 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .pc-bottom-nav {
+  position: fixed !important;
+  inset-inline: 0;
+  bottom: 0;
   overflow: visible;
   border-top: 3px solid var(--pc-color-ink) !important;
   background: color-mix(in srgb, var(--pc-color-paper) 97%, transparent) !important;
